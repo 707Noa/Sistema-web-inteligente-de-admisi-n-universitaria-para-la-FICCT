@@ -1,0 +1,15 @@
+/.idea
+/vendor
+/node_modules
+/storage/*.key
+/storage/*.log
+/storage/*.cache
+/.env
+/.env.local
+/.env.*.local
+/.phpunit.result.cache
+npm-debug.log
+yarn-error.log
+dist
+public/storage
+coverage
