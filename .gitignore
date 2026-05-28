@@ -16,3 +16,7 @@ coverage
 backend/public/storage
 backend/storage/logs/*
 backend/bootstrap/cache/*.php
+frontend/.vite/
+frontend/node_modules/
+backend/vendor/
+backend/public/storage
