@@ -13,3 +13,6 @@ yarn-error.log
 dist
 public/storage
 coverage
+backend/public/storage
+backend/storage/logs/*
+backend/bootstrap/cache/*.php

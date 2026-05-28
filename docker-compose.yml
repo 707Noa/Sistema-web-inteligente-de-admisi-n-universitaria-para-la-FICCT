@@ -1,53 +1,81 @@
-version: '3.8'
 services:
   postgres:
     image: postgres:15
-    env_file:
-      - .env
     environment:
-      - POSTGRES_USER=${DB_USERNAME}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_DATABASE}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: cupficct
     volumes:
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   pgadmin:
     image: dpage/pgadmin4
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_DEFAULT_EMAIL: admin@local.com
+      PGADMIN_DEFAULT_PASSWORD: admin
     ports:
       - "5050:80"
     volumes:
       - pgadmindata:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    env_file:
-      - backend/.env.example
+    working_dir: /var/www/html
     volumes:
       - ./backend:/var/www/html
+      - backend_vendor:/var/www/html/vendor
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "8000:8000"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_DATABASE=cupficct
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+    command: >
+      sh -c "composer install &&
+             php artisan key:generate --force &&
+             php artisan migrate --force &&
+             php artisan db:seed --force &&
+             (php artisan storage:link || true) &&
+             php artisan serve --host=0.0.0.0 --port=8000"
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    working_dir: /app
     volumes:
       - ./frontend:/app
+      - frontend_modules:/app/node_modules
     ports:
       - "5173:5173"
     depends_on:
       - backend
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    command: >
+      sh -c "npm install &&
+             npm run dev -- --host 0.0.0.0"
 
 volumes:
   pgdata:
   pgadmindata:
+  backend_vendor:
+  frontend_modules:
