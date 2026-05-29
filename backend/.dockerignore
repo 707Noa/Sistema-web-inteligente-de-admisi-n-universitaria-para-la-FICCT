@@ -1,0 +1,8 @@
+vendor
+.env
+.env.example
+public/storage
+bootstrap/cache/*
+storage/app/*
+storage/framework/*
+storage/logs/*
