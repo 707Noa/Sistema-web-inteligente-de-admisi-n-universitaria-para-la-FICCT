@@ -10,6 +10,7 @@ import Dashboard from '@/packages/p4-reportes-monitoreo-auditoria/dashboard/page
 import Usuarios from '@/packages/p1-seguridad-administracion/usuarios/pages/Usuarios'
 import Postulantes from '@/packages/p2-participantes-grupos/postulantes/pages/Postulantes'
 import PostulantePerfil from '@/packages/p2-participantes-grupos/postulantes/pages/PostulantePerfil'
+import PreinscripcionesList from '@/packages/p2-participantes-grupos/postulantes/pages/PreinscripcionesList'
 import Docentes from '@/packages/p2-participantes-grupos/docentes/pages/Docentes'
 import Materias from '@/packages/p2-participantes-grupos/materias/pages/Materias'
 import Grupos from '@/packages/p2-participantes-grupos/grupos/pages/Grupos'
@@ -100,6 +101,7 @@ export default function AppRouter() {
       <Route path="/admin/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
       <Route path="/admin/usuarios" element={<PrivateRoute><Usuarios /></PrivateRoute>} />
       <Route path="/admin/postulantes" element={<PrivateRoute><Postulantes /></PrivateRoute>} />
+      <Route path="/admin/preinscripciones" element={<PrivateRoute><PreinscripcionesList /></PrivateRoute>} />
       <Route path="/admin/postulantes/:id" element={<PrivateRoute><PostulantePerfil /></PrivateRoute>} />
       <Route path="/admin/docentes" element={<PrivateRoute><Docentes /></PrivateRoute>} />
       <Route path="/admin/materias" element={<PrivateRoute><Materias /></PrivateRoute>} />

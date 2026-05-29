@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { crearPreinscripcion, getCarrerasDisponibles } from '@/packages/p4-reportes-monitoreo-auditoria/reportes/services/reporteService'
+import { getCarrerasDisponibles } from '@/packages/p4-reportes-monitoreo-auditoria/reportes/services/reporteService'
+import { registrarPreinscripcion } from '@/packages/p2-participantes-grupos/postulantes/services/preinscripcionService'
 import { FiUser, FiBookOpen, FiCheckSquare, FiSend, FiArrowLeft } from 'react-icons/fi'
 
 export default function PreinscripcionForm() {
@@ -9,6 +10,8 @@ export default function PreinscripcionForm() {
   const [selectedCarreras, setSelectedCarreras] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [registroCompletado, setRegistroCompletado] = useState(false)
   const [form, setForm] = useState({
     nombres: '', apellidos: '', ci: '', genero: '', fecha_nacimiento: '',
     celular: '', segundo_celular: '', email: '', direccion: '',
@@ -32,6 +35,7 @@ export default function PreinscripcionForm() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setSuccess('')
 
     if (!form.nombres || !form.apellidos || !form.ci || !form.email) {
       setError('Completa todos los campos obligatorios.'); return
@@ -41,10 +45,47 @@ export default function PreinscripcionForm() {
 
     setLoading(true)
     try {
-      const res = await crearPreinscripcion({ ...form, carreras: selectedCarreras })
-      navigate(`/preinscripcion/comprobante/${res.data.id}`)
+      const selectedCarreraObj = carreras.find(c => selectedCarreras.includes(c.id));
+      const payload = {
+        nombres: form.nombres,
+        apellidos: form.apellidos,
+        ci: form.ci,
+        sexo: form.genero,
+        fecha_nacimiento: form.fecha_nacimiento,
+        telefono: form.celular,
+        segundo_telefono: form.segundo_celular,
+        correo_electronico: form.email,
+        direccion: form.direccion,
+        colegio_procedencia: form.unidad_educativa,
+        ciudad: form.provincia,
+        carrera: selectedCarreraObj ? selectedCarreraObj.nombre : '',
+        titulo_bachiller: true,
+        otros: `Tipo: ${form.tipo_colegio || ''}, Turno: ${form.turno || ''}, Egreso: ${form.anio_egreso || ''}`,
+      };
+
+      await registrarPreinscripcion(payload)
+      setSuccess('Registro exitoso. Su cuenta será enviada a su correo electrónico.')
+      setRegistroCompletado(true)
+      
+      // Limpiar formulario solo después de registro exitoso
+      setForm({
+        nombres: '', apellidos: '', ci: '', genero: '', fecha_nacimiento: '',
+        celular: '', segundo_celular: '', email: '', direccion: '',
+        unidad_educativa: '', tipo_colegio: '', turno: '', provincia: '', anio_egreso: '',
+        declaracion_jurada: false,
+      })
+      setSelectedCarreras([])
+
+      setTimeout(() => {
+        navigate('/')
+      }, 2500)
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al enviar preinscripción.')
+      setRegistroCompletado(false)
+      if (err.response?.data?.errors?.ci) {
+        setError('El CI ya fue registrado.')
+      } else {
+        setError(err.response?.data?.message || 'Error al enviar preinscripción.')
+      }
     } finally {
       setLoading(false)
     }
@@ -62,8 +103,17 @@ export default function PreinscripcionForm() {
         <p>Cursos Preuniversitarios — Gestión 2026</p>
       </div>
 
-      <form className="preinscripcion-form" onSubmit={handleSubmit}>
+      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         {error && <div className="login-alert" style={{ marginBottom: 16 }}>{error}</div>}
+        {success && (
+          <div className="login-alert success" style={{ marginBottom: 16, backgroundColor: '#d1e7dd', color: '#0f5132', borderColor: '#badbcc', padding: '20px', borderRadius: 'var(--radius)', border: '1px solid', textAlign: 'center', fontSize: '1.2rem', fontWeight: 'bold' }}>
+            {success}
+          </div>
+        )}
+      </div>
+
+      {!registroCompletado && (
+        <form className="preinscripcion-form" onSubmit={handleSubmit}>
 
         <div className="preinscripcion-section">
           <div className="preinscripcion-section-title"><FiUser /> 1. Datos Personales</div>
@@ -127,6 +177,7 @@ export default function PreinscripcionForm() {
           {loading ? 'Enviando...' : <><FiSend /> Enviar preinscripción</>}
         </button>
       </form>
+      )}
     </div>
   )
 }

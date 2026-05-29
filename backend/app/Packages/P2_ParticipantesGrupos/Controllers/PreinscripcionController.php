@@ -3,66 +3,78 @@
 namespace App\Packages\P2_ParticipantesGrupos\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Preinscripcion;
+use App\Models\Postulante;
 use App\Models\Carrera;
-use App\Packages\P4_ReportesMonitoreoAuditoria\Services\AuditoriaService;
+use App\Packages\P2_ParticipantesGrupos\Requests\PreinscripcionRequest;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class PreinscripcionController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    /**
+     * Registrar una nueva preinscripción.
+     */
+    public function store(PreinscripcionRequest $request): JsonResponse
     {
-        $query = Preinscripcion::with('carreras');
+        $validated = $request->validated();
 
-        if ($request->has('search')) {
-            $s = $request->search;
-            $query->where(function ($q) use ($s) {
-                $q->where('nombres', 'ilike', "%{$s}%")
-                  ->orWhere('apellidos', 'ilike', "%{$s}%")
-                  ->orWhere('ci', 'ilike', "%{$s}%")
-                  ->orWhere('numero_formulario', 'ilike', "%{$s}%");
-            });
+        // Mapear género/sexo de manera segura
+        $sexo = $validated['sexo'] ?? $validated['genero'] ?? null;
+        $generoEnum = null;
+        if ($sexo) {
+            $lowerSexo = strtolower($sexo);
+            if (in_array($lowerSexo, ['masculino', 'femenino', 'otro'])) {
+                $generoEnum = $lowerSexo;
+            }
         }
 
-        return response()->json($query->orderBy('created_at', 'desc')->paginate(15));
-    }
-
-    public function store(Request $request): JsonResponse
-    {
-        $request->validate([
-            'nombres' => 'required|string|max:191',
-            'apellidos' => 'required|string|max:191',
-            'ci' => 'required|string|unique:preinscripciones,ci',
-            'email' => 'required|email',
-            'declaracion_jurada' => 'required|accepted',
-            'carreras' => 'required|array|min:1',
-            'carreras.*' => 'exists:carreras,id',
+        // Crear registro en la tabla postulantes
+        $postulante = Postulante::create([
+            'nombres' => $validated['nombres'],
+            'apellidos' => $validated['apellidos'],
+            'ci' => $validated['ci'],
+            'genero' => $generoEnum,
+            'sexo' => $sexo,
+            'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
+            'celular' => $validated['telefono'] ?? null,
+            'segundo_celular' => $validated['segundo_telefono'] ?? null,
+            'segundo_telefono' => $validated['segundo_telefono'] ?? null,
+            'email' => $validated['correo_electronico'],
+            'direccion' => $validated['direccion'] ?? null,
+            'colegio_procedencia' => $validated['colegio_procedencia'] ?? null,
+            'ciudad' => $validated['ciudad'] ?? null,
+            'carrera' => $validated['carrera'] ?? null,
+            'carrera_postulada' => $validated['carrera'] ?? null,
+            'titulo_bachiller' => $validated['titulo_bachiller'] ?? false,
+            'otros' => $validated['otros'] ?? null,
+            'estado_tramite' => 'PREINSCRITO',
+            'estado' => 'pendiente',
         ]);
 
-        $data = $request->except('carreras');
-        $data['numero_formulario'] = Preinscripcion::generarNumeroFormulario();
-        $data['codigo_qr'] = 'PREINSC-' . uniqid();
-
-        $preinscripcion = Preinscripcion::create($data);
-
-        // Adjuntar carreras
-        foreach ($request->carreras as $index => $carreraId) {
-            $preinscripcion->carreras()->attach($carreraId, ['opcion' => 'Opción ' . ($index + 1)]);
-        }
-
-        return response()->json($preinscripcion->load('carreras'), 201);
+        return response()->json([
+            'message' => 'Registro exitoso. Su cuenta será enviada a su correo electrónico.',
+            'data' => $postulante,
+        ], 201);
     }
 
+    /**
+     * Mostrar detalles de una preinscripción específica.
+     */
     public function show(int $id): JsonResponse
     {
-        return response()->json(
-            Preinscripcion::with('carreras')->findOrFail($id)
-        );
+        $postulante = Postulante::where('estado_tramite', 'PREINSCRITO')
+                                ->orWhere('estado_tramite', 'CUENTA_CREADA')
+                                ->findOrFail($id);
+
+        return response()->json($postulante);
     }
 
+    /**
+     * Obtener carreras activas.
+     */
     public function carrerasDisponibles(): JsonResponse
     {
-        return response()->json(Carrera::where('estado', 'activo')->orderBy('nombre')->get());
+        return response()->json(
+            Carrera::where('estado', 'activo')->orderBy('nombre')->get()
+        );
     }
 }

@@ -20,6 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->statefulApi();
+
+        $middleware->validateCsrfTokens(except: [
+            'api/preinscripcion',
+            'api/preinscripciones',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

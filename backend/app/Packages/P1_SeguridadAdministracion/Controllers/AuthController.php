@@ -20,9 +20,10 @@ class AuthController extends Controller
             'perfil' => 'required|string|in:postulante,docente,coordinador,autoridad,administrador',
         ]);
 
-        // Buscar usuario por email o CI
+        // Buscar usuario por email, CI o código de usuario
         $user = User::where('email', $request->login)
                     ->orWhere('ci', $request->login)
+                    ->orWhere('codigo', $request->login)
                     ->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {

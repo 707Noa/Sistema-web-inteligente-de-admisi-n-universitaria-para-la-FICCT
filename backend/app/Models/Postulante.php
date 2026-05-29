@@ -13,6 +13,9 @@ class Postulante extends Model
         'user_id', 'nombres', 'apellidos', 'ci', 'genero',
         'fecha_nacimiento', 'celular', 'segundo_celular', 'email',
         'direccion', 'carrera_postulada', 'foto', 'codigo_qr', 'estado',
+        'codigo_usuario', 'estado_tramite', 'cuenta_creada_at', 'correo_enviado_at',
+        'segundo_telefono', 'sexo', 'colegio_procedencia', 'ciudad', 'carrera',
+        'titulo_bachiller', 'otros',
     ];
 
     protected function casts(): array

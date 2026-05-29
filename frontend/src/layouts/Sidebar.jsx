@@ -7,6 +7,7 @@ const menuItems = {
   administrador: [
     { label: 'Dashboard', path: '/admin/dashboard', icon: <FiHome /> },
     { label: 'Usuarios', path: '/admin/usuarios', icon: <FiUsers /> },
+    { label: 'Preinscripciones', path: '/admin/preinscripciones', icon: <FiGrid /> },
     { label: 'Postulantes', path: '/admin/postulantes', icon: <FiUserCheck /> },
     { label: 'Docentes', path: '/admin/docentes', icon: <FiBook /> },
     { label: 'Materias', path: '/admin/materias', icon: <FiClipboard /> },
@@ -17,6 +18,7 @@ const menuItems = {
   ],
   coordinador: [
     { label: 'Dashboard', path: '/coordinador/dashboard', icon: <FiHome /> },
+    { label: 'Preinscripciones', path: '/admin/preinscripciones', icon: <FiGrid /> },
     { label: 'Postulantes', path: '/admin/postulantes', icon: <FiUserCheck /> },
     { label: 'Grupos', path: '/admin/grupos', icon: <FiLayers /> },
     { label: 'Exámenes', path: '/admin/examenes', icon: <FiFileText /> },

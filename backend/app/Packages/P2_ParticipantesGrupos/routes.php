@@ -1,18 +1,28 @@
 <?php
 
+use App\Packages\P2_ParticipantesGrupos\Controllers\PreinscripcionController;
+use App\Packages\P2_ParticipantesGrupos\Controllers\PreinscripcionAdminController;
 use App\Packages\P2_ParticipantesGrupos\Controllers\PostulanteController;
 use App\Packages\P2_ParticipantesGrupos\Controllers\DocenteController;
 use App\Packages\P2_ParticipantesGrupos\Controllers\GrupoController;
 use App\Packages\P2_ParticipantesGrupos\Controllers\MateriaController;
-use App\Packages\P2_ParticipantesGrupos\Controllers\PreinscripcionController;
 use Illuminate\Support\Facades\Route;
 
 // Preinscripción pública
+Route::post('/preinscripcion', [PreinscripcionController::class, 'store']);
 Route::post('/preinscripciones', [PreinscripcionController::class, 'store']);
 Route::get('/preinscripciones/{id}', [PreinscripcionController::class, 'show']);
 Route::get('/carreras-disponibles', [PreinscripcionController::class, 'carrerasDisponibles']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    // Preinscripciones privadas admin/coordinador
+    Route::middleware('role:administrador,coordinador')->group(function () {
+        Route::get('/preinscripciones', [PreinscripcionAdminController::class, 'index']);
+        Route::get('/preinscripciones/exportar-csv', [PreinscripcionAdminController::class, 'exportarCsv']);
+        Route::post('/preinscripciones/generar-cuentas', [PreinscripcionAdminController::class, 'generarCuentasMasivo']);
+        Route::post('/preinscripciones/{postulante}/generar-cuenta', [PreinscripcionAdminController::class, 'generarCuenta']);
+    });
+
     Route::get('/materias-all', [MateriaController::class, 'all']);
 
     /*

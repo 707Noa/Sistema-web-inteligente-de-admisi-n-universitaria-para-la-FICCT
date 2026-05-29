@@ -9,10 +9,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (token) {
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    const activeToken = localStorage.getItem('token')
+    if (activeToken && activeToken !== 'undefined' && activeToken !== 'null') {
+      api.defaults.headers.common['Authorization'] = `Bearer ${activeToken}`
       checkAuth()
     } else {
+      localStorage.removeItem('token')
+      setUser(null)
+      setToken(null)
       setLoading(false)
     }
   }, [])
@@ -20,9 +24,11 @@ export function AuthProvider({ children }) {
   const checkAuth = async () => {
     try {
       const res = await api.get('/auth/me')
-      setUser(res.data)
+      setUser(res.data.user || res.data)
     } catch {
-      logout()
+      localStorage.removeItem('token')
+      setUser(null)
+      setToken(null)
     } finally {
       setLoading(false)
     }
@@ -39,9 +45,14 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
-    try {
-      if (token) await api.post('/auth/logout')
-    } catch {}
+    const activeToken = localStorage.getItem('token')
+    if (activeToken && activeToken !== 'undefined' && activeToken !== 'null') {
+      try {
+        await api.post('/auth/logout')
+      } catch (error) {
+        console.warn("No se pudo cerrar sesión en backend.")
+      }
+    }
     setUser(null)
     setToken(null)
     localStorage.removeItem('token')

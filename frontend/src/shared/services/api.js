@@ -5,11 +5,14 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
 })
 
-// Add token from localStorage on startup
-const token = localStorage.getItem('token')
-if (token) {
-  api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-}
+// Request interceptor to dynamically inject token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
 
 // Response interceptor for auth errors
 api.interceptors.response.use(
