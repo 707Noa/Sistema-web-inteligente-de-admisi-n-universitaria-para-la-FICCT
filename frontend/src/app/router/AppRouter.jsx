@@ -99,7 +99,7 @@ export default function AppRouter() {
 
       {/* Protected Routes */}
       <Route path="/admin/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-      <Route path="/admin/usuarios" element={<PrivateRoute><Usuarios /></PrivateRoute>} />
+      <Route path="/admin/usuarios" element={<PrivateRoute><PreinscripcionesList /></PrivateRoute>} />
       <Route path="/admin/postulantes" element={<PrivateRoute><Postulantes /></PrivateRoute>} />
       <Route path="/admin/preinscripciones" element={<PrivateRoute><PreinscripcionesList /></PrivateRoute>} />
       <Route path="/admin/postulantes/:id" element={<PrivateRoute><PostulantePerfil /></PrivateRoute>} />

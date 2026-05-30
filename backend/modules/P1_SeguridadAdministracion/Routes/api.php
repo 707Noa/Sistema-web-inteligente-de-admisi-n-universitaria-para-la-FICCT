@@ -19,6 +19,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // Roles (para formularios)
     Route::get('/roles', [UsuarioController::class, 'roles']);
 
+    // Gestión de usuarios
+    Route::middleware('role:administrador')->group(function () {
+        Route::get('/usuarios', [UsuarioController::class, 'index']);
+        Route::get('/usuarios/exportar-csv', [UsuarioController::class, 'exportarCsv']);
+        Route::post('/usuarios/importar-csv-generar-cuentas', [UsuarioController::class, 'importarCsvYGenerarCuentas']);
+        Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
+    });
+
     Route::middleware('role:administrador')->prefix('admin')->group(function () {
         // Usuarios
         Route::apiResource('/usuarios', UsuarioController::class);
