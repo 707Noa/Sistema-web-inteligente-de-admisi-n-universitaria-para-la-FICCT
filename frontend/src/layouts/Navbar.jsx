@@ -1,5 +1,5 @@
 import React from 'react'
-import { useAuth } from '@/packages/p1-seguridad-administracion/auth/hooks/useAuth'
+import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { FiLogOut, FiUser } from 'react-icons/fi'
 

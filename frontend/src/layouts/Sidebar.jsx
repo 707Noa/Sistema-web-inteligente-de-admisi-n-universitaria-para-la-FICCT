@@ -1,6 +1,6 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '@/packages/p1-seguridad-administracion/auth/hooks/useAuth'
+import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
 import { FiHome, FiUsers, FiUserCheck, FiBook, FiLayers, FiFileText, FiBarChart2, FiShield, FiClipboard, FiGrid } from 'react-icons/fi'
 
 const menuItems = {
