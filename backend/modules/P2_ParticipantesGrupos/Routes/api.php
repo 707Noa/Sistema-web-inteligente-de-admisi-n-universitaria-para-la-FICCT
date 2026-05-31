@@ -14,6 +14,14 @@ Route::post('/preinscripciones', [PreinscripcionController::class, 'store']);
 Route::get('/preinscripciones/{id}', [PreinscripcionController::class, 'show']);
 Route::get('/carreras-disponibles', [PreinscripcionController::class, 'carrerasDisponibles']);
 
+// Pasarelas de Pago Públicas
+Route::post('/preinscripcion/{id}/pago/stripe/checkout', [PreinscripcionController::class, 'stripeCheckout']);
+Route::post('/preinscripcion/{id}/pago/paypal/create-order', [PreinscripcionController::class, 'paypalCreateOrder']);
+Route::post('/preinscripcion/{id}/pago/paypal/capture', [PreinscripcionController::class, 'paypalCapture']);
+Route::get('/preinscripcion/{id}/pago/estado', [PreinscripcionController::class, 'pagoEstado']);
+Route::post('/preinscripcion/{id}/pago/simular', [PreinscripcionController::class, 'simularPago']);
+Route::post('/webhooks/stripe', [PreinscripcionController::class, 'stripeWebhook']);
+
 Route::middleware('auth:sanctum')->group(function () {
     // Preinscripciones privadas admin/coordinador
     Route::middleware('role:administrador,coordinador')->group(function () {
@@ -21,6 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/preinscripciones/exportar-csv', [PreinscripcionAdminController::class, 'exportarCsv']);
         Route::post('/preinscripciones/generar-cuentas', [PreinscripcionAdminController::class, 'generarCuentasMasivo']);
         Route::post('/preinscripciones/{postulante}/generar-cuenta', [PreinscripcionAdminController::class, 'generarCuenta']);
+        Route::get('/postulantes/{id}/documento/{type}', [PreinscripcionAdminController::class, 'descargarDocumento']);
     });
 
     Route::get('/materias-all', [MateriaController::class, 'all']);

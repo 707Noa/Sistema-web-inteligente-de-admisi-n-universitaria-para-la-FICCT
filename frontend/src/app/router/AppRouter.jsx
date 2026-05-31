@@ -6,6 +6,7 @@ import ForgotPassword from '@/modules/p1-seguridad-administracion/auth/pages/For
 import ResetPassword from '@/modules/p1-seguridad-administracion/auth/pages/ResetPassword'
 import PreinscripcionForm from '@/modules/p2-participantes-grupos/preinscripcion/pages/PreinscripcionForm'
 import Comprobante from '@/modules/p2-participantes-grupos/preinscripcion/pages/Comprobante'
+import PagoConfirmado from '@/modules/p2-participantes-grupos/preinscripcion/pages/PagoConfirmado'
 import Dashboard from '@/modules/p4-reportes-monitoreo-auditoria/dashboard/pages/Dashboard'
 import Usuarios from '@/modules/p1-seguridad-administracion/usuarios/pages/Usuarios'
 import Postulantes from '@/modules/p2-participantes-grupos/postulantes/pages/Postulantes'
@@ -96,6 +97,7 @@ export default function AppRouter() {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/preinscripcion" element={<PreinscripcionForm />} />
       <Route path="/preinscripcion/comprobante/:id" element={<Comprobante />} />
+      <Route path="/preinscripcion/pago-confirmado" element={<PagoConfirmado />} />
 
       {/* Protected Routes */}
       <Route path="/admin/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />

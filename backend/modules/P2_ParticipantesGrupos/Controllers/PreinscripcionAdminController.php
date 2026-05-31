@@ -130,7 +130,7 @@ class PreinscripcionAdminController extends Controller
      */
     public function generarCuentasMasivo(): JsonResponse
     {
-        $postulantes = Postulante::whereNull('user_id')->get();
+        $postulantes = Postulante::whereNull('user_id')->where('pago_estado', 'PAGADO')->get();
         $exitosas = 0;
         $fallidas = 0;
         $errores = [];
@@ -151,5 +151,28 @@ class PreinscripcionAdminController extends Controller
             'fallidas' => $fallidas,
             'errores' => $errores
         ]);
+    }
+
+    /**
+     * Descargar documento privado de un postulante (CI o Título de Bachiller).
+     */
+    public function descargarDocumento(int $id, string $type): \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\JsonResponse
+    {
+        $postulante = Postulante::findOrFail($id);
+
+        $path = null;
+        if ($type === 'ci') {
+            $path = $postulante->imagen_ci_path;
+        } elseif ($type === 'titulo') {
+            $path = $postulante->imagen_titulo_bachiller_path;
+        }
+
+        if (empty($path) || !\Illuminate\Support\Facades\Storage::exists($path)) {
+            return response()->json(['message' => 'El archivo solicitado no existe o no fue cargado.'], 404);
+        }
+
+        $fullPath = \Illuminate\Support\Facades\Storage::path($path);
+        
+        return response()->file($fullPath);
     }
 }

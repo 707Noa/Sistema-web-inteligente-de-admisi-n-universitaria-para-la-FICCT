@@ -68,6 +68,11 @@ class UsuarioController extends Controller
                 }
             }
 
+            $pagoEstado = 'NO_APLICA';
+            if (strtolower($rolName) === 'postulante') {
+                $pagoEstado = $u->postulante->pago_estado ?? 'PENDIENTE';
+            }
+
             return [
                 'id' => $u->id,
                 'tipo_origen' => 'user',
@@ -82,6 +87,7 @@ class UsuarioController extends Controller
                 'registro' => $u->codigo ?: 'Sin registro',
                 'estado' => $estado,
                 'created_at' => $u->created_at,
+                'pago_estado' => $pagoEstado,
             ];
         });
 
@@ -115,6 +121,7 @@ class UsuarioController extends Controller
                     'registro' => 'Sin registro',
                     'estado' => $p->estado_tramite ?: 'PREINSCRITO',
                     'created_at' => $p->created_at,
+                    'pago_estado' => $p->pago_estado ?? 'PENDIENTE',
                 ];
             });
         }
@@ -368,6 +375,11 @@ class UsuarioController extends Controller
                 }
             }
 
+            $pagoEstado = 'NO_APLICA';
+            if (strtolower($rolName) === 'postulante') {
+                $pagoEstado = $u->postulante->pago_estado ?? 'PENDIENTE';
+            }
+
             return [
                 'id' => $u->id,
                 'tipo_origen' => 'user',
@@ -382,6 +394,7 @@ class UsuarioController extends Controller
                 'registro' => $u->codigo ?: 'Sin registro',
                 'estado' => $estado,
                 'created_at' => $u->created_at,
+                'pago_estado' => $pagoEstado,
             ];
         });
 
@@ -415,6 +428,7 @@ class UsuarioController extends Controller
                     'registro' => 'Sin registro',
                     'estado' => $p->estado_tramite ?: 'PREINSCRITO',
                     'created_at' => $p->created_at,
+                    'pago_estado' => $p->pago_estado ?? 'PENDIENTE',
                 ];
             });
         }
@@ -446,7 +460,7 @@ class UsuarioController extends Controller
 
             // Cabeceras del CSV
             fputcsv($file, [
-                'nombres', 'apellidos', 'nombre_completo', 'ci', 'correo_electronico', 'rol', 'registro', 'estado'
+                'nombres', 'apellidos', 'nombre_completo', 'ci', 'correo_electronico', 'rol', 'registro', 'estado', 'pago_estado'
             ], ';');
 
             foreach ($combined as $u) {
@@ -455,10 +469,11 @@ class UsuarioController extends Controller
                     $u['apellidos'],
                     $u['nombre_completo'],
                     $u['ci'] ?? '',
-                    $u['email'],
+                    $u['email'] ?? $u['correo_electronico'] ?? '',
                     $u['rol'],
                     $u['registro'],
                     $u['estado'],
+                    $u['pago_estado'] ?? 'NO_APLICA',
                 ], ';');
             }
 
@@ -487,13 +502,13 @@ class UsuarioController extends Controller
         }
 
         // Auto-detectar delimitador
-        $delimiter = ',';
+        $delimiter = ';';
         $firstLine = fgets($handle);
         if ($firstLine !== false) {
             $semicolons = substr_count($firstLine, ';');
             $commas = substr_count($firstLine, ',');
-            if ($semicolons > $commas) {
-                $delimiter = ';';
+            if ($commas > $semicolons) {
+                $delimiter = ',';
             }
             rewind($handle);
         }
@@ -529,6 +544,8 @@ class UsuarioController extends Controller
                 $headerMap['registro'] = $index;
             } elseif ($normalized === 'anio_ingreso' || $normalized === 'año_ingreso' || $normalized === 'gestion' || $normalized === 'gestion_academica') {
                 $headerMap['anio_ingreso'] = $index;
+            } elseif ($normalized === 'pago_estado' || $normalized === 'realizo_pago' || $normalized === 'realizó_pago' || $normalized === 'pago' || $normalized === 'pagado') {
+                $headerMap['pago_estado'] = $index;
             }
         }
 
@@ -542,6 +559,14 @@ class UsuarioController extends Controller
             fclose($handle);
             return response()->json([
                 'message' => 'El CSV debe contener nombres y apellidos, o nombre_completo, además de ci y correo_electronico.'
+            ], 400);
+        }
+
+        // Si es postulante, la columna de pago es obligatoria
+        if (strtolower($perfil) === 'postulante' && !isset($headerMap['pago_estado'])) {
+            fclose($handle);
+            return response()->json([
+                'message' => 'Para generar cuentas de postulantes, el CSV debe incluir la columna pago_estado o realizo_pago con valor PAGADO.'
             ], 400);
         }
 
@@ -563,22 +588,53 @@ class UsuarioController extends Controller
             $total++;
             $filaNum = $total + 1; // Fila 1 es la cabecera
 
-            try {
-                $nombres = isset($headerMap['nombres']) && isset($row[$headerMap['nombres']]) ? trim($row[$headerMap['nombres']]) : '';
-                $apellidos = isset($headerMap['apellidos']) && isset($row[$headerMap['apellidos']]) ? trim($row[$headerMap['apellidos']]) : '';
+            $nombres = isset($headerMap['nombres']) && isset($row[$headerMap['nombres']]) ? trim($row[$headerMap['nombres']]) : '';
+            $apellidos = isset($headerMap['apellidos']) && isset($row[$headerMap['apellidos']]) ? trim($row[$headerMap['apellidos']]) : '';
+            $ci = isset($headerMap['ci']) && isset($row[$headerMap['ci']]) ? trim($row[$headerMap['ci']]) : '';
+            $email = isset($headerMap['correo_electronico']) && isset($row[$headerMap['correo_electronico']]) ? trim($row[$headerMap['correo_electronico']]) : '';
 
-                if (empty($nombres) && empty($apellidos) && isset($headerMap['nombre_completo']) && isset($row[$headerMap['nombre_completo']])) {
-                    $fullName = trim($row[$headerMap['nombre_completo']]);
-                    $parts = explode(' ', $fullName);
-                    $nombres = $parts[0] ?? '';
-                    $apellidos = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
+            if (empty($nombres) && empty($apellidos) && isset($headerMap['nombre_completo']) && isset($row[$headerMap['nombre_completo']])) {
+                $fullName = trim($row[$headerMap['nombre_completo']]);
+                $parts = explode(' ', $fullName);
+                $nombres = $parts[0] ?? '';
+                $apellidos = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
+            }
+
+            // Validar postulantes obligatorios
+            if (strtolower($perfil) === 'postulante') {
+                if (empty($ci)) {
+                    $omitidas++;
+                    $errores[] = "Fila {$filaNum}: CI es obligatorio para postulantes.";
+                    continue;
+                }
+                if (empty($email)) {
+                    $omitidas++;
+                    $errores[] = "CI {$ci}: correo electrónico es obligatorio para postulantes.";
+                    continue;
                 }
 
+                $pagoRaw = isset($headerMap['pago_estado']) && isset($row[$headerMap['pago_estado']]) ? trim($row[$headerMap['pago_estado']]) : '';
+                if (empty($pagoRaw)) {
+                    $omitidas++;
+                    $errores[] = "No se creó la cuenta del postulante con CI {$ci} porque no tiene pago confirmado.";
+                    continue;
+                }
+
+                $pagoUpper = strtoupper($pagoRaw);
+                $esPagado = in_array($pagoUpper, ['PAGADO', 'SI', 'SÍ', 'SI_PAGO', 'SÍ_PAGO', 'TRUE', '1']);
+                if (!$esPagado) {
+                    $omitidas++;
+                    $errores[] = "No se creó la cuenta del postulante con CI {$ci} porque no tiene pago confirmado.";
+                    continue;
+                }
+            }
+
+            try {
                 $datos = [
                     'nombres' => $nombres,
                     'apellidos' => $apellidos,
-                    'ci' => isset($headerMap['ci']) && isset($row[$headerMap['ci']]) ? trim($row[$headerMap['ci']]) : '',
-                    'correo_electronico' => isset($headerMap['correo_electronico']) && isset($row[$headerMap['correo_electronico']]) ? trim($row[$headerMap['correo_electronico']]) : '',
+                    'ci' => $ci,
+                    'correo_electronico' => $email,
                     'anio_ingreso' => isset($headerMap['anio_ingreso']) && isset($row[$headerMap['anio_ingreso']]) ? intval(trim($row[$headerMap['anio_ingreso']])) : null,
                 ];
 
@@ -587,25 +643,17 @@ class UsuarioController extends Controller
                 $correosEnviados++;
             } catch (\Exception $e) {
                 $mensaje = $e->getMessage();
+                $ciStr = !empty($ci) ? "CI {$ci}" : "Fila {$filaNum}";
                 
                 if (strpos($mensaje, 'CI duplicado') !== false || strpos($mensaje, 'Correo duplicado') !== false || strpos($mensaje, 'Registro duplicado') !== false) {
                     $omitidas++;
-                    $errores[] = [
-                        'fila' => $filaNum,
-                        'motivo' => $mensaje
-                    ];
+                    $errores[] = "{$ciStr}: {$mensaje}";
                 } elseif (stripos($mensaje, 'correo no enviado') !== false) {
                     $creadas++;
                     $correosFallidos++;
-                    $errores[] = [
-                        'fila' => $filaNum,
-                        'motivo' => $mensaje
-                    ];
+                    $errores[] = "{$ciStr}: {$mensaje}";
                 } else {
-                    $errores[] = [
-                        'fila' => $filaNum,
-                        'motivo' => $mensaje
-                    ];
+                    $errores[] = "{$ciStr}: {$mensaje}";
                 }
             }
         }
@@ -624,7 +672,9 @@ class UsuarioController extends Controller
             'message' => 'Proceso finalizado',
             'total' => $total,
             'creadas' => $creadas,
+            'creados' => $creadas,
             'omitidas' => $omitidas,
+            'omitidos' => $omitidas,
             'correos_enviados' => $correosEnviados,
             'correos_fallidos' => $correosFallidos,
             'errores' => $errores,

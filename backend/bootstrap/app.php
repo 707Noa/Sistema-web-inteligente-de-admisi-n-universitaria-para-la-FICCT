@@ -35,7 +35,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'api/preinscripcion',
+            'api/preinscripcion/*',
             'api/preinscripciones',
+            'api/webhooks/stripe',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

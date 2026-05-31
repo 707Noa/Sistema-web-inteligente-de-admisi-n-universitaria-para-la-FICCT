@@ -37,6 +37,8 @@ class PreinscripcionRequest extends FormRequest
             'segunda_opcion_carrera' => 'nullable|string|max:191',
             'titulo_bachiller' => 'nullable|boolean',
             'otros' => 'nullable|string',
+            'imagen_ci' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'imagen_titulo_bachiller' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
         ];
     }
 
@@ -52,6 +54,14 @@ class PreinscripcionRequest extends FormRequest
             'ci.unique' => 'El CI ya fue registrado.',
             'correo_electronico.required' => 'El correo electrónico es obligatorio.',
             'correo_electronico.email' => 'El formato del correo electrónico no es válido.',
+            'imagen_ci.required' => 'La imagen del CI es obligatoria.',
+            'imagen_ci.image' => 'El archivo del CI debe ser una imagen.',
+            'imagen_ci.mimes' => 'El CI debe estar en formato JPG, JPEG, PNG o WEBP.',
+            'imagen_ci.max' => 'La imagen del CI no debe superar los 5 MB.',
+            'imagen_titulo_bachiller.required' => 'La imagen del título de bachiller es obligatoria.',
+            'imagen_titulo_bachiller.image' => 'El archivo del título debe ser una imagen.',
+            'imagen_titulo_bachiller.mimes' => 'El título debe estar en formato JPG, JPEG, PNG o WEBP.',
+            'imagen_titulo_bachiller.max' => 'La imagen del título no debe superar los 5 MB.',
         ];
     }
 }

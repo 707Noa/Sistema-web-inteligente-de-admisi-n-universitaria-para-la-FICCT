@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react'
 import Layout from '@/layouts/Layout'
 import StatusBadge from '@/shared/components/StatusBadge'
 import Loading from '@/shared/components/Loading'
+import api from '@/shared/services/api'
 import {
   listarUsuarios,
   exportarUsuariosCsv,
   importarCsvYGenerarCuentas,
   eliminarUsuario
 } from '@/modules/p1-seguridad-administracion/usuarios/services/usuarioService'
-import { FiSearch, FiDownload, FiUsers } from 'react-icons/fi'
+import { generarCuentaPostulante } from '@/modules/p2-participantes-grupos/postulantes/services/preinscripcionService'
+import { FiSearch, FiDownload, FiUsers, FiUserCheck } from 'react-icons/fi'
 
 export default function PreinscripcionesList() {
   const [items, setItems] = useState([])
@@ -96,6 +98,48 @@ export default function PreinscripcionesList() {
       setImportError(err.response?.data?.message || 'Error al procesar el archivo CSV. Verifique el formato e intente nuevamente.')
     } finally {
       setImportLoading(false)
+    }
+  }
+
+  const handleGenerarCuentaIndividual = async (postulanteId) => {
+    setError('')
+    setSuccess('')
+    if (!window.confirm('¿Seguro que deseas generar la cuenta de acceso para este postulante?')) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      const res = await generarCuentaPostulante(postulanteId)
+      setSuccess(res.data.message || 'Cuenta creada y enviada con éxito.')
+      fetchData(page)
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al generar la cuenta.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const downloadDocumento = async (postulanteId, tipo) => {
+    try {
+      const res = await api.get(`/postulantes/${postulanteId}/documento/${tipo}`, { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      const contentType = res.headers['content-type'] || ''
+      let ext = 'png'
+      if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+        ext = 'jpg'
+      } else if (contentType.includes('webp')) {
+        ext = 'webp'
+      }
+      link.setAttribute('download', `documento_${tipo}_postulante_${postulanteId}.${ext}`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      alert('Error al descargar el documento. Verifique si el archivo existe o sus permisos.')
     }
   }
 
@@ -212,6 +256,8 @@ export default function PreinscripcionesList() {
               <th>Rol</th>
               <th>Registro</th>
               <th>Estado</th>
+              <th>Pago</th>
+              <th>Documentos</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -237,6 +283,87 @@ export default function PreinscripcionesList() {
                   <StatusBadge status={u.estado || 'activo'} />
                 </td>
                 <td>
+                  {u.rol?.toLowerCase() === 'postulante' ? (
+                    (u.pago_estado || '').toUpperCase() === 'PAGADO' ? (
+                      <span className="badge badge-success">PAGADO</span>
+                    ) : (u.pago_estado || '').toUpperCase() === 'PENDIENTE' ? (
+                      <span className="badge badge-warning">PENDIENTE</span>
+                    ) : (
+                      <span className="badge badge-danger">{u.pago_estado || 'FALLIDO'}</span>
+                    )
+                  ) : (
+                    <span className="badge badge-gray">—</span>
+                  )}
+                </td>
+                <td>
+                  {u.tipo_origen === 'postulante' ? (
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => downloadDocumento(u.postulante_id, 'ci')}
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '0.75rem',
+                          backgroundColor: '#f1f5f9',
+                          color: '#334155',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        🪪 CI
+                      </button>
+                      <button
+                        onClick={() => downloadDocumento(u.postulante_id, 'titulo')}
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '0.75rem',
+                          backgroundColor: '#f1f5f9',
+                          color: '#334155',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        🎓 Título
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="badge badge-gray">—</span>
+                  )}
+                </td>
+                <td style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {u.tipo_origen === 'postulante' && !u.user_id && (
+                    <button
+                      className="btn"
+                      onClick={() => handleGenerarCuentaIndividual(u.postulante_id)}
+                      disabled={(u.pago_estado || '').toUpperCase() !== 'PAGADO'}
+                      style={{
+                        padding: '4px 10px',
+                        fontSize: '0.8rem',
+                        backgroundColor: (u.pago_estado || '').toUpperCase() === 'PAGADO' ? '#dbeafe' : '#f1f5f9',
+                        color: (u.pago_estado || '').toUpperCase() === 'PAGADO' ? '#1e40af' : '#94a3b8',
+                        border: `1px solid ${(u.pago_estado || '').toUpperCase() === 'PAGADO' ? '#bfdbfe' : '#e2e8f0'}`,
+                        borderRadius: '4px',
+                        cursor: (u.pago_estado || '').toUpperCase() === 'PAGADO' ? 'pointer' : 'not-allowed',
+                        fontWeight: '600',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      title={(u.pago_estado || '').toUpperCase() === 'PAGADO' ? 'Generar cuenta académica' : 'Requiere pago confirmado (PAGADO)'}
+                    >
+                      <FiUserCheck /> Crear Cuenta
+                    </button>
+                  )}
+
                   <button
                     className="btn"
                     onClick={() => {
@@ -268,7 +395,7 @@ export default function PreinscripcionesList() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>
+                <td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>
                   No se encontraron usuarios registrados.
                 </td>
               </tr>
@@ -394,6 +521,22 @@ export default function PreinscripcionesList() {
                       <option value="AUTORIDAD">Autoridad Académica</option>
                       <option value="ADMINISTRADOR">Administrador</option>
                     </select>
+                    {perfil === 'POSTULANTE' && (
+                      <div style={{
+                        marginTop: '10px',
+                        padding: '10px 12px',
+                        backgroundColor: '#eff6ff',
+                        color: '#1e40af',
+                        borderRadius: '6px',
+                        fontSize: '0.85rem',
+                        border: '1px solid #bfdbfe',
+                        textAlign: 'left',
+                        fontWeight: '500',
+                        lineHeight: '1.4'
+                      }}>
+                        ℹ️ Para generar cuentas de postulantes, el CSV debe incluir la columna pago_estado o realizo_pago con valor PAGADO.
+                      </div>
+                    )}
                   </div>
 
                   {/* File Selection */}
@@ -479,63 +622,35 @@ export default function PreinscripcionesList() {
                     </div>
                     <div>
                       <span style={{ display: 'block', fontSize: '0.8rem', color: '#047857', fontWeight: 600 }}>CREADOS</span>
-                      <strong style={{ fontSize: '1.5rem', color: '#065f46' }}>{importResult.creadas}</strong>
+                      <strong style={{ fontSize: '1.5rem', color: '#065f46' }}>{importResult.creados ?? importResult.creadas}</strong>
                     </div>
                     <div>
                       <span style={{ display: 'block', fontSize: '0.8rem', color: '#047857', fontWeight: 600 }}>OMITIDOS</span>
-                      <strong style={{ fontSize: '1.5rem', color: '#065f46' }}>{importResult.omitidas}</strong>
-                    </div>
-                  </div>
-
-                  <div style={{
-                    backgroundColor: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                    padding: '12px',
-                    marginBottom: '20px',
-                    display: 'flex',
-                    justifyContent: 'space-around',
-                    textAlign: 'center'
-                  }}>
-                    <div>
-                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Correos Enviados</span>
-                      <strong style={{ display: 'block', fontSize: '1.1rem', color: '#0f172a' }}>{importResult.correos_enviados || 0}</strong>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Correos Fallidos</span>
-                      <strong style={{ display: 'block', fontSize: '1.1rem', color: '#ef4444' }}>{importResult.correos_fallidos || 0}</strong>
+                      <strong style={{ fontSize: '1.5rem', color: '#065f46' }}>{importResult.omitidos ?? importResult.omitidas}</strong>
                     </div>
                   </div>
 
                   {importResult.errores && importResult.errores.length > 0 && (
                     <div style={{ textAlign: 'left' }}>
-                      <h4 style={{ fontSize: '1rem', fontWeight: 600, color: '#475569', marginBottom: '10px' }}>
-                        Detalles de Incidencias / Errores ({importResult.errores.length})
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#475569', marginBottom: '8px' }}>
+                        Errores encontrados ({importResult.errores.length}):
                       </h4>
                       <div style={{
-                        maxHeight: '200px',
+                        maxHeight: '220px',
                         overflowY: 'auto',
                         border: '1px solid #cbd5e1',
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         fontSize: '0.85rem',
-                        backgroundColor: '#fff'
+                        backgroundColor: '#f8fafc',
+                        padding: '12px 16px'
                       }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                          <thead>
-                            <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
-                              <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569', width: '80px' }}>Fila</th>
-                              <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>Detalle / Motivo</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {importResult.errores.map((err, idx) => (
-                              <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                <td style={{ padding: '8px 12px', color: '#64748b', fontWeight: 'bold' }}>Fila {err.fila}</td>
-                                <td style={{ padding: '8px 12px', color: '#ef4444' }}>{err.motivo}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        <ul style={{ margin: 0, paddingLeft: '20px', color: '#dc2626', lineHeight: '1.6' }}>
+                          {importResult.errores.map((err, idx) => (
+                            <li key={idx} style={{ marginBottom: '6px' }}>
+                              {typeof err === 'object' ? `Fila ${err.fila}: ${err.motivo}` : err}
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     </div>
                   )}

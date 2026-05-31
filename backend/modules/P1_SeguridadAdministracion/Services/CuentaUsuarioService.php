@@ -159,6 +159,7 @@ class CuentaUsuarioService
                 $postulante->user_id = $user->id;
                 $postulante->codigo_usuario = $registroCode;
                 $postulante->estado_tramite = 'CUENTA_CREADA';
+                $postulante->pago_estado = 'PAGADO';
                 $postulante->cuenta_creada_at = now();
                 $postulante->save();
             }

@@ -34,6 +34,10 @@ class CuentaPostulanteService
             throw new \Exception("El postulante ya tiene una cuenta de usuario asignada.");
         }
 
+        if (strtoupper($postulante->pago_estado ?? '') !== 'PAGADO') {
+            throw new \Exception("No se puede generar la cuenta de acceso porque el postulante no cuenta con un pago confirmado (Estado actual: " . ($postulante->pago_estado ?: 'PENDIENTE') . ").");
+        }
+
         $existingUser = User::where('email', $postulante->email)
                             ->orWhere('ci', $postulante->ci)
                             ->first();
