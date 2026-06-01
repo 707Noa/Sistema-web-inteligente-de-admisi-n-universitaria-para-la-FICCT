@@ -1,37 +1,36 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
-import { FiHome, FiUsers, FiUserCheck, FiBook, FiLayers, FiFileText, FiBarChart2, FiShield, FiClipboard, FiGrid } from 'react-icons/fi'
+import { FiHome, FiUsers, FiUserCheck, FiX, FiUser } from 'react-icons/fi'
 
 const menuItems = {
+  // ── Administrador (sin cambios) ──
   administrador: [
-    { label: 'Dashboard', path: '/admin/dashboard', icon: <FiHome /> },
-    { label: 'Gestión de Usuarios', path: '/admin/usuarios', icon: <FiUsers /> },
+    { label: 'Dashboard',              path: '/admin/dashboard',   icon: <FiHome /> },
+    { label: 'Gestión de Usuarios',    path: '/admin/usuarios',    icon: <FiUsers /> },
+    { label: 'Gestión de Postulantes', path: '/admin/postulantes', icon: <FiUserCheck /> },
   ],
-  coordinador: [
-    { label: 'Dashboard', path: '/coordinador/dashboard', icon: <FiHome /> },
-    { label: 'Gestión de Usuarios', path: '/admin/usuarios', icon: <FiUsers /> },
-  ],
-  autoridad: [
-    { label: 'Dashboard', path: '/autoridad/dashboard', icon: <FiHome /> },
-  ],
-  docente: [
-    { label: 'Inicio', path: '/docente/inicio', icon: <FiHome /> },
-  ],
-  postulante: [
-    { label: 'Inicio', path: '/postulante/inicio', icon: <FiHome /> },
-  ],
+  // ── Resto de roles: solo Perfil ──
+  coordinador: [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
+  autoridad:   [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
+  docente:     [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
+  postulante:  [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
 }
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
   const items = menuItems[user?.role] || []
 
+  const handleNavigate = (path) => {
+    navigate(path)
+    onClose()
+  }
+
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`}>
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <div className="sidebar-logo-icon">🎓</div>
@@ -40,6 +39,9 @@ export default function Sidebar() {
             <p>Portal Preuniversitario</p>
           </div>
         </div>
+        <button className="sidebar-close-btn" onClick={onClose} aria-label="Cerrar menú">
+          <FiX />
+        </button>
       </div>
       <nav className="sidebar-nav">
         <div className="sidebar-section">
@@ -47,8 +49,8 @@ export default function Sidebar() {
           {items.map((item) => (
             <button
               key={item.path}
-              className={`sidebar-link ${location.pathname === item.path ? 'active' : ''}`}
-              onClick={() => navigate(item.path)}
+              className={`sidebar-link${location.pathname === item.path ? ' active' : ''}`}
+              onClick={() => handleNavigate(item.path)}
             >
               <span className="sidebar-link-icon">{item.icon}</span>
               {item.label}

@@ -42,7 +42,7 @@ class AuthController extends Controller
 
         if (!$user->isActive()) {
             return response()->json([
-                'message' => 'Tu cuenta está inactiva. Contacta al administrador.',
+                'message' => 'La cuenta se encuentra inactiva. Contacte con administración.',
             ], 403);
         }
 
@@ -73,14 +73,16 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'ci' => $user->ci,
-                'role' => $roleName,
-                'estado' => $user->estado,
+                'id'                   => $user->id,
+                'name'                 => $user->name,
+                'email'                => $user->email,
+                'ci'                   => $user->ci,
+                'codigo'               => $user->codigo,
+                'role'                 => $roleName,
+                'estado'               => $user->estado,
+                'must_change_password' => (bool) $user->must_change_password,
             ],
-            'token' => $token,
+            'token'    => $token,
             'redirect' => $this->getRedirectPath($roleName),
         ]);
     }
@@ -106,24 +108,44 @@ class AuthController extends Controller
         $user = $request->user()->load('role');
 
         return response()->json([
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'ci' => $user->ci,
-            'role' => $user->role->name ?? '',
-            'estado' => $user->estado,
+            'id'                   => $user->id,
+            'name'                 => $user->name,
+            'email'                => $user->email,
+            'ci'                   => $user->ci,
+            'codigo'               => $user->codigo,
+            'role'                 => $user->role->name ?? '',
+            'estado'               => $user->estado,
+            'must_change_password' => (bool) $user->must_change_password,
         ]);
+    }
+
+    /**
+     * Cambio de contraseña obligatorio en el primer login.
+     */
+    public function changePassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'new_password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = $request->user();
+        $user->password = $request->new_password; // cast 'hashed' lo hashea automáticamente
+        $user->must_change_password = false;
+        $user->save();
+
+        AuditoriaService::registrar(
+            $user->id,
+            'Cambio de contraseña',
+            'Autenticación',
+            $request
+        );
+
+        return response()->json(['message' => 'Contraseña actualizada correctamente.']);
     }
 
     private function getRedirectPath(string $role): string
     {
-        return match ($role) {
-            'postulante' => '/postulante/inicio',
-            'docente' => '/docente/inicio',
-            'coordinador' => '/coordinador/dashboard',
-            'autoridad' => '/autoridad/dashboard',
-            'administrador' => '/admin/dashboard',
-            default => '/',
-        };
+        // El administrador va a su dashboard; todos los demás van a su perfil
+        return $role === 'administrador' ? '/admin/dashboard' : '/perfil';
     }
 }

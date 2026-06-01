@@ -4,6 +4,8 @@ import ProfileSelector from '@/modules/p1-seguridad-administracion/auth/pages/Pr
 import Login from '@/modules/p1-seguridad-administracion/auth/pages/Login'
 import ForgotPassword from '@/modules/p1-seguridad-administracion/auth/pages/ForgotPassword'
 import ResetPassword from '@/modules/p1-seguridad-administracion/auth/pages/ResetPassword'
+import ChangePassword from '@/modules/p1-seguridad-administracion/auth/pages/ChangePassword'
+import Perfil from '@/modules/p1-seguridad-administracion/auth/pages/Perfil'
 import PreinscripcionForm from '@/modules/p2-participantes-grupos/preinscripcion/pages/PreinscripcionForm'
 import Comprobante from '@/modules/p2-participantes-grupos/preinscripcion/pages/Comprobante'
 import PagoConfirmado from '@/modules/p2-participantes-grupos/preinscripcion/pages/PagoConfirmado'
@@ -95,13 +97,15 @@ export default function AppRouter() {
       <Route path="/:perfil/login" element={<Login />} />
       <Route path="/:perfil/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/change-password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
+      <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
       <Route path="/preinscripcion" element={<PreinscripcionForm />} />
       <Route path="/preinscripcion/comprobante/:id" element={<Comprobante />} />
       <Route path="/preinscripcion/pago-confirmado" element={<PagoConfirmado />} />
 
       {/* Protected Routes */}
       <Route path="/admin/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-      <Route path="/admin/usuarios" element={<PrivateRoute><PreinscripcionesList /></PrivateRoute>} />
+      <Route path="/admin/usuarios" element={<PrivateRoute><Usuarios /></PrivateRoute>} />
       <Route path="/admin/postulantes" element={<PrivateRoute><Postulantes /></PrivateRoute>} />
       <Route path="/admin/preinscripciones" element={<PrivateRoute><PreinscripcionesList /></PrivateRoute>} />
       <Route path="/admin/postulantes/:id" element={<PrivateRoute><PostulantePerfil /></PrivateRoute>} />

@@ -3,6 +3,7 @@
 use Modules\P2_ParticipantesGrupos\Controllers\PreinscripcionController;
 use Modules\P2_ParticipantesGrupos\Controllers\PreinscripcionAdminController;
 use Modules\P2_ParticipantesGrupos\Controllers\PostulanteController;
+use Modules\P2_ParticipantesGrupos\Controllers\ImportacionController;
 use Modules\P2_ParticipantesGrupos\Controllers\DocenteController;
 use Modules\P2_ParticipantesGrupos\Controllers\GrupoController;
 use Modules\P2_ParticipantesGrupos\Controllers\MateriaController;
@@ -69,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
     */
     Route::middleware('role:administrador')->prefix('admin')->group(function () {
         // Postulantes
+        Route::post('/postulantes/importar-csv', [ImportacionController::class, 'importarPostulantesCsv']);
         Route::apiResource('/postulantes', PostulanteController::class);
         Route::post('/postulantes/{id}/foto', [PostulanteController::class, 'uploadFoto']);
 

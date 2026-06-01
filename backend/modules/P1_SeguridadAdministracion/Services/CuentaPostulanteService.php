@@ -13,15 +13,12 @@ use Illuminate\Support\Facades\Log;
 class CuentaPostulanteService
 {
     /**
-     * Generar un código numérico único de 6 dígitos.
+     * Generar código de acceso para postulante: año de inscripción + CI invertido.
+     * Ejemplo: CI=9355594 → código=20264955539
      */
-    public function generarCodigoUnico(): string
+    public function generarCodigoParaPostulante(string $ci): string
     {
-        do {
-            $codigo = strval(mt_rand(100000, 999999));
-        } while (User::where('codigo', $codigo)->exists());
-
-        return $codigo;
+        return '2026' . strrev($ci);
     }
 
     /**
@@ -52,25 +49,29 @@ class CuentaPostulanteService
             throw new \Exception("El rol 'postulante' no existe en el sistema.");
         }
 
-        // 3. Generar código único de 6 dígitos
-        $codigo = $this->generarCodigoUnico();
+        // 3. Código = 2026 + CI invertido (ej. CI=9355594 → codigo=20264955539)
+        $codigo = $this->generarCodigoParaPostulante($postulante->ci);
 
-        // 4. Crear el usuario
+        if (User::where('codigo', $codigo)->exists()) {
+            throw new \Exception("Ya existe un usuario con el código generado para este CI.");
+        }
+
+        // 4. Crear el usuario — contraseña inicial es el CI; debe cambiarla al primer ingreso
         $user = User::create([
             'name' => trim($postulante->nombres . ' ' . $postulante->apellidos),
             'email' => $postulante->email,
             'ci' => $postulante->ci,
-            'password' => Hash::make($postulante->ci), // Contraseña inicial es su CI
+            'password' => Hash::make($postulante->ci),
             'role_id' => $role->id,
             'estado' => 'activo',
             'codigo' => $codigo,
             'must_change_password' => true,
         ]);
 
-        // 5. Vincular al postulante
+        // 5. Vincular al postulante y marcar como INSCRITO
         $postulante->user_id = $user->id;
         $postulante->codigo_usuario = $codigo;
-        $postulante->estado_tramite = 'CUENTA_CREADA';
+        $postulante->estado_tramite = 'INSCRITO';
         $postulante->cuenta_creada_at = now();
         $postulante->save();
 

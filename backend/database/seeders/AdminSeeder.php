@@ -12,19 +12,23 @@ class AdminSeeder extends Seeder
     {
         $adminRole = DB::table('roles')->where('name', 'administrador')->first();
 
-        if ($adminRole) {
-            DB::table('users')->updateOrInsert(
-                ['email' => 'admin@sistema.com'],
-                [
-                    'role_id' => $adminRole->id,
-                    'name' => 'Administrador',
-                    'ci' => '00000001',
-                    'password' => Hash::make('Admin123456'),
-                    'estado' => 'activo',
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]
-            );
+        if (!$adminRole) {
+            return;
         }
+
+        DB::table('users')->updateOrInsert(
+            ['email' => 'admin@sistema.com'],
+            [
+                'role_id'              => $adminRole->id,
+                'name'                 => 'Administrador',
+                'ci'                   => '00000001',
+                'password'             => Hash::make('Admin123456'),
+                'estado'               => 'activo',
+                'codigo'               => 'admin',
+                'must_change_password' => false,
+                'created_at'           => now(),
+                'updated_at'           => now(),
+            ]
+        );
     }
 }

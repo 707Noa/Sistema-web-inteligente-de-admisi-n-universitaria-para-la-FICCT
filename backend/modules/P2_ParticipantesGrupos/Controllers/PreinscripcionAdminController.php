@@ -25,6 +25,9 @@ class PreinscripcionAdminController extends Controller
     {
         $query = Postulante::query();
 
+        // Mostrar solo registros con pago confirmado (PREINSCRITO) o ya con cuenta (INSCRITO)
+        $query->whereIn('estado_tramite', ['PREINSCRITO', 'INSCRITO']);
+
         // Buscar por CI, Nombres, Apellidos, Correo
         if ($request->has('search') && !empty($request->search)) {
             $s = $request->search;

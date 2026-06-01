@@ -15,161 +15,47 @@ class UsuarioController extends Controller
     public function index(Request $request): JsonResponse
     {
         $search = $request->input('search');
-        $rol = $request->input('rol');
 
-        // 1. Consulta de Users
-        $usersQuery = User::with(['role', 'postulante']);
-
-        if (!empty($rol)) {
-            $rolParam = strtolower($rol);
-            if ($rolParam === 'coordinador académico' || $rolParam === 'coordinador academico' || $rolParam === 'coordinador') {
-                $rolParam = 'coordinador';
-            } elseif ($rolParam === 'autoridad académica' || $rolParam === 'autoridad academica' || $rolParam === 'autoridad') {
-                $rolParam = 'autoridad';
-            }
-            $usersQuery->whereHas('role', function ($q) use ($rolParam) {
-                $q->where('name', $rolParam);
+        $query = User::with('role')
+            ->whereHas('role', function ($q) {
+                $q->whereNotIn('name', ['postulante', 'administrador']);
             });
-        }
 
         if (!empty($search)) {
-            $usersQuery->where(function ($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'ilike', "%{$search}%")
                   ->orWhere('email', 'ilike', "%{$search}%")
                   ->orWhere('ci', 'ilike', "%{$search}%")
-                  ->orWhere('codigo', 'ilike', "%{$search}%")
-                  ->orWhereHas('role', function ($qr) use ($search) {
-                      $qr->where('name', 'ilike', "%{$search}%");
-                  });
+                  ->orWhere('codigo', 'ilike', "%{$search}%");
             });
         }
 
-        $users = $usersQuery->get()->map(function ($u) {
-            $parts = explode(' ', trim($u->name));
-            $nombres = $parts[0] ?? '';
-            $apellidos = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
-
-            $rolName = $u->role->name ?? '';
-            if ($rolName === 'coordinador') {
-                $rolDisplay = 'Coordinador Académico';
-            } elseif ($rolName === 'autoridad') {
-                $rolDisplay = 'Autoridad Académica';
-            } else {
-                $rolDisplay = ucfirst($rolName);
-            }
-
-            $estado = $u->estado ?? 'activo';
-            if (strtolower($rolName) === 'postulante') {
-                $postulante = $u->postulante;
-                if ($postulante && $postulante->estado_tramite) {
-                    $estado = $postulante->estado_tramite;
-                } else {
-                    $estado = 'CUENTA_CREADA';
-                }
-            }
-
-            $pagoEstado = 'NO_APLICA';
-            if (strtolower($rolName) === 'postulante') {
-                $pagoEstado = $u->postulante->pago_estado ?? 'PENDIENTE';
-            }
-
-            return [
-                'id' => $u->id,
-                'tipo_origen' => 'user',
-                'postulante_id' => $u->postulante->id ?? null,
-                'user_id' => $u->id,
-                'nombres' => $nombres,
-                'apellidos' => $apellidos,
-                'nombre_completo' => $u->name,
-                'ci' => $u->ci,
-                'correo_electronico' => $u->email,
-                'rol' => $rolDisplay,
-                'registro' => $u->codigo ?: 'Sin registro',
-                'estado' => $estado,
-                'created_at' => $u->created_at,
-                'pago_estado' => $pagoEstado,
-            ];
-        });
-
-        // 2. Consulta de Postulantes sin cuenta (solo si el rol es todos/vacio o postulante)
-        $postulantes = collect();
-        if (empty($rol) || strtolower($rol) === 'postulante') {
-            $postQuery = \App\Models\Postulante::whereNull('user_id');
-
-            if (!empty($search)) {
-                $postQuery->where(function ($q) use ($search) {
-                    $q->where('nombres', 'ilike', "%{$search}%")
-                      ->orWhere('apellidos', 'ilike', "%{$search}%")
-                      ->orWhere('ci', 'ilike', "%{$search}%")
-                      ->orWhere('email', 'ilike', "%{$search}%")
-                      ->orWhere(\Illuminate\Support\Facades\DB::raw("nombres || ' ' || apellidos"), 'ilike', "%{$search}%");
-                });
-            }
-
-            $postulantes = $postQuery->get()->map(function ($p) {
-                return [
-                    'id' => $p->id,
-                    'tipo_origen' => 'postulante',
-                    'postulante_id' => $p->id,
-                    'user_id' => null,
-                    'nombres' => $p->nombres,
-                    'apellidos' => $p->apellidos,
-                    'nombre_completo' => trim($p->nombres . ' ' . $p->apellidos),
-                    'ci' => $p->ci,
-                    'correo_electronico' => $p->email,
-                    'rol' => 'Postulante',
-                    'registro' => 'Sin registro',
-                    'estado' => $p->estado_tramite ?: 'PREINSCRITO',
-                    'created_at' => $p->created_at,
-                    'pago_estado' => $p->pago_estado ?? 'PENDIENTE',
-                ];
-            });
-        }
-
-        // 3. Combinar colecciones y ordenar por fecha descendente
-        $combined = $users->concat($postulantes)->sortByDesc('created_at')->values();
-
-        $estadoParam = $request->input('estado');
-        if (!empty($estadoParam)) {
-            $est = strtoupper($estadoParam);
-            $combined = $combined->filter(function ($item) use ($est) {
-                return strtoupper($item['estado'] ?? '') === $est;
-            })->values();
-        }
-
-        // 4. Paginar a nivel de PHP utilizando LengthAwarePaginator
-        $currentPage = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage();
-        $perPage = 15;
-        $currentItems = $combined->slice(($currentPage - 1) * $perPage, $perPage)->all();
-
-        $paginated = new \Illuminate\Pagination\LengthAwarePaginator(
-            $currentItems,
-            $combined->count(),
-            $perPage,
-            $currentPage,
-            ['path' => \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPath()]
+        return response()->json(
+            $query->orderBy('created_at', 'desc')->paginate(15)
         );
-
-        return response()->json($paginated);
     }
 
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'name' => 'required|string|max:191',
-            'email' => 'required|email|unique:users,email',
-            'ci' => 'nullable|string|unique:users,ci',
-            'password' => 'required|string|min:8',
+            'name'    => 'required|string|max:191',
+            'email'   => 'required|email|unique:users,email',
+            'ci'      => 'required|string|unique:users,ci',
             'role_id' => 'required|exists:roles,id',
+            'estado'  => 'nullable|in:activo,inactivo',
         ]);
 
+        $ci = $request->ci;
+
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'ci' => $request->ci,
-            'password' => Hash::make($request->password),
-            'role_id' => $request->role_id,
-            'estado' => 'activo',
+            'name'                 => $request->name,
+            'email'                => $request->email,
+            'ci'                   => $ci,
+            'password'             => Hash::make($ci),   // contraseña inicial = CI
+            'role_id'              => $request->role_id,
+            'estado'               => $request->input('estado', 'activo'),
+            'codigo'               => '2026' . strrev($ci), // registro = 2026 + CI invertido
+            'must_change_password' => false,
         ]);
 
         AuditoriaService::registrar(
@@ -177,7 +63,7 @@ class UsuarioController extends Controller
             'Registró un usuario',
             'Usuarios',
             $request,
-            "Usuario: {$user->name}"
+            "Usuario: {$user->name} (CI: {$ci})"
         );
 
         return response()->json($user->load('role'), 201);
@@ -194,13 +80,14 @@ class UsuarioController extends Controller
         $user = User::findOrFail($id);
 
         $request->validate([
-            'name' => 'required|string|max:191',
-            'email' => "required|email|unique:users,email,{$id}",
-            'ci' => "nullable|string|unique:users,ci,{$id}",
+            'name'    => 'required|string|max:191',
+            'email'   => "required|email|unique:users,email,{$id}",
+            'ci'      => "nullable|string|unique:users,ci,{$id}",
             'role_id' => 'required|exists:roles,id',
+            'estado'  => 'nullable|in:activo,inactivo',
         ]);
 
-        $user->update($request->only(['name', 'email', 'ci', 'role_id']));
+        $user->update($request->only(['name', 'email', 'ci', 'role_id', 'estado']));
 
         AuditoriaService::registrar(
             $request->user()->id,
@@ -316,7 +203,9 @@ class UsuarioController extends Controller
 
     public function roles(): JsonResponse
     {
-        return response()->json(Role::all());
+        return response()->json(
+            Role::whereNotIn('name', ['postulante', 'administrador'])->get()
+        );
     }
 
     public function exportarCsv(Request $request): \Symfony\Component\HttpFoundation\StreamedResponse

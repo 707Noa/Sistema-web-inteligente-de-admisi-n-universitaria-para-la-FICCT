@@ -42,7 +42,7 @@ class PreinscripcionController extends Controller
             $imagenTituloPath = $request->file('imagen_titulo_bachiller')->store('private/postulantes/documentos');
         }
 
-        // Crear registro en la tabla postulantes con pago PENDIENTE
+        // Crear registro en la tabla postulantes — en espera de confirmación de pago
         $postulante = Postulante::create([
             'nombres' => $validated['nombres'],
             'apellidos' => $validated['apellidos'],
@@ -61,7 +61,7 @@ class PreinscripcionController extends Controller
             'carrera_postulada' => $validated['carrera'] ?? null,
             'titulo_bachiller' => $validated['titulo_bachiller'] ?? false,
             'otros' => $validated['otros'] ?? null,
-            'estado_tramite' => 'PREINSCRITO',
+            'estado_tramite' => 'PENDIENTE_PAGO',
             'estado' => 'pendiente',
             'pago_estado' => 'PENDIENTE',
             'imagen_ci_path' => $imagenCiPath,

@@ -14,18 +14,20 @@ class PostulanteController extends Controller
     {
         $query = Postulante::with(['user', 'grupos', 'examenes.materia']);
 
-        if ($request->has('search')) {
+        if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('nombres', 'ilike', "%{$s}%")
                   ->orWhere('apellidos', 'ilike', "%{$s}%")
                   ->orWhere('ci', 'ilike', "%{$s}%")
-                  ->orWhere('carrera_postulada', 'ilike', "%{$s}%");
+                  ->orWhere('email', 'ilike', "%{$s}%")
+                  ->orWhere('carrera_postulada', 'ilike', "%{$s}%")
+                  ->orWhere('carrera', 'ilike', "%{$s}%");
             });
         }
 
-        if ($request->has('estado')) {
-            $query->where('estado', $request->estado);
+        if ($request->filled('estado_tramite')) {
+            $query->where('estado_tramite', $request->estado_tramite);
         }
 
         $postulantes = $query->orderBy('created_at', 'desc')->paginate(15);
