@@ -17,6 +17,10 @@ import PreinscripcionesList from '@/modules/p2-participantes-grupos/postulantes/
 import Docentes from '@/modules/p2-participantes-grupos/docentes/pages/Docentes'
 import Materias from '@/modules/p2-participantes-grupos/materias/pages/Materias'
 import Grupos from '@/modules/p2-participantes-grupos/grupos/pages/Grupos'
+import DocentesAcademicos from '@/modules/p2-participantes-grupos/coordinador/pages/DocentesAcademicos'
+import AdministrarGrupos from '@/modules/p2-participantes-grupos/coordinador/pages/AdministrarGrupos'
+import ProcesarAsignacion from '@/modules/p2-participantes-grupos/coordinador/pages/ProcesarAsignacion'
+import ReporteHorarios from '@/modules/p2-participantes-grupos/coordinador/pages/ReporteHorarios'
 
 import PrivateRoute from './PrivateRoute'
 import Layout from '@/layouts/Layout'
@@ -116,7 +120,12 @@ export default function AppRouter() {
       <Route path="/admin/reportes" element={<PrivateRoute><ReportesMock /></PrivateRoute>} />
       <Route path="/admin/auditoria" element={<PrivateRoute><AuditoriaMock /></PrivateRoute>} />
 
-      <Route path="/coordinador/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+      {/* Rutas Coordinador Académico */}
+      <Route path="/coordinador/docentes"         element={<PrivateRoute><DocentesAcademicos /></PrivateRoute>} />
+      <Route path="/coordinador/grupos"           element={<PrivateRoute><AdministrarGrupos /></PrivateRoute>} />
+      <Route path="/coordinador/asignacion"       element={<PrivateRoute><ProcesarAsignacion /></PrivateRoute>} />
+      <Route path="/coordinador/reporte-horarios" element={<PrivateRoute><ReporteHorarios /></PrivateRoute>} />
+
       <Route path="/autoridad/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
 
       <Route path="/docente/inicio" element={<PrivateRoute><InicioMock role="Docente" /></PrivateRoute>} />

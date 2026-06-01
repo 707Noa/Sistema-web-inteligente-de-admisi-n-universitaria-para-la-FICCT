@@ -7,6 +7,10 @@ use Modules\P2_ParticipantesGrupos\Controllers\ImportacionController;
 use Modules\P2_ParticipantesGrupos\Controllers\DocenteController;
 use Modules\P2_ParticipantesGrupos\Controllers\GrupoController;
 use Modules\P2_ParticipantesGrupos\Controllers\MateriaController;
+use Modules\P2_ParticipantesGrupos\Controllers\CoordDocenteController;
+use Modules\P2_ParticipantesGrupos\Controllers\CoordGrupoController;
+use Modules\P2_ParticipantesGrupos\Controllers\CoordAsignacionController;
+use Modules\P2_ParticipantesGrupos\Controllers\CoordReporteController;
 use Illuminate\Support\Facades\Route;
 
 // Preinscripción pública
@@ -55,12 +59,33 @@ Route::middleware('auth:sanctum')->group(function () {
 
     /*
     |----------------------------------------------------------------------
-    | Rutas de Coordinador
+    | Rutas de Coordinador Académico
     |----------------------------------------------------------------------
     */
-    Route::middleware('role:coordinador')->prefix('coordinador')->group(function () {
-        Route::apiResource('/postulantes', PostulanteController::class);
-        Route::apiResource('/grupos', GrupoController::class);
+    Route::middleware('role:coordinador,administrador')->prefix('coordinador')->group(function () {
+        // Docentes académicos
+        Route::get('/docentes',                           [CoordDocenteController::class, 'index']);
+        Route::get('/docentes/materias',                  [CoordDocenteController::class, 'materias']);
+        Route::get('/docentes/{id}',                      [CoordDocenteController::class, 'show']);
+        Route::post('/docentes/{id}/asignar-materia',     [CoordDocenteController::class, 'asignarMateria']);
+
+        // Grupos coordinados
+        Route::get('/grupos',                             [CoordGrupoController::class, 'index']);
+        Route::post('/grupos',                            [CoordGrupoController::class, 'store']);
+        Route::get('/grupos/{id}',                        [CoordGrupoController::class, 'show']);
+        Route::put('/grupos/{id}',                        [CoordGrupoController::class, 'update']);
+        Route::patch('/grupos/{id}/toggle-estado',        [CoordGrupoController::class, 'toggleEstado']);
+
+        // Asignaciones
+        Route::post('/asignacion/postulantes-auto',       [CoordAsignacionController::class, 'asignarPostulantesAuto']);
+        Route::get('/asignacion/grupo/{grupoId}/postulantes', [CoordAsignacionController::class, 'postulantesEnGrupo']);
+        Route::post('/asignacion/docentes-disponibles',   [CoordAsignacionController::class, 'docentesDisponibles']);
+        Route::post('/asignacion/docente',                [CoordAsignacionController::class, 'asignarDocente']);
+        Route::get('/asignacion/asignaciones',            [CoordAsignacionController::class, 'getAsignaciones']);
+
+        // Reportes
+        Route::get('/reporte/horarios',                   [CoordReporteController::class, 'horarios']);
+        Route::get('/reporte/horarios/csv',               [CoordReporteController::class, 'exportarCsv']);
     });
 
     /*

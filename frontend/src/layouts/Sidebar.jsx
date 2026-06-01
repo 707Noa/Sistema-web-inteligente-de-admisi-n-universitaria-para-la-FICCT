@@ -1,7 +1,7 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
-import { FiHome, FiUsers, FiUserCheck, FiX, FiUser } from 'react-icons/fi'
+import { FiHome, FiUsers, FiUserCheck, FiX, FiUser, FiBook, FiGrid, FiList, FiBarChart2 } from 'react-icons/fi'
 
 const menuItems = {
   // ── Administrador (sin cambios) ──
@@ -10,11 +10,18 @@ const menuItems = {
     { label: 'Gestión de Usuarios',    path: '/admin/usuarios',    icon: <FiUsers /> },
     { label: 'Gestión de Postulantes', path: '/admin/postulantes', icon: <FiUserCheck /> },
   ],
-  // ── Resto de roles: solo Perfil ──
-  coordinador: [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
-  autoridad:   [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
-  docente:     [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
-  postulante:  [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
+  // ── Coordinador Académico ──
+  coordinador: [
+    { label: 'Perfil',               path: '/perfil',                       icon: <FiUser /> },
+    { label: 'Gestión del docente',  path: '/coordinador/docentes',         icon: <FiBook /> },
+    { label: 'Gestión de grupos',    path: '/coordinador/grupos',           icon: <FiGrid /> },
+    { label: 'Asignación de grupos', path: '/coordinador/asignacion',       icon: <FiList /> },
+    { label: 'Reporte de horarios',  path: '/coordinador/reporte-horarios', icon: <FiBarChart2 /> },
+  ],
+  // ── Demás roles: solo Perfil ──
+  autoridad:  [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
+  docente:    [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
+  postulante: [{ label: 'Perfil', path: '/perfil', icon: <FiUser /> }],
 }
 
 export default function Sidebar({ isOpen, onClose }) {
@@ -24,10 +31,7 @@ export default function Sidebar({ isOpen, onClose }) {
 
   const items = menuItems[user?.role] || []
 
-  const handleNavigate = (path) => {
-    navigate(path)
-    onClose()
-  }
+  const handleNavigate = (path) => { navigate(path); onClose() }
 
   return (
     <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`}>

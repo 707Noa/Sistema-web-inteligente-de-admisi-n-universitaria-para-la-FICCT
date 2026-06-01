@@ -45,13 +45,19 @@ class UsuarioController extends Controller
             'estado'  => 'nullable|in:activo,inactivo',
         ]);
 
-        $ci = $request->ci;
+        $ci       = $request->ci;
+        $roleName = Role::find($request->role_id)?->name;
+
+        // Docentes: contraseña = "2026" + CI invertido (igual al registro); otros roles: contraseña = CI
+        $password = ($roleName === 'docente')
+            ? Hash::make('2026' . strrev($ci))
+            : Hash::make($ci);
 
         $user = User::create([
             'name'                 => $request->name,
             'email'                => $request->email,
             'ci'                   => $ci,
-            'password'             => Hash::make($ci),   // contraseña inicial = CI
+            'password'             => $password,
             'role_id'              => $request->role_id,
             'estado'               => $request->input('estado', 'activo'),
             'codigo'               => '2026' . strrev($ci), // registro = 2026 + CI invertido

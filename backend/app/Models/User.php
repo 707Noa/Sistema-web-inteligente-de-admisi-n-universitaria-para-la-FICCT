@@ -6,6 +6,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\DocenteEspecialidad;
+use App\Models\DocenteGrupoAsignacion;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -49,6 +51,16 @@ class User extends Authenticatable
     public function auditorias(): HasMany
     {
         return $this->hasMany(Auditoria::class, 'user_id');
+    }
+
+    public function especialidadDocente(): HasOne
+    {
+        return $this->hasOne(DocenteEspecialidad::class, 'user_id');
+    }
+
+    public function asignacionesDocente(): HasMany
+    {
+        return $this->hasMany(DocenteGrupoAsignacion::class, 'docente_user_id');
     }
 
     public function hasRole(string $roleName): bool
