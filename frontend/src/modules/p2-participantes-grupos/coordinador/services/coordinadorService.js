@@ -31,3 +31,19 @@ export const exportarHorariosCsv = (params) => {
   const q = new URLSearchParams(params).toString()
   window.open(`${api.defaults.baseURL}${BASE}/reporte/horarios/csv?${q}`)
 }
+
+// ── Cupos por carrera ──
+export const getCuposCarrera       = (params)   => api.get(`${BASE}/cupos-carrera`, { params })
+export const crearCupoCarrera      = (data)     => api.post(`${BASE}/cupos-carrera`, data)
+export const actualizarCupoCarrera = (id, data) => api.put(`${BASE}/cupos-carrera/${id}`, data)
+export const toggleCupoEstado      = (id)       => api.patch(`${BASE}/cupos-carrera/${id}/toggle-estado`)
+export const revertirCupos         = (id)       => api.post(`${BASE}/cupos-carrera/${id}/revertir`)
+
+// ── Admisión final ──
+export const getGestionesAdmision  = ()       => api.get(`${BASE}/admision/gestiones`)
+export const getResultadosAdmision = (params) => api.get(`${BASE}/admision/resultados`, { params })
+export const procesarAdmision      = (data)   => api.post(`${BASE}/admision/procesar`, data)
+export const exportarAdmisionCsv   = (params) => {
+  const q = new URLSearchParams(params).toString()
+  window.open(`${api.defaults.baseURL}${BASE}/admision/exportar-csv?${q}`)
+}

@@ -3,6 +3,7 @@
 namespace Modules\P2_ParticipantesGrupos\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\DocenteGrupoAsignacion;
 use App\Models\Postulante;
 use Modules\P4_ReportesMonitoreoAuditoria\Services\AuditoriaService;
 use Illuminate\Http\JsonResponse;
@@ -243,6 +244,78 @@ class PostulanteController extends Controller
             ->firstOrFail();
 
         return response()->json($postulante);
+    }
+
+    // ── Mi Horario (para el postulante autenticado) ──────────────────────────
+
+    public function horarioPostulante(Request $request): JsonResponse
+    {
+        $user       = $request->user();
+        $postulante = Postulante::where('user_id', $user->id)
+            ->with(['grupos'])
+            ->firstOrFail();
+
+        if ($postulante->grupos->isEmpty()) {
+            return response()->json([
+                'grupo'           => null,
+                'horario_semanal' => [],
+                'docentes'        => [],
+            ]);
+        }
+
+        $grupo = $postulante->grupos->first();
+
+        $asignaciones = DocenteGrupoAsignacion::with(['materia', 'docente'])
+            ->where('grupo_id', $grupo->id)
+            ->where('estado', 'activo')
+            ->orderBy('hora_inicio')
+            ->get();
+
+        $slots       = [];
+        $docentesMap = [];
+
+        foreach ($asignaciones as $a) {
+            $inicio = substr($a->hora_inicio, 0, 5);
+            $fin    = substr($a->hora_fin, 0, 5);
+            $key    = $inicio . '|' . $fin;
+
+            if (!isset($slots[$key])) {
+                $slots[$key] = [
+                    'hora_inicio' => $inicio,
+                    'hora_fin'    => $fin,
+                    'lunes'       => null,
+                    'martes'      => null,
+                    'miercoles'   => null,
+                    'jueves'      => null,
+                    'viernes'     => null,
+                    'sabado'      => null,
+                ];
+            }
+
+            $slots[$key][$a->dia] = [
+                'materia' => $a->materia?->nombre,
+                'aula'    => $grupo->aula,
+            ];
+
+            $matNombre = $a->materia?->nombre;
+            if ($matNombre && !isset($docentesMap[$matNombre])) {
+                $docentesMap[$matNombre] = $a->docente?->name ?? 'Por asignar';
+            }
+        }
+
+        ksort($slots);
+
+        return response()->json([
+            'grupo' => [
+                'id'         => $grupo->id,
+                'codigo'     => $grupo->codigo,
+                'turno'      => $grupo->turno,
+                'aula'       => $grupo->aula,
+                'cupo_maximo'=> $grupo->cupo_maximo,
+            ],
+            'horario_semanal' => array_values($slots),
+            'docentes'        => $docentesMap,
+        ]);
     }
 
     public function uploadFoto(Request $request, int $id): JsonResponse

@@ -145,7 +145,11 @@ class AuthController extends Controller
 
     private function getRedirectPath(string $role): string
     {
-        // El administrador va a su dashboard; todos los demás van a su perfil
-        return $role === 'administrador' ? '/admin/dashboard' : '/perfil';
+        return match($role) {
+            'administrador' => '/admin/dashboard',
+            'docente'       => '/docente/perfil',
+            'postulante'    => '/postulante/perfil',
+            default         => '/perfil',
+        };
     }
 }

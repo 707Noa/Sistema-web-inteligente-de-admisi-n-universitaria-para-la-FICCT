@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\P2_ParticipantesGrupos\Controllers;
+namespace Modules\P4_ReportesMonitoreoAuditoria\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Grupo;

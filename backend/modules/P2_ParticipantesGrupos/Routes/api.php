@@ -10,7 +10,6 @@ use Modules\P2_ParticipantesGrupos\Controllers\MateriaController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordDocenteController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordGrupoController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordAsignacionController;
-use Modules\P2_ParticipantesGrupos\Controllers\CoordReporteController;
 use Illuminate\Support\Facades\Route;
 
 // Preinscripción pública
@@ -45,7 +44,8 @@ Route::middleware('auth:sanctum')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::middleware('role:postulante')->prefix('postulante')->group(function () {
-        Route::get('/perfil', [PostulanteController::class, 'perfil']);
+        Route::get('/perfil',  [PostulanteController::class, 'perfil']);
+        Route::get('/horario', [PostulanteController::class, 'horarioPostulante']);
     });
 
     /*
@@ -86,9 +86,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/asignacion/docente',                [CoordAsignacionController::class, 'asignarDocente']);
         Route::get('/asignacion/asignaciones',            [CoordAsignacionController::class, 'getAsignaciones']);
 
-        // Reportes
-        Route::get('/reporte/horarios',                   [CoordReporteController::class, 'horarios']);
-        Route::get('/reporte/horarios/csv',               [CoordReporteController::class, 'exportarCsv']);
     });
 
     /*

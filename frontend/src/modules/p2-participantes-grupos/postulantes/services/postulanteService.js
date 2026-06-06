@@ -5,7 +5,9 @@ export const getPostulante = (id) => api.get(`${p}/postulantes/${id}`)
 export const createPostulante = (data) => api.post(`${p}/postulantes`, data)
 export const updatePostulante = (id, data) => api.put(`${p}/postulantes/${id}`, data)
 export const deletePostulante = (id) => api.delete(`${p}/postulantes/${id}`)
-export const getPostulantePerfil = () => api.get('/postulante/perfil')
+export const getPostulantePerfil        = ()       => api.get('/postulante/perfil')
+export const getPostulanteHorario       = ()       => api.get('/postulante/horario')
+export const getPostulanteCalificaciones = ()      => api.get('/postulante/calificaciones')
 
 // Gestión de preinscripciones (admin) — solo muestra PREINSCRITO e INSCRITO
 export const getPreinscripciones = (params) => api.get('/admin/preinscripciones', { params })

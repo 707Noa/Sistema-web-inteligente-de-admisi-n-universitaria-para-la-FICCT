@@ -6,8 +6,8 @@ import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAut
 const ALLOWED_PATHS = {
   coordinador: ['/perfil', '/coordinador/'],
   autoridad:   ['/perfil'],
-  docente:     ['/perfil'],
-  postulante:  ['/perfil'],
+  docente:     ['/perfil', '/docente/'],
+  postulante:  ['/perfil', '/postulante/'],
   // administrador: sin restricción
 }
 

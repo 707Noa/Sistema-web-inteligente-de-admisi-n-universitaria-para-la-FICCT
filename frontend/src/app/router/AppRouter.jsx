@@ -21,6 +21,20 @@ import DocentesAcademicos from '@/modules/p2-participantes-grupos/coordinador/pa
 import AdministrarGrupos from '@/modules/p2-participantes-grupos/coordinador/pages/AdministrarGrupos'
 import ProcesarAsignacion from '@/modules/p2-participantes-grupos/coordinador/pages/ProcesarAsignacion'
 import ReporteHorarios from '@/modules/p2-participantes-grupos/coordinador/pages/ReporteHorarios'
+import CuposCarrera   from '@/modules/p2-participantes-grupos/coordinador/pages/CuposCarrera'
+import AdmisionFinal  from '@/modules/p2-participantes-grupos/coordinador/pages/AdmisionFinal'
+
+// Páginas del Postulante
+import PostulanteMiPerfil         from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMiPerfil'
+import PostulanteMiHorario        from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMiHorario'
+import PostulanteMisCalificaciones from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMisCalificaciones'
+
+// Páginas del Docente
+import DocenteMiPerfil       from '@/modules/p3-evaluacion-resultados/docente/pages/MiPerfil'
+import DocenteMisGrupos      from '@/modules/p3-evaluacion-resultados/docente/pages/MisGrupos'
+import DocenteAsistencia     from '@/modules/p3-evaluacion-resultados/docente/pages/Asistencia'
+import DocenteCalificaciones from '@/modules/p3-evaluacion-resultados/docente/pages/Calificaciones'
+import DocenteReportes       from '@/modules/p3-evaluacion-resultados/docente/pages/Reportes'
 
 import PrivateRoute from './PrivateRoute'
 import Layout from '@/layouts/Layout'
@@ -125,11 +139,24 @@ export default function AppRouter() {
       <Route path="/coordinador/grupos"           element={<PrivateRoute><AdministrarGrupos /></PrivateRoute>} />
       <Route path="/coordinador/asignacion"       element={<PrivateRoute><ProcesarAsignacion /></PrivateRoute>} />
       <Route path="/coordinador/reporte-horarios" element={<PrivateRoute><ReporteHorarios /></PrivateRoute>} />
+      <Route path="/coordinador/cupos-carrera"   element={<PrivateRoute><CuposCarrera /></PrivateRoute>} />
+      <Route path="/coordinador/admision-final"  element={<PrivateRoute><AdmisionFinal /></PrivateRoute>} />
 
       <Route path="/autoridad/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
 
-      <Route path="/docente/inicio" element={<PrivateRoute><InicioMock role="Docente" /></PrivateRoute>} />
-      <Route path="/postulante/inicio" element={<PrivateRoute><InicioMock role="Postulante" /></PrivateRoute>} />
+      {/* Rutas del Docente */}
+      <Route path="/docente/perfil"           element={<PrivateRoute><DocenteMiPerfil /></PrivateRoute>} />
+      <Route path="/docente/horario"          element={<Navigate to="/docente/grupos" replace />} />
+      <Route path="/docente/grupos"           element={<PrivateRoute><DocenteMisGrupos /></PrivateRoute>} />
+      <Route path="/docente/asistencia"       element={<PrivateRoute><DocenteAsistencia /></PrivateRoute>} />
+      <Route path="/docente/calificaciones"   element={<PrivateRoute><DocenteCalificaciones /></PrivateRoute>} />
+      <Route path="/docente/reportes"         element={<PrivateRoute><DocenteReportes /></PrivateRoute>} />
+      <Route path="/docente/inicio"           element={<PrivateRoute><DocenteMiPerfil /></PrivateRoute>} />
+      {/* Rutas del Postulante */}
+      <Route path="/postulante/perfil"          element={<PrivateRoute><PostulanteMiPerfil /></PrivateRoute>} />
+      <Route path="/postulante/horario"         element={<PrivateRoute><PostulanteMiHorario /></PrivateRoute>} />
+      <Route path="/postulante/calificaciones"  element={<PrivateRoute><PostulanteMisCalificaciones /></PrivateRoute>} />
+      <Route path="/postulante/inicio"          element={<PrivateRoute><PostulanteMiPerfil /></PrivateRoute>} />
 
       {/* Fallback Route */}
       <Route path="*" element={<NotFound />} />

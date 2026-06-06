@@ -3,6 +3,9 @@
 use Modules\P4_ReportesMonitoreoAuditoria\Controllers\DashboardController;
 use Modules\P4_ReportesMonitoreoAuditoria\Controllers\ReporteController;
 use Modules\P4_ReportesMonitoreoAuditoria\Controllers\AuditoriaController;
+use Modules\P4_ReportesMonitoreoAuditoria\Controllers\AdmisionReporteController;
+use Modules\P4_ReportesMonitoreoAuditoria\Controllers\CoordReporteController;
+use Modules\P4_ReportesMonitoreoAuditoria\Controllers\DocenteReporteController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -11,8 +14,21 @@ Route::middleware('auth:sanctum')->group(function () {
     | Rutas de Coordinador
     |----------------------------------------------------------------------
     */
-    Route::middleware('role:coordinador')->prefix('coordinador')->group(function () {
+    Route::middleware('role:coordinador,administrador')->prefix('coordinador')->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index']);
+        Route::get('/reporte/horarios',     [CoordReporteController::class, 'horarios']);
+        Route::get('/reporte/horarios/csv', [CoordReporteController::class, 'exportarCsv']);
+        Route::get('/admision/exportar-csv', [AdmisionReporteController::class, 'exportarCsv']);
+    });
+
+    /*
+    |----------------------------------------------------------------------
+    | Rutas de Docente — Reportes
+    |----------------------------------------------------------------------
+    */
+    Route::middleware('role:docente')->prefix('docente')->group(function () {
+        Route::get('/reporte/calificaciones', [DocenteReporteController::class, 'reporteCalificaciones']);
+        Route::get('/reporte/asistencia',     [DocenteReporteController::class, 'reporteAsistencia']);
     });
 
     /*
