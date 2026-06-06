@@ -112,6 +112,10 @@ export default function PreinscripcionForm() {
     if (!form.nombres || !form.apellidos || !form.ci || !form.email) {
       setError('Por favor complete todos los campos obligatorios (*).'); return
     }
+    const emailRegexStep1 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegexStep1.test(form.email)) {
+      setError('El formato del correo electrónico no es válido.'); return
+    }
     if (!form.primera_opcion_carrera) {
       setError('Seleccione su primera opción de carrera.'); return
     }
@@ -207,8 +211,22 @@ export default function PreinscripcionForm() {
       }, 1500)
     } catch (err) {
       console.log('Error del backend:', err.response?.data)
-      if (err.response?.data?.errors?.ci) {
-        setError('El CI ya fue registrado en el sistema.')
+      const errs = err.response?.data?.errors || {}
+
+      // Errores de datos duplicados: volver al Step 1 para que el usuario los corrija
+      const dataDuplicateFields = {
+        ci: 'El CI ya está registrado.',
+        correo_electronico: 'El correo electrónico ya está registrado.',
+        telefono: 'El teléfono ya está registrado.',
+      }
+      const duplicateMessages = Object.entries(dataDuplicateFields)
+        .filter(([field]) => errs[field])
+        .map(([, msg]) => msg)
+
+      if (duplicateMessages.length > 0) {
+        setError(duplicateMessages.join(' '))
+        // Volver al Step 1 para que corrija los datos duplicados
+        setStep(1)
       } else {
         setError(err.response?.data?.message || 'Error al guardar sus datos y documentos.')
       }

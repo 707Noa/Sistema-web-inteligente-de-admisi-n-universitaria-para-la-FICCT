@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Grupo;
 use App\Models\GrupoHorario;
 use App\Models\Materia;
+use App\Models\Postulante;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,7 +20,11 @@ class CoordGrupoController extends Controller
 
     private const MATERIAS_ORDEN = ['Computación', 'Física', 'Inglés', 'Matemáticas'];
 
-    /** Lista grupos coordinados (con codigo/turno). */
+    private const AULAS = [11, 12, 13, 14, 15, 16, 21, 22, 23, 24, 25, 26];
+
+    private const CUPO = 70;
+
+    /** Lista grupos coordinados con código, turno y aula. */
     public function index(Request $request): JsonResponse
     {
         $query = Grupo::with(['horarios.materia'])
@@ -32,52 +37,96 @@ class CoordGrupoController extends Controller
             $query->where('turno', $request->turno);
         }
 
-        $grupos = $query->orderBy('codigo')->get()->map(fn($g) => [
-            'id'           => $g->id,
-            'codigo'       => $g->codigo,
-            'turno'        => $g->turno,
-            'dias'         => $g->dias ?? [],
-            'cupo_maximo'  => $g->cupo_maximo ?? $g->capacidad_maxima ?? 40,
-            'estado'       => $g->estado,
-            'ocupacion'    => $g->ocupacion(),
-            'horarios'     => $g->horarios->map(fn($h) => [
-                'materia_id'    => $h->materia_id,
-                'materia_nombre'=> $h->materia?->nombre,
-                'dia'           => $h->dia,
-                'hora_inicio'   => substr($h->hora_inicio, 0, 5),
-                'hora_fin'      => substr($h->hora_fin, 0, 5),
-            ]),
-        ]);
+        $grupos = $query->orderBy('codigo')->get()->map(fn($g) => $this->formatGrupo($g));
 
         return response()->json($grupos);
     }
 
-    /** Crear grupo con horarios automáticos. */
-    public function store(Request $request): JsonResponse
+    /**
+     * Genera grupos automáticamente según la fórmula:
+     *   CantidadGrupos = CEIL(TotalInscritos / 70)
+     *
+     * - Solo cuenta postulantes con estado_tramite = 'INSCRITO'.
+     * - Distribuye grupos entre turnos: mañana → tarde → noche (rotación).
+     * - Códigos: M1, M2 / T1, T2 / N1, N2.
+     * - Aulas únicas por turno: 11-16 y 21-26.
+     * - No genera si ya existen grupos activos (evita duplicación).
+     */
+    public function generarGruposAuto(): JsonResponse
     {
-        $request->validate([
-            'codigo'      => 'required|string|max:10|unique:grupos,codigo',
-            'turno'       => 'required|in:mañana,tarde,noche',
-            'dias'        => 'required|array|min:1',
-            'dias.*'      => 'in:lunes,martes,miercoles,jueves,viernes,sabado',
-            'cupo_maximo' => 'required|integer|min:1|max:200',
-        ]);
+        // 1. Contar postulantes INSCRITOS
+        $totalInscritos = Postulante::where('estado_tramite', 'INSCRITO')->count();
 
-        $grupo = Grupo::create([
-            'codigo'      => strtoupper($request->codigo),
-            'nombre_grupo'=> strtoupper($request->codigo),
-            'turno'       => $request->turno,
-            'dias'        => $request->dias,
-            'cupo_maximo' => $request->cupo_maximo,
-            'capacidad_maxima' => $request->cupo_maximo,
-            'estado'      => 'activo',
-        ]);
+        if ($totalInscritos === 0) {
+            return response()->json([
+                'message' => 'No hay postulantes con estado INSCRITO. Inscriba postulantes antes de generar grupos.',
+            ], 422);
+        }
 
-        $this->generarHorarios($grupo);
+        // 2. Evitar duplicación si ya existen grupos activos
+        $gruposActivos = Grupo::whereNotNull('codigo')->where('estado', 'activo')->count();
+        if ($gruposActivos > 0) {
+            return response()->json([
+                'message'        => 'Ya existen ' . $gruposActivos . ' grupo(s) activo(s). Desactívelos o elimínelos antes de regenerar.',
+                'grupos_activos' => $gruposActivos,
+                'total_inscritos'=> $totalInscritos,
+            ], 409);
+        }
+
+        // 3. Calcular cantidad de grupos: CEIL(TotalInscritos / 70)
+        $cantidadGrupos = (int) ceil($totalInscritos / self::CUPO);
+
+        // 4. Preparar rotación de turnos y contadores de aulas
+        $turnosSecuencia = array_keys(self::TURNOS);           // [mañana, tarde, noche]
+        $siglas          = ['mañana' => 'M', 'tarde' => 'T', 'noche' => 'N'];
+        $contadores      = ['mañana' => 0, 'tarde' => 0, 'noche' => 0];
+        $aulasUsadas     = ['mañana' => [], 'tarde' => [], 'noche' => []];
+
+        $gruposCreados = [];
+
+        for ($i = 0; $i < $cantidadGrupos; $i++) {
+            $turno = $turnosSecuencia[$i % 3];
+            $contadores[$turno]++;
+            $codigo = $siglas[$turno] . $contadores[$turno];
+
+            // 5. Asignar aula libre para este turno (sin choque)
+            $aula = null;
+            foreach (self::AULAS as $a) {
+                if (!in_array($a, $aulasUsadas[$turno])) {
+                    $aula = $a;
+                    break;
+                }
+            }
+            if ($aula === null) {
+                return response()->json([
+                    'message' => "Sin aulas disponibles para turno {$turno}. Se crearon " . count($gruposCreados) . " grupo(s).",
+                ], 422);
+            }
+            $aulasUsadas[$turno][] = $aula;
+
+            // 6. Crear grupo
+            $grupo = Grupo::create([
+                'codigo'           => $codigo,
+                'nombre_grupo'     => $codigo,
+                'turno'            => $turno,
+                'dias'             => ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
+                'cupo_maximo'      => self::CUPO,
+                'capacidad_maxima' => self::CUPO,
+                'aula'             => (string) $aula,
+                'estado'           => 'activo',
+            ]);
+
+            // 7. Generar horarios automáticos para el turno
+            $this->generarHorarios($grupo);
+
+            $gruposCreados[] = $this->formatGrupo($grupo->fresh(['horarios.materia']));
+        }
 
         return response()->json([
-            'message' => 'Grupo creado correctamente.',
-            'grupo'   => $this->formatGrupo($grupo->fresh(['horarios.materia'])),
+            'message'          => "Se generaron {$cantidadGrupos} grupo(s) para {$totalInscritos} postulantes inscritos.",
+            'total_inscritos'  => $totalInscritos,
+            'grupos_generados' => count($gruposCreados),
+            'grupos'           => $gruposCreados,
         ], 201);
     }
 
@@ -91,43 +140,27 @@ class CoordGrupoController extends Controller
         return response()->json($this->formatGrupoDetalle($grupo));
     }
 
-    /** Editar grupo (solo datos que no rompen horarios). */
+    /**
+     * Edición restringida: solo permite cambiar estado del grupo.
+     * Código, cupo máximo y materias son inmutables.
+     */
     public function update(Request $request, int $id): JsonResponse
     {
         $grupo = Grupo::whereNotNull('codigo')->findOrFail($id);
 
         $request->validate([
-            'codigo'      => "required|string|max:10|unique:grupos,codigo,{$id}",
-            'turno'       => 'required|in:mañana,tarde,noche',
-            'dias'        => 'required|array|min:1',
-            'dias.*'      => 'in:lunes,martes,miercoles,jueves,viernes,sabado',
-            'cupo_maximo' => 'required|integer|min:1|max:200',
+            'estado' => 'required|in:activo,inactivo',
         ]);
 
-        $turnoChanged = $grupo->turno !== $request->turno;
-
-        $grupo->update([
-            'codigo'      => strtoupper($request->codigo),
-            'nombre_grupo'=> strtoupper($request->codigo),
-            'turno'       => $request->turno,
-            'dias'        => $request->dias,
-            'cupo_maximo' => $request->cupo_maximo,
-            'capacidad_maxima' => $request->cupo_maximo,
-        ]);
-
-        if ($turnoChanged) {
-            // Regenerar horarios si cambió el turno
-            $grupo->horarios()->delete();
-            $this->generarHorarios($grupo);
-        }
+        $grupo->update(['estado' => $request->estado]);
 
         return response()->json([
-            'message' => 'Grupo actualizado correctamente.',
+            'message' => 'Estado del grupo actualizado.',
             'grupo'   => $this->formatGrupo($grupo->fresh(['horarios.materia'])),
         ]);
     }
 
-    /** Activar o inactivar un grupo. */
+    /** Activar o inactivar un grupo (toggle). */
     public function toggleEstado(int $id): JsonResponse
     {
         $grupo = Grupo::whereNotNull('codigo')->findOrFail($id);
@@ -137,8 +170,28 @@ class CoordGrupoController extends Controller
         return response()->json(['message' => "Grupo {$nuevo}.", 'estado' => $nuevo]);
     }
 
-    // ── Helpers privados ──
+    /**
+     * Eliminar un grupo: desasigna postulantes, borra horarios y elimina el registro.
+     * Útil para limpiar antes de regenerar grupos.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $grupo = Grupo::whereNotNull('codigo')->findOrFail($id);
+        $codigo = $grupo->codigo;
 
+        $grupo->postulantes()->detach();
+        $grupo->horarios()->delete();
+        $grupo->delete();
+
+        return response()->json(['message' => "Grupo {$codigo} eliminado correctamente."]);
+    }
+
+    // ── Helpers privados ─────────────────────────────────────────────────────
+
+    /**
+     * Genera horarios automáticos para cada materia dentro del turno del grupo.
+     * Cada materia ocupa exactamente 1 hora, respetando el bloque del turno.
+     */
     private function generarHorarios(Grupo $grupo): void
     {
         $turnoConfig = self::TURNOS[$grupo->turno] ?? self::TURNOS['mañana'];
@@ -148,7 +201,7 @@ class CoordGrupoController extends Controller
             ->sortBy(fn($m) => array_search($m->nombre, self::MATERIAS_ORDEN));
 
         $horaBase = (int) substr($turnoConfig['inicio'], 0, 2);
-        $dias     = is_array($grupo->dias) ? $grupo->dias : ($grupo->dias ? json_decode($grupo->dias, true) : ['lunes']);
+        $dias     = is_array($grupo->dias) ? $grupo->dias : ['lunes'];
 
         foreach ($dias as $dia) {
             foreach ($materias->values() as $idx => $materia) {
@@ -168,8 +221,9 @@ class CoordGrupoController extends Controller
             'id'          => $g->id,
             'codigo'      => $g->codigo,
             'turno'       => $g->turno,
+            'aula'        => $g->aula ?? '-',
             'dias'        => $g->dias ?? [],
-            'cupo_maximo' => $g->cupo_maximo ?? $g->capacidad_maxima ?? 40,
+            'cupo_maximo' => self::CUPO,
             'estado'      => $g->estado,
             'ocupacion'   => $g->ocupacion(),
             'horarios'    => $g->horarios->map(fn($h) => [

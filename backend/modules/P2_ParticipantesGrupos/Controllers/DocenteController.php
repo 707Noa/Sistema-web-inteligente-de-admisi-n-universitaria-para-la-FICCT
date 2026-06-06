@@ -147,6 +147,137 @@ class DocenteController extends Controller
         return response()->json($docente);
     }
 
+    /**
+     * Resuelve el registro de docente a partir de un user_id.
+     * Busca por user_id primero; si no existe, busca por CI del usuario y vincula.
+     * Si no existe de ninguna forma, devuelve null.
+     */
+    private function resolverDocente(int $userId): ?Docente
+    {
+        $docente = Docente::where('user_id', $userId)->first();
+        if ($docente) return $docente;
+
+        $user = User::find($userId);
+        if ($user && $user->ci) {
+            $docente = Docente::where('ci', $user->ci)->first();
+            if ($docente && !$docente->user_id) {
+                $docente->update(['user_id' => $userId]);
+            }
+        }
+        return $docente;
+    }
+
+    /**
+     * Obtener requisitos académicos del docente a partir de su user_id.
+     * Si el usuario no tiene registro de docente vinculado, devuelve valores por defecto.
+     */
+    public function getRequisitosPorUsuario(int $userId): JsonResponse
+    {
+        $user = User::with('role')->findOrFail($userId);
+
+        if ($user->role?->name !== 'docente') {
+            return response()->json(['message' => 'Solo se pueden gestionar requisitos de docentes.'], 403);
+        }
+
+        $docente = $this->resolverDocente($userId);
+
+        // Si no existe registro de docente, devolver valores por defecto sin error
+        if (!$docente) {
+            return response()->json([
+                'docente_id'           => null,
+                'nombres'              => $user->name,
+                'apellidos'            => '',
+                'ci'                   => $user->ci,
+                'tiene_profesion_area' => false,
+                'tiene_maestria'       => false,
+                'tiene_diplomado'      => false,
+                'estado_cumplimiento'  => 'NO_CUMPLE',
+            ]);
+        }
+
+        $cumple = $docente->tiene_profesion_area
+               && $docente->tiene_maestria
+               && $docente->tiene_diplomado;
+
+        return response()->json([
+            'docente_id'           => $docente->id,
+            'nombres'              => $docente->nombres,
+            'apellidos'            => $docente->apellidos,
+            'ci'                   => $docente->ci,
+            'tiene_profesion_area' => (bool) $docente->tiene_profesion_area,
+            'tiene_maestria'       => (bool) $docente->tiene_maestria,
+            'tiene_diplomado'      => (bool) $docente->tiene_diplomado,
+            'estado_cumplimiento'  => $cumple ? 'CUMPLE' : 'NO_CUMPLE',
+        ]);
+    }
+
+    /**
+     * Actualizar requisitos académicos del docente a partir de su user_id.
+     * Si no existe registro de docente, lo crea con los datos del usuario.
+     */
+    public function updateRequisitosPorUsuario(Request $request, int $userId): JsonResponse
+    {
+        $user = User::with('role')->findOrFail($userId);
+
+        if ($user->role?->name !== 'docente') {
+            return response()->json(['message' => 'Solo se pueden gestionar requisitos de docentes.'], 403);
+        }
+
+        $request->validate([
+            'tiene_profesion_area' => 'required|boolean',
+            'tiene_maestria'       => 'required|boolean',
+            'tiene_diplomado'      => 'required|boolean',
+        ]);
+
+        $docente = $this->resolverDocente($userId);
+
+        // Si no existe registro de docente, crearlo a partir de los datos del usuario
+        if (!$docente) {
+            $parts = explode(' ', trim($user->name), 2);
+            $docente = Docente::create([
+                'user_id'              => $userId,
+                'nombres'              => $parts[0],
+                'apellidos'            => $parts[1] ?? '',
+                'ci'                   => $user->ci,
+                'email'                => $user->email,
+                'estado'               => 'activo',
+                'tiene_profesion_area' => false,
+                'tiene_maestria'       => false,
+                'tiene_diplomado'      => false,
+            ]);
+        }
+
+        $docente->update([
+            'tiene_profesion_area' => $request->boolean('tiene_profesion_area'),
+            'tiene_maestria'       => $request->boolean('tiene_maestria'),
+            'tiene_diplomado'      => $request->boolean('tiene_diplomado'),
+        ]);
+
+        $docente->refresh();
+        $cumple = $docente->tiene_profesion_area
+               && $docente->tiene_maestria
+               && $docente->tiene_diplomado;
+
+        AuditoriaService::registrar(
+            $request->user()->id,
+            'Actualizó requisitos del docente',
+            'Docentes',
+            $request,
+            "Docente: {$docente->nombres} {$docente->apellidos} | Estado: " . ($cumple ? 'CUMPLE' : 'NO_CUMPLE')
+        );
+
+        return response()->json([
+            'docente_id'           => $docente->id,
+            'nombres'              => $docente->nombres,
+            'apellidos'            => $docente->apellidos,
+            'ci'                   => $docente->ci,
+            'tiene_profesion_area' => (bool) $docente->tiene_profesion_area,
+            'tiene_maestria'       => (bool) $docente->tiene_maestria,
+            'tiene_diplomado'      => (bool) $docente->tiene_diplomado,
+            'estado_cumplimiento'  => $cumple ? 'CUMPLE' : 'NO_CUMPLE',
+        ]);
+    }
+
     public function destroy(Request $request, int $id): JsonResponse
     {
         $docente = Docente::findOrFail($id);

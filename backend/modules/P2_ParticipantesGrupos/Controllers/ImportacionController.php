@@ -115,17 +115,34 @@ class ImportacionController extends Controller
                 continue;
             }
 
+            $correo   = $get('correo') ?: null;
+            $telefono = $get('telefono') ?: null;
+
+            if ($correo && Postulante::where('email', $correo)->exists()) {
+                $omitidos++;
+                $errores[] = "CI {$ci}: el correo '{$correo}' ya está registrado — omitida.";
+                continue;
+            }
+            if ($telefono && Postulante::where('celular', $telefono)->exists()) {
+                $omitidos++;
+                $errores[] = "CI {$ci}: el teléfono '{$telefono}' ya está registrado — omitida.";
+                continue;
+            }
+
             $estadoCsv     = strtoupper($get('estado'));
             $estadoTramite = in_array($estadoCsv, ['INSCRITO', 'PREINSCRITO']) ? $estadoCsv : 'PREINSCRITO';
             $segundaCarrera = $get('segunda_carrera');
+
+            // Generar registro automáticamente: 2026 + CI al revés
+            $codigoUsuario = '2026' . strrev(trim($ci));
 
             try {
                 $postulante = Postulante::create([
                     'nombres'             => $nombres,
                     'apellidos'           => $apellidos,
                     'ci'                  => $ci,
-                    'email'               => ($get('correo') ?: null),
-                    'celular'             => ($get('telefono') ?: null),
+                    'email'               => $correo,
+                    'celular'             => $telefono,
                     'carrera'             => ($get('primera_carrera') ?: null),
                     'carrera_postulada'   => ($get('primera_carrera') ?: null),
                     'colegio_procedencia' => ($get('unidad_educativa') ?: null),
@@ -136,6 +153,7 @@ class ImportacionController extends Controller
                     'pago_estado'         => 'PAGADO',
                     'pago_metodo'         => 'CSV',
                     'pago_fecha'          => now(),
+                    'codigo_usuario'      => $codigoUsuario,
                 ]);
 
                 $importados++;

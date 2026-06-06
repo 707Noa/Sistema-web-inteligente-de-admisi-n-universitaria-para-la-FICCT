@@ -11,3 +11,7 @@ export const activateUsuario = (id) => api.put(`${prefix}/usuarios/${id}/activat
 export const deactivateUsuario = (id) => api.put(`${prefix}/usuarios/${id}/deactivate`)
 export const changePassword = (id, data) => api.put(`${prefix}/usuarios/${id}/change-password`, data)
 export const getRoles = () => api.get('/roles')
+
+// Requisitos académicos del docente (identificado por user_id)
+export const getDocenteRequisitos    = (userId) => api.get(`/admin/docentes/usuario/${userId}/requisitos`)
+export const updateDocenteRequisitos = (userId, data) => api.put(`/admin/docentes/usuario/${userId}/requisitos`, data)

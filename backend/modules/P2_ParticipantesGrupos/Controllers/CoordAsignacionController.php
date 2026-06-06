@@ -11,6 +11,7 @@ use App\Models\DocenteGrupoAsignacion;
 use App\Models\Materia;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class CoordAsignacionController extends Controller
 {
@@ -86,11 +87,13 @@ class CoordAsignacionController extends Controller
         return response()->json([
             'grupo'      => $grupo->codigo ?? $grupo->nombre_grupo,
             'postulantes'=> $grupo->postulantes->map(fn($p) => [
-                'id'        => $p->id,
-                'nombres'   => $p->nombres,
-                'apellidos' => $p->apellidos,
-                'ci'        => $p->ci,
-                'email'     => $p->email,
+                'id'             => $p->id,
+                'nombres'        => $p->nombres,
+                'apellidos'      => $p->apellidos,
+                'ci'             => $p->ci,
+                'email'          => $p->email,
+                'codigo_usuario' => $p->codigo_usuario,
+                'carrera'        => $p->carrera ?? $p->carrera_postulada,
             ]),
         ]);
     }
@@ -160,9 +163,10 @@ class CoordAsignacionController extends Controller
             'docente_user_id' => 'required|exists:users,id',
             'grupo_id'        => 'required|exists:grupos,id',
             'materia_id'      => 'required|exists:materias,id',
-            'dia'             => 'required|string',
+            'dia'             => 'required_without:todos_los_dias|nullable|string',
             'hora_inicio'     => 'required|string',
             'hora_fin'        => 'required|string',
+            'todos_los_dias'  => 'boolean',
         ]);
 
         $docente = User::findOrFail($request->docente_user_id);
@@ -193,27 +197,36 @@ class CoordAsignacionController extends Controller
             return response()->json(['message' => 'El docente ya tiene 4 grupos asignados.'], 422);
         }
 
-        if ($this->tieneConflicto($docente->id, $request->dia, $request->hora_inicio, $request->hora_fin, null)) {
-            return response()->json(['message' => 'El docente ya tiene una clase asignada en ese día y horario.'], 422);
+        // Determinar días a asignar: todos los del grupo o solo el día indicado
+        $todosLosDias = $request->boolean('todos_los_dias', false);
+        $diasGrupo    = is_array($grupo->dias) ? $grupo->dias : ['lunes'];
+        $dias         = $todosLosDias ? $diasGrupo : [$request->dia ?? $diasGrupo[0]];
+        $diaConflicto = $dias[0];
+
+        if ($this->tieneConflicto($docente->id, $diaConflicto, $request->hora_inicio, $request->hora_fin, null)) {
+            return response()->json(['message' => 'El docente ya tiene una clase asignada en ese horario.'], 422);
         }
 
-        DocenteGrupoAsignacion::updateOrCreate(
-            [
-                'grupo_id'   => $request->grupo_id,
-                'materia_id' => $request->materia_id,
-                'dia'        => $request->dia,
-            ],
-            [
-                'docente_user_id' => $request->docente_user_id,
-                'turno'           => $grupo->turno ?? 'mañana',
-                'hora_inicio'     => $request->hora_inicio,
-                'hora_fin'        => $request->hora_fin,
-                'estado'          => 'activo',
-            ]
-        );
+        foreach ($dias as $dia) {
+            DocenteGrupoAsignacion::updateOrCreate(
+                [
+                    'grupo_id'   => $request->grupo_id,
+                    'materia_id' => $request->materia_id,
+                    'dia'        => $dia,
+                ],
+                [
+                    'docente_user_id' => $request->docente_user_id,
+                    'turno'           => $grupo->turno ?? 'mañana',
+                    'hora_inicio'     => $request->hora_inicio,
+                    'hora_fin'        => $request->hora_fin,
+                    'estado'          => 'activo',
+                ]
+            );
+        }
 
+        $diasLabel = $todosLosDias ? 'todos los días' : $dias[0];
         return response()->json([
-            'message' => "Docente {$docente->name} asignado a {$materia->nombre} en grupo {$grupo->codigo}.",
+            'message' => "Docente {$docente->name} asignado a {$materia->nombre} en grupo {$grupo->codigo} ({$diasLabel}).",
         ]);
     }
 
@@ -238,6 +251,186 @@ class CoordAsignacionController extends Controller
             'hora_inicio'    => substr($a->hora_inicio, 0, 5),
             'hora_fin'       => substr($a->hora_fin, 0, 5),
         ]));
+    }
+
+    // ══════════════════════════════════════════════
+    // 4.0  Estadísticas de asignación
+    // ══════════════════════════════════════════════
+
+    /** Devuelve estadísticas globales: inscritos, grupos, asignados, sin grupo, ocupación por grupo. */
+    public function statsAsignacion(): JsonResponse
+    {
+        $totalInscritos = Postulante::where('estado_tramite', 'INSCRITO')->count();
+
+        $totalGrupos = Grupo::whereNotNull('codigo')->where('estado', 'activo')->count();
+
+        $asignados = DB::table('grupo_postulante')
+            ->join('grupos',     'grupo_postulante.grupo_id',     '=', 'grupos.id')
+            ->join('postulantes','grupo_postulante.postulante_id','=', 'postulantes.id')
+            ->where('grupos.estado',            'activo')
+            ->where('postulantes.estado_tramite','INSCRITO')
+            ->distinct()
+            ->count('grupo_postulante.postulante_id');
+
+        $sinGrupo = max(0, $totalInscritos - $asignados);
+
+        $grupos = Grupo::whereNotNull('codigo')
+            ->where('estado', 'activo')
+            ->withCount('postulantes')
+            ->orderBy('codigo')
+            ->get()
+            ->map(fn($g) => [
+                'id'          => $g->id,
+                'codigo'      => $g->codigo,
+                'turno'       => $g->turno,
+                'aula'        => $g->aula ?? '-',
+                'ocupacion'   => $g->postulantes_count,
+                'cupo_maximo' => $g->cupo_maximo ?? 70,
+            ]);
+
+        return response()->json([
+            'total_inscritos' => $totalInscritos,
+            'total_grupos'    => $totalGrupos,
+            'asignados'       => $asignados,
+            'sin_grupo'       => $sinGrupo,
+            'grupos'          => $grupos,
+        ]);
+    }
+
+    // ══════════════════════════════════════════════
+    // 4.3  Asignación automática de docentes
+    // ══════════════════════════════════════════════
+
+    /**
+     * Asigna docentes automáticamente a todas las materias de grupos activos.
+     * Por cada (grupo, materia) sin docente asignado, busca el primer docente disponible:
+     *   - Tiene la especialidad de la materia.
+     *   - Está activo.
+     *   - No supera 4 grupos.
+     *   - No tiene conflicto de horario en el día representativo.
+     */
+    public function asignarDocentesAuto(): JsonResponse
+    {
+        $grupos = Grupo::whereNotNull('codigo')
+            ->where('estado', 'activo')
+            ->with(['horarios.materia'])
+            ->orderBy('codigo')
+            ->get();
+
+        if ($grupos->isEmpty()) {
+            return response()->json(['message' => 'No existen grupos activos disponibles.'], 422);
+        }
+
+        $totalMaterias   = 0;
+        $asignadas       = 0;
+        $sinDocente      = 0;
+        $docentesUsados  = [];
+        $detalle         = [];
+
+        foreach ($grupos as $grupo) {
+            $dias = is_array($grupo->dias) ? $grupo->dias : ['lunes'];
+
+            // Obtener una única entrada por materia (día representativo = primero)
+            $materiasPorId = [];
+            foreach ($grupo->horarios as $h) {
+                if (!isset($materiasPorId[$h->materia_id])) {
+                    $materiasPorId[$h->materia_id] = $h;
+                }
+            }
+
+            foreach ($materiasPorId as $materiaId => $horario) {
+                $totalMaterias++;
+                $materiaLabel  = $horario->materia?->nombre ?? "Materia #{$materiaId}";
+                $horarioLabel  = substr($horario->hora_inicio, 0, 5) . ' - ' . substr($horario->hora_fin, 0, 5);
+                $diaRepres     = $dias[0] ?? 'lunes';
+
+                // ¿Ya tiene docente asignado en este grupo+materia?
+                $asigExistente = DocenteGrupoAsignacion::where('grupo_id',   $grupo->id)
+                    ->where('materia_id', $materiaId)
+                    ->where('estado',     'activo')
+                    ->with('docente')
+                    ->first();
+
+                if ($asigExistente) {
+                    $asignadas++;
+                    $detalle[] = [
+                        'grupo'   => $grupo->codigo,
+                        'materia' => $materiaLabel,
+                        'horario' => $horarioLabel,
+                        'docente' => $asigExistente->docente?->name ?? '-',
+                        'estado'  => 'ya_asignado',
+                    ];
+                    continue;
+                }
+
+                // Buscar docente disponible
+                $candidatos = DocenteEspecialidad::where('materia_id', $materiaId)
+                    ->where('estado', 'activo')
+                    ->pluck('user_id');
+
+                $docente = User::whereIn('id', $candidatos)
+                    ->where('estado', 'activo')
+                    ->get()
+                    ->first(function ($u) use ($diaRepres, $horario) {
+                        $gruposAsignados = DocenteGrupoAsignacion::where('docente_user_id', $u->id)
+                            ->where('estado', 'activo')
+                            ->distinct('grupo_id')
+                            ->count('grupo_id');
+                        if ($gruposAsignados >= 4) return false;
+                        return !$this->tieneConflicto(
+                            $u->id, $diaRepres,
+                            $horario->hora_inicio, $horario->hora_fin, null
+                        );
+                    });
+
+                if (!$docente) {
+                    $sinDocente++;
+                    $detalle[] = [
+                        'grupo'   => $grupo->codigo,
+                        'materia' => $materiaLabel,
+                        'horario' => $horarioLabel,
+                        'docente' => null,
+                        'estado'  => 'sin_docente',
+                    ];
+                    continue;
+                }
+
+                // Asignar para todos los días del grupo
+                foreach ($dias as $dia) {
+                    DocenteGrupoAsignacion::updateOrCreate(
+                        ['grupo_id' => $grupo->id, 'materia_id' => $materiaId, 'dia' => $dia],
+                        [
+                            'docente_user_id' => $docente->id,
+                            'turno'           => $grupo->turno ?? 'mañana',
+                            'hora_inicio'     => $horario->hora_inicio,
+                            'hora_fin'        => $horario->hora_fin,
+                            'estado'          => 'activo',
+                        ]
+                    );
+                }
+
+                $asignadas++;
+                if (!in_array($docente->id, $docentesUsados)) {
+                    $docentesUsados[] = $docente->id;
+                }
+                $detalle[] = [
+                    'grupo'   => $grupo->codigo,
+                    'materia' => $materiaLabel,
+                    'horario' => $horarioLabel,
+                    'docente' => $docente->name,
+                    'estado'  => 'asignado',
+                ];
+            }
+        }
+
+        return response()->json([
+            'message'         => "Asignación completada. Asignadas: {$asignadas}, Sin docente: {$sinDocente}.",
+            'total_materias'  => $totalMaterias,
+            'asignadas'       => $asignadas,
+            'sin_docente'     => $sinDocente,
+            'docentes_usados' => count($docentesUsados),
+            'detalle'         => $detalle,
+        ]);
     }
 
     // ── Helper: detección de conflicto ──

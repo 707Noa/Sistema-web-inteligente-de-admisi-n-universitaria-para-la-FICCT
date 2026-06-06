@@ -10,14 +10,16 @@ class Docente extends Model
 {
     protected $fillable = [
         'user_id', 'nombres', 'apellidos', 'ci', 'email',
-        'celular', 'profesion', 'tiene_maestria', 'tiene_diplomado', 'estado',
+        'celular', 'profesion', 'tiene_maestria', 'tiene_diplomado',
+        'tiene_profesion_area', 'estado',
     ];
 
     protected function casts(): array
     {
         return [
-            'tiene_maestria' => 'boolean',
-            'tiene_diplomado' => 'boolean',
+            'tiene_maestria'      => 'boolean',
+            'tiene_diplomado'     => 'boolean',
+            'tiene_profesion_area'=> 'boolean',
         ];
     }
 

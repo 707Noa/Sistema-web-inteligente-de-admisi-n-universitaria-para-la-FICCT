@@ -71,12 +71,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Grupos coordinados
         Route::get('/grupos',                             [CoordGrupoController::class, 'index']);
-        Route::post('/grupos',                            [CoordGrupoController::class, 'store']);
+        Route::post('/grupos/auto-generar',               [CoordGrupoController::class, 'generarGruposAuto']);
         Route::get('/grupos/{id}',                        [CoordGrupoController::class, 'show']);
         Route::put('/grupos/{id}',                        [CoordGrupoController::class, 'update']);
         Route::patch('/grupos/{id}/toggle-estado',        [CoordGrupoController::class, 'toggleEstado']);
+        Route::delete('/grupos/{id}',                     [CoordGrupoController::class, 'destroy']);
 
         // Asignaciones
+        Route::get('/asignacion/stats',                   [CoordAsignacionController::class, 'statsAsignacion']);
+        Route::post('/asignacion/docentes-auto',          [CoordAsignacionController::class, 'asignarDocentesAuto']);
         Route::post('/asignacion/postulantes-auto',       [CoordAsignacionController::class, 'asignarPostulantesAuto']);
         Route::get('/asignacion/grupo/{grupoId}/postulantes', [CoordAsignacionController::class, 'postulantesEnGrupo']);
         Route::post('/asignacion/docentes-disponibles',   [CoordAsignacionController::class, 'docentesDisponibles']);
@@ -99,7 +102,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('/postulantes', PostulanteController::class);
         Route::post('/postulantes/{id}/foto', [PostulanteController::class, 'uploadFoto']);
 
-        // Docentes
+        // Docentes — rutas específicas ANTES del apiResource para evitar conflictos
+        Route::get('/docentes/usuario/{userId}/requisitos',  [DocenteController::class, 'getRequisitosPorUsuario']);
+        Route::put('/docentes/usuario/{userId}/requisitos',  [DocenteController::class, 'updateRequisitosPorUsuario']);
         Route::apiResource('/docentes', DocenteController::class);
 
         // Materias

@@ -11,12 +11,15 @@ export const asignarMateria        = (id, data)=> api.post(`${BASE}/docentes/${i
 // ── Grupos ──
 export const getGrupos          = (params) => api.get(`${BASE}/grupos`, { params })
 export const getGrupo           = (id)     => api.get(`${BASE}/grupos/${id}`)
-export const createGrupo        = (data)   => api.post(`${BASE}/grupos`, data)
+export const generarGruposAuto  = ()       => api.post(`${BASE}/grupos/auto-generar`)
 export const updateGrupo        = (id, d)  => api.put(`${BASE}/grupos/${id}`, d)
 export const toggleEstadoGrupo  = (id)     => api.patch(`${BASE}/grupos/${id}/toggle-estado`)
+export const deleteGrupo        = (id)     => api.delete(`${BASE}/grupos/${id}`)
 
 // ── Asignaciones ──
+export const getStatsAsignacion        = ()      => api.get(`${BASE}/asignacion/stats`)
 export const asignarPostulantesAuto    = ()      => api.post(`${BASE}/asignacion/postulantes-auto`)
+export const asignarDocentesAuto       = ()      => api.post(`${BASE}/asignacion/docentes-auto`)
 export const postulantesEnGrupo        = (gid)   => api.get(`${BASE}/asignacion/grupo/${gid}/postulantes`)
 export const getDocentesDisponibles    = (data)  => api.post(`${BASE}/asignacion/docentes-disponibles`, data)
 export const asignarDocente            = (data)  => api.post(`${BASE}/asignacion/docente`, data)

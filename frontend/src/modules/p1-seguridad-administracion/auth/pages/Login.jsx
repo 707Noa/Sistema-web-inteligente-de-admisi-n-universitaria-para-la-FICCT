@@ -94,8 +94,12 @@ export default function Login() {
 
           <div className="login-card-footer">
             <Link to={`/${perfil}/forgot-password`}>¿Olvidaste tu contraseña?</Link>
-            <div className="login-divider">o</div>
-            <Link to="/preinscripcion">📋 Formulario de Preinscripción</Link>
+            {perfil === 'postulante' && (
+              <>
+                <div className="login-divider">o</div>
+                <Link to="/preinscripcion">📋 Formulario de Preinscripción</Link>
+              </>
+            )}
           </div>
         </div>
       </div>
