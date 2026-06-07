@@ -42,8 +42,18 @@ export const generarCuentasMasivo = () => {
 /**
  * Generar sesión de Stripe Checkout.
  */
-export const generarStripeCheckout = (id) => {
-  return api.post(`/preinscripcion/${id}/pago/stripe/checkout`);
+export const generarStripeCheckout = (postulanteId) => {
+  return api.post('/pagos/stripe/checkout', { postulante_id: postulanteId });
+};
+
+/**
+ * Iniciar Stripe Checkout en un solo paso (con datos/documentos o temporal ID).
+ */
+export const preinscripcionStripeCheckout = (data) => {
+  const isFormData = data instanceof FormData;
+  return api.post('/preinscripcion/stripe/checkout', data, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : { 'Content-Type': 'application/json' }
+  });
 };
 
 /**
@@ -68,8 +78,24 @@ export const consultarPagoEstado = (id) => {
 };
 
 /**
+ * Consultar el estado del pago de Stripe usando el session_id.
+ */
+export const consultarStripeEstado = (sessionId) => {
+  return api.get('/preinscripcion/stripe/estado', { params: { session_id: sessionId } });
+};
+
+/**
  * Simular el resultado del pago de una preinscripción (Prototipo Académico).
  */
 export const simularPagoPostulante = (id, estado, metodo) => {
   return api.post(`/preinscripcion/${id}/pago/simular`, { estado, metodo });
+};
+
+/**
+ * Cancelar la preinscripción de un postulante (eliminar datos).
+ */
+export const cancelarPreinscripcion = (id, token = null) => {
+  return api.delete(`/preinscripciones/${id}/cancelar`, {
+    params: token ? { token } : {}
+  });
 };

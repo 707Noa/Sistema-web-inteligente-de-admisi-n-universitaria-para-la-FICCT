@@ -65,6 +65,7 @@ class ImportacionController extends Controller
             'unidad_educativa' => ['unidad educativa', 'colegio', 'colegio_procedencia', 'unidad_educativa'],
             'ciudad'           => ['ciudad'],
             'estado'           => ['estado'],
+            'requisitos'       => ['requisitos', 'requisito', 'requisitos_completos', 'documentos_completos', 'verificado', 'estado_documentos', 'documentos_verificados'],
         ];
 
         $colMap = [];
@@ -133,8 +134,19 @@ class ImportacionController extends Controller
             $estadoTramite = in_array($estadoCsv, ['INSCRITO', 'PREINSCRITO']) ? $estadoCsv : 'PREINSCRITO';
             $segundaCarrera = $get('segunda_carrera');
 
+<<<<<<< Updated upstream
             // Generar registro automáticamente: 2026 + CI al revés
             $codigoUsuario = '2026' . strrev(trim($ci));
+=======
+            $requisitosRaw = $get('requisitos');
+            $requisitosCompletos = false;
+            if ($requisitosRaw !== '') {
+                $normReq = mb_strtolower(trim($requisitosRaw));
+                if (in_array($normReq, ['sí', 'si', 'sì', 'true', '1', 'cumple', 'completo', 'completado'])) {
+                    $requisitosCompletos = true;
+                }
+            }
+>>>>>>> Stashed changes
 
             try {
                 $postulante = Postulante::create([
@@ -153,7 +165,11 @@ class ImportacionController extends Controller
                     'pago_estado'         => 'PAGADO',
                     'pago_metodo'         => 'CSV',
                     'pago_fecha'          => now(),
+<<<<<<< Updated upstream
                     'codigo_usuario'      => $codigoUsuario,
+=======
+                    'requisitos_completos'=> $requisitosCompletos,
+>>>>>>> Stashed changes
                 ]);
 
                 $importados++;

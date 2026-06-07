@@ -62,7 +62,7 @@ class DocenteController extends Controller
 
         $ci       = $request->ci;
         $name     = trim($request->nombres . ' ' . $request->apellidos);
-        $password = Hash::make('2026' . strrev($ci)); // contraseña: "2026" + CI invertido (igual al registro)
+        $password = Hash::make($ci); // contraseña inicial es el CI
         $codigo   = '2026' . strrev($ci);             // registro
 
         // Transacción: ambos registros o ninguno

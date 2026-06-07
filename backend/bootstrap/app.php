@@ -37,7 +37,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/preinscripcion',
             'api/preinscripcion/*',
             'api/preinscripciones',
-            'api/webhooks/stripe',
+            'api/pagos/stripe/webhook',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -1,7 +1,7 @@
 import React from 'react'
 import Layout from '@/layouts/Layout'
 import { useAuth } from '../context/AuthContext'
-import { FiUser, FiMail, FiCreditCard, FiHash, FiShield } from 'react-icons/fi'
+import { FiUser, FiMail, FiCreditCard, FiHash, FiShield, FiCheckCircle } from 'react-icons/fi'
 
 const ROL_LABELS = {
   administrador: 'Administrador',
@@ -95,6 +95,7 @@ export default function Perfil() {
           <InfoRow icon={<FiMail />}       label="Correo Electrónico" value={user.email} />
           <InfoRow icon={<FiHash />}       label="Registro"           value={registro} />
           <InfoRow icon={<FiShield />}     label="Rol"                value={rolLabel} />
+          <InfoRow icon={<FiCheckCircle />} label="Estado"             value={user.estado} />
         </div>
 
       </div>

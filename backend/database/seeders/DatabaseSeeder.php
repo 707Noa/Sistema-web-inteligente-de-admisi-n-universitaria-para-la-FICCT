@@ -13,6 +13,8 @@ class DatabaseSeeder extends Seeder
             AdminSeeder::class,
             CarreraSeeder::class,
             MateriaSeeder::class,
+            DocenteSeeder::class,
+            AcademicoSeeder::class,
         ]);
     }
 }

@@ -5,6 +5,7 @@ namespace Modules\P2_ParticipantesGrupos\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Postulante;
 use App\Models\Carrera;
+use App\Models\PreinscripcionTemporal;
 use Modules\P2_ParticipantesGrupos\Requests\PreinscripcionRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,6 +32,27 @@ class PreinscripcionController extends Controller
             }
         }
 
+        // Eliminar preinscripciones temporales previas con el mismo CI que sigan pendientes
+        $oldTemps = PreinscripcionTemporal::where('ci', $validated['ci'])
+            ->where('estado_pago', 'pendiente')
+            ->get();
+
+        foreach ($oldTemps as $oldTemp) {
+            $docs = $oldTemp->documentos_temporales;
+            if (is_array($docs)) {
+                if (!empty($docs['imagen_ci_path'])) {
+                    Storage::delete($docs['imagen_ci_path']);
+                }
+                if (!empty($docs['imagen_titulo_bachiller_path'])) {
+                    Storage::delete($docs['imagen_titulo_bachiller_path']);
+                }
+                if (!empty($docs['fotografia_path'])) {
+                    Storage::disk('public')->delete($docs['fotografia_path']);
+                }
+            }
+            $oldTemp->delete();
+        }
+
         // Subir imágenes al almacenamiento privado seguro
         $imagenCiPath = null;
         if ($request->hasFile('imagen_ci')) {
@@ -42,8 +64,13 @@ class PreinscripcionController extends Controller
             $imagenTituloPath = $request->file('imagen_titulo_bachiller')->store('private/postulantes/documentos');
         }
 
-        // Crear registro en la tabla postulantes — en espera de confirmación de pago
-        $postulante = Postulante::create([
+        $fotografiaPath = null;
+        if ($request->hasFile('fotografia')) {
+            $fotografiaPath = $request->file('fotografia')->store('fotos/postulantes', 'public');
+        }
+
+        // Crear preinscripción temporal en lugar de postulante oficial
+        $datosFormulario = [
             'nombres' => $validated['nombres'],
             'apellidos' => $validated['apellidos'],
             'ci' => $validated['ci'],
@@ -52,7 +79,6 @@ class PreinscripcionController extends Controller
             'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
             'celular' => $validated['telefono'] ?? null,
             'segundo_celular' => $validated['segundo_telefono'] ?? null,
-            'segundo_telefono' => $validated['segundo_telefono'] ?? null,
             'email' => $validated['correo_electronico'],
             'direccion' => $validated['direccion'] ?? null,
             'colegio_procedencia' => $validated['colegio_procedencia'] ?? null,
@@ -61,16 +87,32 @@ class PreinscripcionController extends Controller
             'carrera_postulada' => $validated['carrera'] ?? null,
             'titulo_bachiller' => $validated['titulo_bachiller'] ?? false,
             'otros' => $validated['otros'] ?? null,
-            'estado_tramite' => 'PENDIENTE_PAGO',
-            'estado' => 'pendiente',
-            'pago_estado' => 'PENDIENTE',
+            'preferencia_turno' => $validated['preferencia_turno'],
+        ];
+
+        $documentosTemporales = [
             'imagen_ci_path' => $imagenCiPath,
             'imagen_titulo_bachiller_path' => $imagenTituloPath,
+            'fotografia_path' => $fotografiaPath,
+        ];
+
+        $temp = PreinscripcionTemporal::create([
+            'ci' => $validated['ci'],
+            'datos_formulario' => $datosFormulario,
+            'documentos_temporales' => $documentosTemporales,
+            'estado_pago' => 'pendiente',
+            'expires_at' => now()->addHours(24),
         ]);
 
         return response()->json([
-            'message' => 'Preinscripción registrada con éxito. Complete su pago para activar su cuenta.',
-            'data' => $postulante,
+            'message' => 'Preinscripción registrada temporalmente. Complete su pago para activar su cuenta.',
+            'data' => [
+                'id' => $temp->id,
+                'ci' => $temp->ci,
+                'email' => $datosFormulario['email'],
+                'nombres' => $datosFormulario['nombres'],
+                'apellidos' => $datosFormulario['apellidos']
+            ],
         ], 201);
     }
 
@@ -79,8 +121,28 @@ class PreinscripcionController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $postulante = Postulante::findOrFail($id);
-        return response()->json($postulante);
+        $postulante = Postulante::find($id);
+        if ($postulante) {
+            return response()->json($postulante);
+        }
+
+        $temp = PreinscripcionTemporal::find($id);
+        if ($temp) {
+            $datos = $temp->datos_formulario;
+            return response()->json([
+                'id' => $temp->id,
+                'nombres' => $datos['nombres'],
+                'apellidos' => $datos['apellidos'],
+                'ci' => $temp->ci,
+                'email' => $datos['email'],
+                'carrera' => $datos['carrera'],
+                'preferencia_turno' => $datos['preferencia_turno'],
+                'estado_tramite' => 'PENDIENTE_PAGO',
+                'pago_estado' => 'PENDIENTE',
+            ]);
+        }
+
+        return response()->json(['message' => 'Preinscripción no encontrada.'], 404);
     }
 
     /**
@@ -94,86 +156,165 @@ class PreinscripcionController extends Controller
     }
 
     /**
-     * Obtener el estado del pago de un postulante.
+     * Obtener el estado del pago de un postulante o preinscrito temporal.
      */
     public function pagoEstado(int $id): JsonResponse
     {
-        $postulante = Postulante::findOrFail($id);
-        return response()->json([
-            'id' => $postulante->id,
-            'nombres' => $postulante->nombres,
-            'apellidos' => $postulante->apellidos,
-            'ci' => $postulante->ci,
-            'email' => $postulante->email,
-            'pago_estado' => $postulante->pago_estado,
-            'pago_metodo' => $postulante->pago_metodo,
-            'pago_referencia' => $postulante->pago_referencia,
-            'pago_monto' => $postulante->pago_monto,
-            'pago_moneda' => $postulante->pago_moneda,
-            'pago_fecha' => $postulante->pago_fecha,
-            'estado_tramite' => $postulante->estado_tramite,
-        ]);
+        $postulante = Postulante::find($id);
+
+        if ($postulante) {
+            return response()->json([
+                'id' => $postulante->id,
+                'nombres' => $postulante->nombres,
+                'apellidos' => $postulante->apellidos,
+                'ci' => $postulante->ci,
+                'email' => $postulante->email,
+                'pago_estado' => $postulante->pago_estado,
+                'pago_metodo' => $postulante->pago_metodo,
+                'pago_referencia' => $postulante->pago_referencia,
+                'pago_monto' => $postulante->pago_monto,
+                'pago_moneda' => $postulante->pago_moneda,
+                'pago_fecha' => $postulante->pago_fecha,
+                'estado_tramite' => $postulante->estado_tramite,
+            ]);
+        }
+
+        $temp = PreinscripcionTemporal::find($id);
+
+        if ($temp) {
+            $datos = $temp->datos_formulario;
+            $pagoEstado = strtoupper($temp->estado_pago);
+
+            if ($pagoEstado === 'PAGADO') {
+                $p = Postulante::where('ci', $temp->ci)->first();
+                if ($p) {
+                    return response()->json([
+                        'id' => $p->id,
+                        'nombres' => $p->nombres,
+                        'apellidos' => $p->apellidos,
+                        'ci' => $p->ci,
+                        'email' => $p->email,
+                        'pago_estado' => $p->pago_estado,
+                        'pago_metodo' => $p->pago_metodo,
+                        'pago_referencia' => $p->pago_referencia,
+                        'pago_monto' => $p->pago_monto,
+                        'pago_moneda' => $p->pago_moneda,
+                        'pago_fecha' => $p->pago_fecha,
+                        'estado_tramite' => $p->estado_tramite,
+                    ]);
+                }
+            }
+
+            return response()->json([
+                'id' => $temp->id,
+                'nombres' => $datos['nombres'],
+                'apellidos' => $datos['apellidos'],
+                'ci' => $temp->ci,
+                'email' => $datos['email'],
+                'pago_estado' => $pagoEstado,
+                'pago_metodo' => 'STRIPE',
+                'pago_referencia' => $temp->stripe_session_id,
+                'pago_monto' => config('services.stripe.amount', 5000) / 100,
+                'pago_moneda' => strtoupper(config('services.stripe.currency', 'usd')),
+                'pago_fecha' => null,
+                'estado_tramite' => 'PENDIENTE_PAGO',
+            ]);
+        }
+
+        return response()->json(['message' => 'Preinscripción no encontrada.'], 404);
     }
 
     /**
      * Generar sesión de Stripe Checkout.
      */
-    public function stripeCheckout(int $id): JsonResponse
+    public function stripeCheckout(Request $request): JsonResponse
     {
-        $postulante = Postulante::findOrFail($id);
-        $secret = env('STRIPE_SECRET');
+        $id = $request->input('postulante_id') ?? $request->input('preinscripcion_id') ?? $request->input('id');
 
-        if (empty($secret) || strpos($secret, 'placeholder') !== false) {
-            // Placeholder de simulación en desarrollo local si no se configuran llaves o son de prueba
-            $mockSessionId = 'cs_test_' . uniqid();
+        if (empty($id)) {
             return response()->json([
-                'checkout_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/preinscripcion/pago-confirmado?gateway=stripe&session_id=' . $mockSessionId . '&postulante_id=' . $id,
-                'mock' => true
-            ]);
+                'message' => 'No se recibió el ID del postulante para iniciar el pago.'
+            ], 400);
+        }
+
+        $temp = PreinscripcionTemporal::find($id);
+
+        if (!$temp) {
+            return response()->json([
+                'message' => 'No se encontró la solicitud de preinscripción temporal.'
+            ], 400);
+        }
+
+        // Validar si ya pagó
+        if ($temp->estado_pago === 'pagado') {
+            return response()->json([
+                'message' => 'Esta solicitud de preinscripción ya tiene un pago confirmado.'
+            ], 400);
+        }
+
+        $secret = config('services.stripe.secret');
+
+        if (empty($secret)) {
+            return response()->json([
+                'message' => 'Stripe no está configurado correctamente en el servidor.'
+            ], 400);
         }
 
         try {
-            $currency = strtolower(env('PREINSCRIPCION_MONEDA', 'BOB'));
-            $monto = env('PREINSCRIPCION_MONTO', 350);
-            $amountCents = (int)($monto * 100);
+            \Stripe\Stripe::setApiKey($secret);
 
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $secret,
-            ])->asForm()->post('https://api.stripe.com/v1/checkout/sessions', [
-                'success_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/preinscripcion/pago-confirmado?gateway=stripe&session_id={CHECKOUT_SESSION_ID}&postulante_id=' . $id,
-                'cancel_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/preinscripcion?cancelado=true&id=' . $id,
+            $currency = strtolower(config('services.stripe.currency', 'usd'));
+            $amountCents = (int)config('services.stripe.amount', 5000);
+            $amountDecimal = $amountCents / 100;
+
+            $datos = $temp->datos_formulario;
+
+            $session = \Stripe\Checkout\Session::create([
+                'payment_method_types' => ['card'],
                 'mode' => 'payment',
-                'line_items[0][price_data][currency]' => $currency,
-                'line_items[0][price_data][product_data][name]' => 'Preinscripción CUP-FICCT: ' . $postulante->nombres . ' ' . $postulante->apellidos,
-                'line_items[0][price_data][unit_amount]' => $amountCents,
-                'line_items[0][quantity]' => 1,
-                'metadata[postulante_id]' => $id,
+                'line_items' => [[
+                    'price_data' => [
+                        'currency' => $currency,
+                        'product_data' => [
+                            'name' => 'Tarifa de preinscripción CUP-FICCT',
+                        ],
+                        'unit_amount' => $amountCents,
+                    ],
+                    'quantity' => 1,
+                ]],
+                'success_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/pago/exitoso?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/preinscripcion?cancelado=true&id=' . $id,
+                'metadata' => [
+                    'preinscripcion_temporal_id' => $id,
+                ],
             ]);
 
-            if ($response->successful()) {
-                return response()->json([
-                    'checkout_url' => $response->json()['url']
-                ]);
-            }
+            $temp->update([
+                'stripe_session_id' => $session->id,
+            ]);
 
-            Log::error('Stripe Session error: ' . $response->body());
-            
-            // Fallback graceful to simulation sandbox to prevent 500
-            $mockSessionId = 'cs_test_' . uniqid();
             return response()->json([
-                'checkout_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/preinscripcion/pago-confirmado?gateway=stripe&session_id=' . $mockSessionId . '&postulante_id=' . $id,
-                'mock' => true
+                'checkout_url' => $session->url
             ]);
 
+        } catch (\Stripe\Exception\AuthenticationException $e) {
+            Log::error('Stripe Authentication Exception: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'La clave secreta de Stripe no es válida. Verifique STRIPE_SECRET en el .env.',
+                'error' => $e->getMessage()
+            ], 400);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            Log::error('Stripe API Error Exception: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'No se pudo crear la sesión de Stripe debido a un error de su API.',
+                'error' => $e->getMessage()
+            ], 400);
         } catch (\Exception $e) {
-            Log::error('Stripe exception: ' . $e->getMessage());
-            
-            // Fallback graceful to simulation sandbox to prevent 500
-            $mockSessionId = 'cs_test_' . uniqid();
+            Log::error('Stripe general exception in stripeCheckout: ' . $e->getMessage());
             return response()->json([
-                'checkout_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/preinscripcion/pago-confirmado?gateway=stripe&session_id=' . $mockSessionId . '&postulante_id=' . $id,
-                'mock' => true
-            ]);
+                'message' => 'No se pudo crear la sesión de Stripe.',
+                'error' => $e->getMessage()
+            ], 400);
         }
     }
 
@@ -182,6 +323,57 @@ class PreinscripcionController extends Controller
      */
     public function stripeWebhook(Request $request): JsonResponse
     {
+        $signatureHeader = $request->header('Stripe-Signature');
+        $webhookSecret = config('services.stripe.webhook_secret');
+
+        if (!empty($webhookSecret) && !empty($signatureHeader)) {
+            // Verify signature
+            $parts = explode(',', $signatureHeader);
+            $timestamp = null;
+            $signatures = [];
+            foreach ($parts as $part) {
+                $subparts = explode('=', $part, 2);
+                if (count($subparts) === 2) {
+                    $key = trim($subparts[0]);
+                    $val = trim($subparts[1]);
+                    if ($key === 't') {
+                        $timestamp = $val;
+                    } elseif ($key === 'v1') {
+                        $signatures[] = $val;
+                    }
+                }
+            }
+
+            if (!$timestamp || empty($signatures)) {
+                Log::warning('Stripe Webhook: Cabecera Stripe-Signature inválida.');
+                return response()->json(['error' => 'Invalid signature header'], 400);
+            }
+
+            // Signed payload: timestamp . '.' . rawBody
+            $rawBody = $request->getContent();
+            $signedPayload = $timestamp . '.' . rawBody;
+            $expectedSignature = hash_hmac('sha256', $signedPayload, $webhookSecret);
+
+            $matched = false;
+            foreach ($signatures as $signature) {
+                if (hash_equals($expectedSignature, $signature)) {
+                    $matched = true;
+                    break;
+                }
+            }
+
+            if (!$matched) {
+                Log::warning('Stripe Webhook: Firma no coincide.');
+                return response()->json(['error' => 'Signature verification failed'], 400);
+            }
+
+            // Optional: check timestamp drift (e.g. 5 minutes / 300 seconds)
+            if (abs(time() - $timestamp) > 300) {
+                Log::warning('Stripe Webhook: Tolerancia de tiempo excedida.');
+                return response()->json(['error' => 'Timestamp tolerance exceeded'], 400);
+            }
+        }
+
         $payload = $request->all();
         $type = $payload['type'] ?? '';
 
@@ -190,30 +382,154 @@ class PreinscripcionController extends Controller
         if ($type === 'checkout.session.completed') {
             $session = $payload['data']['object'] ?? null;
             if ($session) {
-                $postulanteId = $session['metadata']['postulante_id'] ?? null;
                 $sessionId = $session['id'] ?? '';
-                $amount = ($session['amount_total'] ?? 0) / 100;
-                $currency = strtoupper($session['currency'] ?? 'BOB');
 
-                if ($postulanteId) {
-                    $postulante = Postulante::find($postulanteId);
-                    if ($postulante) {
-                        $postulante->update([
-                            'pago_estado' => 'PAGADO',
-                            'pago_metodo' => 'STRIPE',
-                            'pago_referencia' => $sessionId,
-                            'pago_monto' => $amount,
-                            'pago_moneda' => $currency,
-                            'pago_fecha' => now(),
-                            'estado_tramite' => 'PREINSCRITO'
-                        ]);
-                        Log::info("Postulante CI {$postulante->ci} pagado con éxito mediante Stripe.");
-                    }
+                // Buscar preinscripción temporal por stripe_session_id
+                $temp = PreinscripcionTemporal::where('stripe_session_id', $sessionId)->first();
+
+                if ($temp) {
+                    $this->confirmarPagoYCrearPostulante($temp, $session);
                 }
             }
         }
 
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Obtener el estado de pago de Stripe por session_id.
+     */
+    public function stripeEstado(Request $request): JsonResponse
+    {
+        $sessionId = $request->query('session_id');
+
+        if (empty($sessionId)) {
+            return response()->json(['error' => 'session_id es requerido'], 400);
+        }
+
+        $temp = PreinscripcionTemporal::where('stripe_session_id', $sessionId)->first();
+
+        if (!$temp) {
+            return response()->json([
+                'estado' => 'no_encontrado',
+                'postulante_id' => null
+            ]);
+        }
+
+        if ($temp->estado_pago === 'pagado') {
+            $p = Postulante::where('ci', $temp->ci)->first();
+            return response()->json([
+                'estado' => 'pagado',
+                'postulante_id' => $p ? $p->id : null
+            ]);
+        }
+
+        // Consultar Stripe en tiempo real
+        $secret = config('services.stripe.secret');
+        if (!empty($secret)) {
+            try {
+                \Stripe\Stripe::setApiKey($secret);
+                $session = \Stripe\Checkout\Session::retrieve($sessionId);
+
+                if ($session && $session->payment_status === 'paid') {
+                    $postulanteId = $this->confirmarPagoYCrearPostulante($temp, $session);
+
+                    return response()->json([
+                        'estado' => 'pagado',
+                        'postulante_id' => $postulanteId
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Error al consultar sesión de Stripe Checkout: ' . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'estado' => $temp->estado_pago,
+            'postulante_id' => null
+        ]);
+    }
+
+    /**
+     * Confirmar pago y crear el postulante oficial en la BD.
+     */
+    private function confirmarPagoYCrearPostulante(PreinscripcionTemporal $temp, $session): ?int
+    {
+        return \DB::transaction(function () use ($temp, $session) {
+            $tempRecord = PreinscripcionTemporal::where('id', $temp->id)->lockForUpdate()->first();
+
+            if (!$tempRecord || $tempRecord->estado_pago === 'pagado') {
+                $p = Postulante::where('ci', $temp->ci)->first();
+                return $p ? $p->id : null;
+            }
+
+            $datos = $tempRecord->datos_formulario;
+            $docs = $tempRecord->documentos_temporales;
+
+            $amount = ($session->amount_total ?? 5000) / 100;
+            $currency = strtoupper($session->currency ?? 'USD');
+            $paymentIntentId = $session->payment_intent ?? null;
+            $sessionId = $session->id;
+
+            // 1. Crear el postulante oficial
+            $postulante = Postulante::create([
+                'nombres' => $datos['nombres'],
+                'apellidos' => $datos['apellidos'],
+                'ci' => $datos['ci'],
+                'genero' => $datos['genero'] ?? null,
+                'sexo' => $datos['sexo'] ?? null,
+                'fecha_nacimiento' => $datos['fecha_nacimiento'] ?? null,
+                'celular' => $datos['celular'] ?? null,
+                'segundo_celular' => $datos['segundo_celular'] ?? null,
+                'segundo_telefono' => $datos['segundo_celular'] ?? null,
+                'email' => $datos['email'],
+                'direccion' => $datos['direccion'] ?? null,
+                'colegio_procedencia' => $datos['colegio_procedencia'] ?? null,
+                'ciudad' => $datos['ciudad'] ?? null,
+                'carrera' => $datos['carrera'] ?? null,
+                'carrera_postulada' => $datos['carrera'] ?? null,
+                'titulo_bachiller' => $datos['titulo_bachiller'] ?? false,
+                'otros' => $datos['otros'] ?? null,
+                'preferencia_turno' => $datos['preferencia_turno'],
+                
+                'pago_estado' => 'PAGADO',
+                'pago_metodo' => 'STRIPE',
+                'pago_referencia' => $sessionId,
+                'pago_monto' => $amount,
+                'pago_moneda' => $currency,
+                'pago_fecha' => now(),
+                
+                'estado_tramite' => 'PREINSCRITO',
+                'estado' => 'activo',
+                'imagen_ci_path' => $docs['imagen_ci_path'] ?? null,
+                'imagen_titulo_bachiller_path' => $docs['imagen_titulo_bachiller_path'] ?? null,
+                'foto' => $docs['fotografia_path'] ?? null,
+                'fotografia_path' => $docs['fotografia_path'] ?? null,
+                'requisitos_completos' => false,
+            ]);
+
+            // 2. Crear el pago en la tabla pagos
+            \DB::table('pagos')->insert([
+                'postulante_id' => $postulante->id,
+                'stripe_session_id' => $sessionId,
+                'stripe_payment_intent_id' => $paymentIntentId,
+                'monto' => $amount,
+                'moneda' => $currency,
+                'estado' => 'pagado',
+                'fecha_pago' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // 3. Actualizar preinscripción temporal
+            $tempRecord->update([
+                'estado_pago' => 'pagado',
+            ]);
+
+            Log::info("Postulante CI {$postulante->ci} registrado oficialmente tras pago confirmado de Stripe Checkout.");
+
+            return $postulante->id;
+        });
     }
 
     /**
@@ -441,21 +757,45 @@ class PreinscripcionController extends Controller
         $currency = env('PREINSCRIPCION_MONEDA', 'BOB');
         
         if ($estado === 'PAGADO') {
+            $ref = 'SIM-' . $metodo . '-' . strtoupper(uniqid());
             $postulante->update([
                 'pago_estado' => 'PAGADO',
                 'pago_metodo' => $metodo,
-                'pago_referencia' => 'SIM-' . $metodo . '-' . strtoupper(uniqid()),
+                'pago_referencia' => $ref,
                 'pago_monto' => $monto,
                 'pago_moneda' => $currency,
                 'pago_fecha' => now(),
                 'estado_tramite' => 'PREINSCRITO'
             ]);
+            \DB::table('pagos')->insert([
+                'postulante_id' => $id,
+                'stripe_session_id' => $ref,
+                'stripe_payment_intent_id' => 'SIM-PI-' . strtoupper(uniqid()),
+                'monto' => $monto,
+                'moneda' => $currency,
+                'estado' => 'pagado',
+                'fecha_pago' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         } else {
+            $ref = 'SIM-FAIL-' . strtoupper(uniqid());
             $postulante->update([
                 'pago_estado' => $estado,
                 'pago_metodo' => $metodo,
-                'pago_referencia' => 'SIM-FAIL-' . strtoupper(uniqid()),
+                'pago_referencia' => $ref,
                 'pago_fecha' => null,
+            ]);
+            \DB::table('pagos')->insert([
+                'postulante_id' => $id,
+                'stripe_session_id' => $ref,
+                'stripe_payment_intent_id' => null,
+                'monto' => $monto,
+                'moneda' => $currency,
+                'estado' => $estado === 'FALLIDO' ? 'fallido' : 'pendiente',
+                'fecha_pago' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
         }
         
@@ -463,6 +803,338 @@ class PreinscripcionController extends Controller
             'status' => 'success',
             'message' => 'Simulación de pago procesada con éxito.',
             'data' => $postulante
+        ]);
+    }
+
+    /**
+     * Cancelar la preinscripción de un postulante (eliminar registro).
+     */
+    public function cancelar(int $id): JsonResponse
+    {
+        // 1. Intentar buscar en preinscripciones temporales
+        $temp = PreinscripcionTemporal::find($id);
+        
+        if ($temp) {
+            $docs = $temp->documentos_temporales;
+            if (is_array($docs)) {
+                if (!empty($docs['imagen_ci_path'])) {
+                    Storage::delete($docs['imagen_ci_path']);
+                }
+                if (!empty($docs['imagen_titulo_bachiller_path'])) {
+                    Storage::delete($docs['imagen_titulo_bachiller_path']);
+                }
+                if (!empty($docs['fotografia_path'])) {
+                    Storage::disk('public')->delete($docs['fotografia_path']);
+                }
+            }
+            $temp->delete();
+            return response()->json([
+                'message' => 'Preinscripción temporal cancelada y eliminada correctamente.'
+            ], 200);
+        }
+
+        // 2. Si no es temporal, buscar en postulantes oficiales
+        $postulante = Postulante::find($id);
+
+        if (!$postulante) {
+            return response()->json([
+                'message' => 'Preinscripción no encontrada.'
+            ], 404);
+        }
+
+        if ($postulante->estado_tramite === 'CUENTA_CREADA' || !empty($postulante->user_id) || !empty($postulante->cuenta_creada_at)) {
+            return response()->json([
+                'message' => 'No se puede cancelar una preinscripción que ya tiene cuenta creada.'
+            ], 409);
+        }
+
+        // Si el postulante ya pagó, eliminar sus documentos oficiales
+        if (!empty($postulante->imagen_ci_path)) {
+            Storage::delete($postulante->imagen_ci_path);
+        }
+        if (!empty($postulante->imagen_titulo_bachiller_path)) {
+            Storage::delete($postulante->imagen_titulo_bachiller_path);
+        }
+        if (!empty($postulante->foto)) {
+            Storage::disk('public')->delete($postulante->foto);
+        }
+
+        $postulante->delete();
+
+        return response()->json([
+            'message' => 'Preinscripción cancelada correctamente.'
+        ], 200);
+    }
+
+    /**
+     * Crear solicitud temporal y Stripe Checkout en un solo paso.
+     */
+    public function preinscripcionStripeCheckout(Request $request): JsonResponse
+    {
+        if ($request->has('preinscripcion_temporal_id') && !empty($request->preinscripcion_temporal_id)) {
+            $id = $request->preinscripcion_temporal_id;
+            $temp = PreinscripcionTemporal::find($id);
+            if (!$temp) {
+                return response()->json(['message' => 'No se encontró la preinscripción temporal.'], 400);
+            }
+            if ($temp->estado_pago === 'pagado') {
+                return response()->json(['message' => 'Esta preinscripción ya tiene un pago verificado.'], 400);
+            }
+        } else {
+            $validator = \Validator::make($request->all(), [
+                'nombres' => 'required|string|max:191',
+                'apellidos' => 'required|string|max:191',
+                'ci' => 'required|string|max:20|unique:postulantes,ci',
+                'genero' => 'nullable|string|max:50',
+                'sexo' => 'nullable|string|max:50',
+                'fecha_nacimiento' => 'nullable|date',
+                'telefono' => 'nullable|string|max:20',
+                'segundo_telefono' => 'nullable|string|max:20',
+                'correo_electronico' => 'required|email|max:191',
+                'direccion' => 'nullable|string',
+                'colegio_procedencia' => 'nullable|string|max:191',
+                'ciudad' => 'nullable|string|max:100',
+                'carrera' => 'nullable|string|max:191',
+                'primera_opcion_carrera' => 'nullable|string|max:191',
+                'segunda_opcion_carrera' => 'nullable|string|max:191',
+                'titulo_bachiller' => 'nullable|boolean',
+                'otros' => 'nullable|string',
+                'imagen_ci' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+                'imagen_titulo_bachiller' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+                'fotografia' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+                'preferencia_turno' => 'required|string|in:manana,tarde,noche',
+            ], [
+                'nombres.required' => 'El nombre es obligatorio.',
+                'apellidos.required' => 'El apellido es obligatorio.',
+                'ci.required' => 'El CI es obligatorio.',
+                'ci.unique' => 'El CI ya fue registrado.',
+                'correo_electronico.required' => 'El correo electrónico es obligatorio.',
+                'correo_electronico.email' => 'El formato del correo electrónico no es válido.',
+                'imagen_ci.required' => 'La imagen del CI es obligatoria.',
+                'imagen_ci.image' => 'El archivo del CI debe ser una imagen.',
+                'imagen_ci.mimes' => 'El CI debe estar en formato JPG, JPEG, PNG o WEBP.',
+                'imagen_ci.max' => 'La imagen del CI no debe superar los 5 MB.',
+                'imagen_titulo_bachiller.required' => 'La imagen del título de bachiller es obligatoria.',
+                'imagen_titulo_bachiller.image' => 'El archivo del título debe ser una imagen.',
+                'imagen_titulo_bachiller.mimes' => 'El título debe estar en formato JPG, JPEG, PNG o WEBP.',
+                'imagen_titulo_bachiller.max' => 'La imagen del título no debe superar los 5 MB.',
+                'fotografia.required' => 'La fotografía del postulante es obligatoria.',
+                'fotografia.file' => 'El archivo de la fotografía no es válido.',
+                'fotografia.mimes' => 'La fotografía debe estar en formato JPG, JPEG, PNG o WEBP.',
+                'fotografia.max' => 'La fotografía no debe superar los 5 MB.',
+                'preferencia_turno.required' => 'La preferencia de turno es obligatoria.',
+                'preferencia_turno.in' => 'El turno seleccionado no es válido.',
+            ]);
+
+            if ($validator->fails()) {
+                Log::error('Errores de validación en preinscripcionStripeCheckout: ', $validator->errors()->toArray());
+                return response()->json([
+                    'message' => 'Error de validación.',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $validated = $validator->validated();
+
+            $sexo = $validated['sexo'] ?? $validated['genero'] ?? null;
+            $generoEnum = null;
+            if ($sexo) {
+                $lowerSexo = strtolower($sexo);
+                if (in_array($lowerSexo, ['masculino', 'femenino', 'otro'])) {
+                    $generoEnum = $lowerSexo;
+                }
+            }
+
+            // Eliminar preinscripciones temporales previas con el mismo CI que sigan pendientes
+            $oldTemps = PreinscripcionTemporal::where('ci', $validated['ci'])
+                ->where('estado_pago', 'pendiente')
+                ->get();
+
+            foreach ($oldTemps as $oldTemp) {
+                $docs = $oldTemp->documentos_temporales;
+                if (is_array($docs)) {
+                    if (!empty($docs['imagen_ci_path'])) {
+                        Storage::delete($docs['imagen_ci_path']);
+                    }
+                    if (!empty($docs['imagen_titulo_bachiller_path'])) {
+                        Storage::delete($docs['imagen_titulo_bachiller_path']);
+                    }
+                    if (!empty($docs['fotografia_path'])) {
+                        Storage::disk('public')->delete($docs['fotografia_path']);
+                    }
+                }
+                $oldTemp->delete();
+            }
+
+            // Subir imágenes al almacenamiento privado seguro
+            $imagenCiPath = null;
+            if ($request->hasFile('imagen_ci')) {
+                $imagenCiPath = $request->file('imagen_ci')->store('private/postulantes/documentos');
+            }
+
+            $imagenTituloPath = null;
+            if ($request->hasFile('imagen_titulo_bachiller')) {
+                $imagenTituloPath = $request->file('imagen_titulo_bachiller')->store('private/postulantes/documentos');
+            }
+
+            $fotografiaPath = null;
+            if ($request->hasFile('fotografia')) {
+                $fotografiaPath = $request->file('fotografia')->store('fotos/postulantes', 'public');
+            }
+
+            $datosFormulario = [
+                'nombres' => $validated['nombres'],
+                'apellidos' => $validated['apellidos'],
+                'ci' => $validated['ci'],
+                'genero' => $generoEnum,
+                'sexo' => $sexo,
+                'fecha_nacimiento' => $validated['fecha_nacimiento'] ?? null,
+                'celular' => $validated['telefono'] ?? null,
+                'segundo_celular' => $validated['segundo_telefono'] ?? null,
+                'segundo_telefono' => $validated['segundo_telefono'] ?? null,
+                'email' => $validated['correo_electronico'],
+                'direccion' => $validated['direccion'] ?? null,
+                'colegio_procedencia' => $validated['colegio_procedencia'] ?? null,
+                'ciudad' => $validated['ciudad'] ?? null,
+                'carrera' => $validated['carrera'] ?? null,
+                'carrera_postulada' => $validated['carrera'] ?? null,
+                'titulo_bachiller' => $validated['titulo_bachiller'] ?? false,
+                'otros' => $validated['otros'] ?? null,
+                'preferencia_turno' => $validated['preferencia_turno'],
+            ];
+
+            $documentosTemporales = [
+                'imagen_ci_path' => $imagenCiPath,
+                'imagen_titulo_bachiller_path' => $imagenTituloPath,
+                'fotografia_path' => $fotografiaPath,
+            ];
+
+            $temp = PreinscripcionTemporal::create([
+                'ci' => $validated['ci'],
+                'datos_formulario' => $datosFormulario,
+                'documentos_temporales' => $documentosTemporales,
+                'estado_pago' => 'pendiente',
+                'expires_at' => now()->addHours(24),
+            ]);
+        }
+
+        $secret = config('services.stripe.secret');
+
+        if (empty($secret)) {
+            return response()->json([
+                'message' => 'Stripe no está configurado correctamente en el servidor.'
+            ], 400);
+        }
+
+        try {
+            \Stripe\Stripe::setApiKey($secret);
+
+            $currency = strtolower(config('services.stripe.currency', 'usd'));
+            $amountCents = (int)config('services.stripe.amount', 5000);
+
+            $datos = $temp->datos_formulario;
+
+            $session = \Stripe\Checkout\Session::create([
+                'payment_method_types' => ['card'],
+                'mode' => 'payment',
+                'line_items' => [[
+                    'price_data' => [
+                        'currency' => $currency,
+                        'product_data' => [
+                            'name' => 'Tarifa de preinscripción CUP-FICCT',
+                        ],
+                        'unit_amount' => $amountCents,
+                    ],
+                    'quantity' => 1,
+                ]],
+                'success_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/pago/exitoso?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/preinscripcion?cancelado=true&id=' . $temp->id,
+                'metadata' => [
+                    'preinscripcion_pendiente_id' => $temp->id,
+                    'ci' => $temp->ci,
+                    'correo' => $datos['email'],
+                ],
+            ]);
+
+            $temp->update([
+                'stripe_session_id' => $session->id,
+            ]);
+
+            return response()->json([
+                'checkout_url' => $session->url
+            ]);
+
+        } catch (\Stripe\Exception\AuthenticationException $e) {
+            Log::error('Stripe Authentication Exception: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'La clave secreta de Stripe no es válida. Verifique STRIPE_SECRET en el .env.',
+                'error' => $e->getMessage()
+            ], 400);
+        } catch (\Stripe\Exception\ApiErrorException $e) {
+            Log::error('Stripe API Error Exception: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'No se pudo crear la sesión de Stripe debido a un error de su API.',
+                'error' => $e->getMessage()
+            ], 400);
+        } catch (\Exception $e) {
+            Log::error('Stripe general exception in preinscripcionStripeCheckout: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'No se pudo crear la sesión de Stripe.',
+                'error' => $e->getMessage()
+            ], 400);
+        }
+    }
+
+    /**
+     * Obtener el estado del pago de Stripe usando el session_id (flujo unificado).
+     */
+    public function preinscripcionStripeEstado(Request $request): JsonResponse
+    {
+        $sessionId = $request->query('session_id');
+
+        if (empty($sessionId)) {
+            return response()->json(['error' => 'session_id es requerido'], 400);
+        }
+
+        $temp = PreinscripcionTemporal::where('stripe_session_id', $sessionId)->first();
+
+        if (!$temp) {
+            return response()->json([
+                'estado' => 'no_encontrado',
+                'postulante_id' => null
+            ]);
+        }
+
+        if ($temp->estado_pago === 'pagado') {
+            $p = Postulante::where('ci', $temp->ci)->first();
+            return response()->json([
+                'estado' => 'pagado',
+                'postulante_id' => $p ? $p->id : null
+            ]);
+        }
+
+        $secret = config('services.stripe.secret');
+        if (!empty($secret)) {
+            try {
+                \Stripe\Stripe::setApiKey($secret);
+                $session = \Stripe\Checkout\Session::retrieve($sessionId);
+
+                if ($session && $session->payment_status === 'paid') {
+                    $postulanteId = $this->confirmarPagoYCrearPostulante($temp, $session);
+
+                    return response()->json([
+                        'estado' => 'pagado',
+                        'postulante_id' => $postulanteId
+                    ]);
+                }
+            } catch (\Exception $e) {
+                Log::error('Error al consultar sesión de Stripe Checkout: ' . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'estado' => $temp->estado_pago,
+            'postulante_id' => null
         ]);
     }
 }

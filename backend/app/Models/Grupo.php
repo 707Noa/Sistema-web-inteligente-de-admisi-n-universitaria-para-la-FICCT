@@ -12,7 +12,7 @@ class Grupo extends Model
     protected $fillable = [
         'nombre_grupo', 'capacidad_maxima', 'docente_id',
         'materia_id', 'aula', 'horario', 'estado',
-        'codigo', 'turno', 'dias', 'cupo_maximo',
+        'codigo', 'turno', 'dias', 'cupo_maximo', 'carrera_id', 'gestion',
     ];
 
     protected function casts(): array
@@ -31,6 +31,11 @@ class Grupo extends Model
     public function materia(): BelongsTo
     {
         return $this->belongsTo(Materia::class, 'materia_id');
+    }
+
+    public function carrera(): BelongsTo
+    {
+        return $this->belongsTo(Carrera::class);
     }
 
     public function postulantes(): BelongsToMany

@@ -1,0 +1,70 @@
+@startuml
+title Ciclo #1 - CU1 Iniciar sesión
+
+actor Usuario
+participant InterfazLogin
+participant LoginController
+participant AuthService
+participant TokenSesion
+participant Bitacora
+database BaseDatos
+
+== Inicio de Login ==
+Usuario -> InterfazLogin: Solicitar página de login
+InterfazLogin -> LoginController: solicitarVistaLogin()
+LoginController -> AuthService: verificarSesionActiva()
+AuthService -> TokenSesion: validarTokenActual()
+alt sesión no activa
+    TokenSesion --> AuthService: sesiónNoActiva
+    AuthService --> LoginController: mostrarLogin
+    LoginController --> InterfazLogin: retornarVistaLogin()
+    InterfazLogin --> Usuario: Mostrar formulario de login
+else sesión activa
+    TokenSesion --> AuthService: sesiónActiva
+    AuthService --> LoginController: usuarioAutenticado
+    LoginController --> InterfazLogin: redirigirPanel(usuario.rol)
+    InterfazLogin --> Usuario: Mostrar panel principal
+end
+
+== Envío de credenciales ==
+Usuario -> InterfazLogin: Ingresar credenciales\n(identificador, contraseña)
+InterfazLogin -> LoginController: enviarCredenciales(identificador, password)
+LoginController -> AuthService: validarCredenciales(identificador, password)
+AuthService -> BaseDatos: buscarUsuarioPorCorreoCiOCodigo(identificador)
+alt usuario encontrado
+    BaseDatos --> AuthService: retornarDatosUsuario
+    AuthService -> Usuario: verificarPassword(password)
+    Usuario --> AuthService: passwordValido
+    alt usuario inactivo
+        AuthService -> BaseDatos: verificarEstadoUsuario()
+        BaseDatos --> AuthService: estado = INACTIVO
+        AuthService --> LoginController: usuarioInactivo
+        LoginController --> InterfazLogin: mostrarError("Usuario inactivo")
+        InterfazLogin --> Usuario: Mostrar mensaje de usuario inactivo
+    else requiere cambio de contraseña
+        AuthService -> BaseDatos: verificarMustChangePassword()
+        BaseDatos --> AuthService: must_change_password = true
+        AuthService --> LoginController: requiereCambioPassword
+        LoginController --> InterfazLogin: redirigirCambioPassword()
+        InterfazLogin --> Usuario: Mostrar pantalla de cambio de contraseña
+    else credenciales válidas
+        AuthService -> TokenSesion: generarToken(usuario)
+        TokenSesion --> AuthService: tokenGenerado
+        AuthService -> Bitacora: registrarAccion("Usuario inició sesión")
+        Bitacora -> BaseDatos: guardarRegistro()
+        BaseDatos --> Bitacora: registroGuardado
+        AuthService --> LoginController: autenticacionExitosa(token, usuario)
+        LoginController --> InterfazLogin: redirigirPanel(usuario.rol)
+        InterfazLogin --> Usuario: Mostrar panel principal
+    end
+else credenciales incorrectas
+    BaseDatos --> AuthService: usuarioNoEncontrado o passwordIncorrecto
+    AuthService -> Bitacora: registrarAccion("Intento fallido de login")
+    Bitacora -> BaseDatos: guardarRegistro()
+    BaseDatos --> Bitacora: registroGuardado
+    AuthService --> LoginController: autenticacionFallida
+    LoginController --> InterfazLogin: mostrarError("Credenciales incorrectas")
+    InterfazLogin --> Usuario: Mostrar mensaje de error
+end
+
+@enduml

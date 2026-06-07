@@ -249,6 +249,7 @@ export default function AdministrarGrupos() {
                 ))}
               </div>
 
+<<<<<<< Updated upstream
               <p style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: 12 }}>
                 <strong>Días:</strong> {(detalle.dias || []).join(', ') || '-'}
               </p>
@@ -277,6 +278,58 @@ export default function AdministrarGrupos() {
                   </tbody>
                 </table>
               </div>
+=======
+              {/* Preview de horarios */}
+              {form.turno && form.dias.length>0 && (
+                <div style={{marginTop:16,padding:'12px 16px',background:'var(--gray-50)',borderRadius:'var(--radius)',border:'1px solid var(--gray-200)',maxHeight: '220px', overflowY: 'auto'}}>
+                  <p style={{fontSize:'0.8rem',fontWeight:600,color:'var(--gray-600)',marginBottom:8}}>Horarios a generar automáticamente:</p>
+                  {form.dias.map(d => {
+                    const esLmv = ['lunes', 'miercoles', 'viernes'].includes(d.toLowerCase());
+                    const mats = ['miercoles', 'jueves'].includes(d.toLowerCase())
+                      ? ['Inglés', 'Matemáticas']
+                      : ['Computación', 'Física'];
+
+                    const getHoras = (turno, idx) => {
+                      if (esLmv) {
+                        if (idx === 0) {
+                          if (turno === 'tarde') return '13:00 – 14:30';
+                          if (turno === 'noche') return '18:00 – 19:30';
+                          return '07:00 – 08:30';
+                        } else {
+                          if (turno === 'tarde') return '14:30 – 16:00';
+                          if (turno === 'noche') return '19:30 – 21:00';
+                          return '08:30 – 10:00';
+                        }
+                      } else {
+                        if (idx === 0) {
+                          if (turno === 'tarde') return '13:00 – 15:15';
+                          if (turno === 'noche') return '18:00 – 20:15';
+                          return '07:00 – 09:15';
+                        } else {
+                          if (turno === 'tarde') return '15:15 – 17:30';
+                          if (turno === 'noche') return '20:15 – 22:30';
+                          return '09:15 – 11:30';
+                        }
+                      }
+                    };
+
+                    return (
+                      <div key={d} style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--primary)', textTransform: 'capitalize', borderBottom: '1px solid var(--gray-200)', paddingBottom: '2px', marginBottom: '4px' }}>
+                          {d}
+                        </div>
+                        {mats.map((m, idx) => (
+                          <div key={m} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', padding: '2px 0 2px 8px' }}>
+                            <span>{m}</span>
+                            <span style={{ color: 'var(--gray-700)', fontWeight: 600 }}>{getHoras(form.turno, idx)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+>>>>>>> Stashed changes
             </div>
             <div className="modal-footer">
               <button className="btn btn-outline" onClick={close}>Cerrar</button>
