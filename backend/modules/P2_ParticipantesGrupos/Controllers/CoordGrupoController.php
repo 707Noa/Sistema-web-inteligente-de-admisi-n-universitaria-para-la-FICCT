@@ -27,7 +27,7 @@ class CoordGrupoController extends Controller
     /** Lista grupos coordinados con código, turno y aula. */
     public function index(Request $request): JsonResponse
     {
-        $query = Grupo::with(['horarios.materia'])
+        $query = Grupo::with(['horarios.materia', 'carrera'])
             ->whereNotNull('codigo');
 
         if ($request->filled('estado')) {
@@ -36,6 +36,10 @@ class CoordGrupoController extends Controller
         if ($request->filled('turno')) {
             $query->where('turno', $request->turno);
         }
+        if ($request->filled('carrera_id')) {
+            $query->where('carrera_id', $request->carrera_id);
+        }
+
 
         $grupos = $query->orderBy('codigo')->get()->map(fn($g) => $this->formatGrupo($g));
 
@@ -54,6 +58,7 @@ class CoordGrupoController extends Controller
      */
     public function generarGruposAuto(): JsonResponse
     {
+
         // 1. Contar postulantes INSCRITOS
         $totalInscritos = Postulante::where('estado_tramite', 'INSCRITO')->count();
 
@@ -62,6 +67,7 @@ class CoordGrupoController extends Controller
                 'message' => 'No hay postulantes con estado INSCRITO. Inscriba postulantes antes de generar grupos.',
             ], 422);
         }
+
 
         // 2. Evitar duplicación si ya existen grupos activos
         $gruposActivos = Grupo::whereNotNull('codigo')->where('estado', 'activo')->count();
@@ -133,7 +139,7 @@ class CoordGrupoController extends Controller
     /** Ver detalle de un grupo. */
     public function show(int $id): JsonResponse
     {
-        $grupo = Grupo::with(['horarios.materia', 'postulantes', 'asignaciones.docente', 'asignaciones.materia'])
+        $grupo = Grupo::with(['horarios.materia', 'postulantes', 'asignaciones.docente', 'asignaciones.materia', 'carrera'])
             ->whereNotNull('codigo')
             ->findOrFail($id);
 
@@ -144,21 +150,48 @@ class CoordGrupoController extends Controller
      * Edición restringida: solo permite cambiar estado del grupo.
      * Código, cupo máximo y materias son inmutables.
      */
-    public function update(Request $request, int $id): JsonResponse
-    {
-        $grupo = Grupo::whereNotNull('codigo')->findOrFail($id);
 
-        $request->validate([
-            'estado' => 'required|in:activo,inactivo',
-        ]);
+public function update(Request $request, int $id): JsonResponse
+{
+    $grupo = Grupo::whereNotNull('codigo')->findOrFail($id);
 
-        $grupo->update(['estado' => $request->estado]);
+    $request->validate([
+        'codigo'      => "required|string|max:10|unique:grupos,codigo,{$id}",
+        'turno'       => 'required|in:mañana,tarde,noche',
+        'dias'        => 'required|array|min:1',
+        'dias.*'      => 'in:lunes,martes,miercoles,jueves,viernes,sabado',
+        'cupo_maximo' => 'required|integer|min:1|max:70',
+        'carrera_id'  => 'nullable|exists:carreras,id',
+        'gestion'     => 'nullable|string|max:20',
+        'estado'      => 'nullable|in:activo,inactivo',
+    ]);
 
-        return response()->json([
-            'message' => 'Estado del grupo actualizado.',
-            'grupo'   => $this->formatGrupo($grupo->fresh(['horarios.materia'])),
-        ]);
+    $turnoChanged = $grupo->turno !== $request->turno;
+
+    $grupo->update([
+        'codigo'           => strtoupper($request->codigo),
+        'nombre_grupo'     => strtoupper($request->codigo),
+        'turno'            => $request->turno,
+        'dias'             => $request->dias,
+        'cupo_maximo'      => $request->cupo_maximo,
+        'capacidad_maxima' => $request->cupo_maximo,
+        'carrera_id'       => $request->carrera_id,
+        'gestion'          => $request->gestion ?? 'I-2026',
+        'estado'           => $request->estado ?? $grupo->estado,
+    ]);
+
+    if ($turnoChanged) {
+        // Regenerar horarios si cambió el turno
+        $grupo->horarios()->delete();
+        $this->generarHorarios($grupo);
     }
+
+    return response()->json([
+        'message' => 'Grupo actualizado correctamente.',
+        'grupo'   => $this->formatGrupo($grupo->fresh(['horarios.materia'])),
+    ]);
+}
+
 
     /** Activar o inactivar un grupo (toggle). */
     public function toggleEstado(int $id): JsonResponse
@@ -195,22 +228,76 @@ class CoordGrupoController extends Controller
     private function generarHorarios(Grupo $grupo): void
     {
         $turnoConfig = self::TURNOS[$grupo->turno] ?? self::TURNOS['mañana'];
-        $materias    = Materia::whereIn('nombre', self::MATERIAS_ORDEN)
+
+        $materias = Materia::whereIn('nombre', self::MATERIAS_ORDEN)
             ->where('estado', 'activo')
             ->get()
-            ->sortBy(fn($m) => array_search($m->nombre, self::MATERIAS_ORDEN));
+            ->sortBy(fn($m) => array_search($m->nombre, self::MATERIAS_ORDEN))
+            ->values();
 
-        $horaBase = (int) substr($turnoConfig['inicio'], 0, 2);
-        $dias     = is_array($grupo->dias) ? $grupo->dias : ['lunes'];
+            $horaBase = (int) substr($turnoConfig['inicio'], 0, 2);
+
+            $dias = is_array($grupo->dias)
+                ? $grupo->dias
+                : ($grupo->dias ? json_decode($grupo->dias, true) : ['lunes']);
+
+        if (!is_array($dias) || empty($dias)) {
+            $dias = ['lunes'];
+        }
 
         foreach ($dias as $dia) {
-            foreach ($materias->values() as $idx => $materia) {
-                $inicio = sprintf('%02d:00:00', $horaBase + $idx);
-                $fin    = sprintf('%02d:00:00', $horaBase + $idx + 1);
+            $diaLower = strtolower($dia);
+            $materiasDelDia = ['Computación', 'Física'];
+            if (in_array($diaLower, ['miercoles', 'jueves'])) {
+                $materiasDelDia = ['Inglés', 'Matemáticas'];
+            }
+
+            $mats = $materias->filter(fn($m) => in_array($m->nombre, $materiasDelDia))
+                ->sortBy(fn($m) => array_search($m->nombre, $materiasDelDia))
+                ->values();
+
+            foreach ($mats as $idx => $materia) {
+                $horario = $this->getHorarioBloque($grupo->turno, $diaLower, $idx);
                 GrupoHorario::updateOrCreate(
-                    ['grupo_id' => $grupo->id, 'materia_id' => $materia->id, 'dia' => $dia],
-                    ['hora_inicio' => $inicio, 'hora_fin' => $fin]
+                    ['grupo_id' => $grupo->id, 'materia_id' => $materia->id, 'dia' => $diaLower],
+                    ['hora_inicio' => $horario['inicio'], 'hora_fin' => $horario['fin']]
                 );
+            }
+        }
+    }
+
+    private function getHorarioBloque(string $turno, string $dia, int $blockIndex): array
+    {
+        $esLmv = in_array(strtolower($dia), ['lunes', 'miercoles', 'viernes']);
+        $turnoNormalized = str_replace(['mañana', 'tarde', 'noche'], ['manana', 'tarde', 'noche'], strtolower($turno));
+
+        if ($esLmv) {
+            if ($blockIndex === 0) {
+                switch ($turnoNormalized) {
+                    case 'tarde': return ['inicio' => '13:00:00', 'fin' => '14:30:00'];
+                    case 'noche': return ['inicio' => '18:00:00', 'fin' => '19:30:00'];
+                    default:      return ['inicio' => '07:00:00', 'fin' => '08:30:00'];
+                }
+            } else {
+                switch ($turnoNormalized) {
+                    case 'tarde': return ['inicio' => '14:30:00', 'fin' => '16:00:00'];
+                    case 'noche': return ['inicio' => '19:30:00', 'fin' => '21:00:00'];
+                    default:      return ['inicio' => '08:30:00', 'fin' => '10:00:00'];
+                }
+            }
+        } else {
+            if ($blockIndex === 0) {
+                switch ($turnoNormalized) {
+                    case 'tarde': return ['inicio' => '13:00:00', 'fin' => '15:15:00'];
+                    case 'noche': return ['inicio' => '18:00:00', 'fin' => '20:15:00'];
+                    default:      return ['inicio' => '07:00:00', 'fin' => '09:15:00'];
+                }
+            } else {
+                switch ($turnoNormalized) {
+                    case 'tarde': return ['inicio' => '15:15:00', 'fin' => '17:30:00'];
+                    case 'noche': return ['inicio' => '20:15:00', 'fin' => '22:30:00'];
+                    default:      return ['inicio' => '09:15:00', 'fin' => '11:30:00'];
+                }
             }
         }
     }
@@ -223,9 +310,12 @@ class CoordGrupoController extends Controller
             'turno'       => $g->turno,
             'aula'        => $g->aula ?? '-',
             'dias'        => $g->dias ?? [],
-            'cupo_maximo' => self::CUPO,
+            'cupo_maximo' => $g->cupo_maximo ?? $g->capacidad_maxima ?? 70,
             'estado'      => $g->estado,
             'ocupacion'   => $g->ocupacion(),
+            'carrera_id'   => $g->carrera_id,
+            'carrera_nombre'=> $g->carrera?->nombre ?? 'Sin carrera',
+            'gestion'      => $g->gestion ?? 'I-2026',
             'horarios'    => $g->horarios->map(fn($h) => [
                 'materia_id'     => $h->materia_id,
                 'materia_nombre' => $h->materia?->nombre,
@@ -248,5 +338,62 @@ class CoordGrupoController extends Controller
             'hora_fin'       => substr($a->hora_fin, 0, 5),
         ]);
         return $base;
+    }
+
+    public function estudiantes(int $id): JsonResponse
+    {
+        $grupo = Grupo::with('postulantes')->findOrFail($id);
+        return response()->json($grupo->postulantes->map(fn($p) => [
+            'id' => $p->id,
+            'nombres' => $p->nombres,
+            'apellidos' => $p->apellidos,
+            'name' => trim($p->nombres . ' ' . $p->apellidos),
+            'ci' => $p->ci,
+            'email' => $p->email,
+            'carrera_postulada' => $p->carrera_postulada,
+            'estado_tramite' => $p->estado_tramite,
+        ]));
+    }
+
+    public function crearHorario(Request $request): JsonResponse
+    {
+        $request->validate([
+            'grupo_id' => 'required|exists:grupos,id',
+            'materia_id' => 'required|exists:materias,id',
+            'dia' => 'required|in:lunes,martes,miercoles,jueves,viernes,sabado',
+            'hora_inicio' => 'required|string',
+            'hora_fin' => 'required|string',
+        ]);
+
+        $horario = GrupoHorario::updateOrCreate(
+            [
+                'grupo_id' => $request->grupo_id,
+                'materia_id' => $request->materia_id,
+                'dia' => $request->dia,
+            ],
+            [
+                'hora_inicio' => $request->hora_inicio,
+                'hora_fin' => $request->hora_fin,
+            ]
+        );
+
+        return response()->json([
+            'message' => 'Horario creado/actualizado correctamente.',
+            'horario' => $horario,
+        ]);
+    }
+
+    public function calcularGrupos(Request $request): JsonResponse
+    {
+        $request->validate([
+            'total_inscritos' => 'required|integer|min:0',
+        ]);
+
+        $cantidad = ceil($request->total_inscritos / 70);
+
+        return response()->json([
+            'total_inscritos' => $request->total_inscritos,
+            'cantidad_grupos' => max(1, (int)$cantidad),
+        ]);
     }
 }

@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\DocenteEspecialidad;
 use App\Models\DocenteGrupoAsignacion;
 use App\Models\Materia;
+use App\Models\Carrera;
+use App\Models\GrupoHorario;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -21,62 +23,73 @@ class CoordAsignacionController extends Controller
 
     public function asignarPostulantesAuto(): JsonResponse
     {
-        $grupos = Grupo::whereNotNull('codigo')
-            ->where('estado', 'activo')
-            ->with('postulantes')
-            ->get();
+        // 1. Obtener postulantes INSCRITOS
+        $postulantes = Postulante::where('estado_tramite', 'INSCRITO')->get();
 
-        if ($grupos->isEmpty()) {
-            return response()->json(['message' => 'No existen grupos activos disponibles.'], 422);
+        // 2. Verificar si existen postulantes INSCRITOS sin preferencia_turno
+        $sinTurno = $postulantes->filter(fn($p) => empty($p->preferencia_turno) || !in_array($p->preferencia_turno, ['manana', 'tarde', 'noche']));
+        
+        if ($sinTurno->isNotEmpty()) {
+            return response()->json([
+                'message' => 'Existen postulantes inscritos sin turno elegido. Debe asignarles un turno antes de generar grupos.'
+            ], 422);
         }
 
-        // Postulantes INSCRITOS sin grupo activo asignado
-        $yaAsignados = \DB::table('grupo_postulante')
-            ->join('grupos', 'grupo_postulante.grupo_id', '=', 'grupos.id')
-            ->where('grupos.estado', 'activo')
-            ->pluck('grupo_postulante.postulante_id')
-            ->toArray();
+        // 3. Generar y asignar grupos en una transacción
+        \DB::transaction(function () use ($postulantes) {
+            // Eliminar grupos anteriores (todos los que tengan código asignado)
+            Grupo::whereNotNull('codigo')->delete();
 
-        $postulantes = Postulante::where('estado_tramite', 'INSCRITO')
-            ->whereNotIn('id', $yaAsignados)
-            ->get();
+            $turnosInfo = [
+                'manana' => ['prefix' => 'M', 'label' => 'mañana'],
+                'tarde'  => ['prefix' => 'T', 'label' => 'tarde'],
+                'noche'  => ['prefix' => 'N', 'label' => 'noche'],
+            ];
 
-        if ($postulantes->isEmpty()) {
-            return response()->json(['message' => 'No existen postulantes inscritos disponibles para asignar.'], 422);
-        }
+            foreach ($turnosInfo as $turnoKey => $info) {
+                $postsTurno = $postulantes->where('preferencia_turno', $turnoKey)->values();
+                if ($postsTurno->isEmpty()) {
+                    continue;
+                }
 
-        $asignados  = 0;
-        $sinGrupo   = 0;
-        $postQueue  = $postulantes->values();
-        $cursor     = 0;
+                // Chunk postulantes by 70
+                $chunks = $postsTurno->chunk(70);
+                foreach ($chunks as $chunkIndex => $chunk) {
+                    $grupoNum = $chunkIndex + 1;
+                    $codigo = $info['prefix'] . $grupoNum;
 
-        foreach ($grupos as $grupo) {
-            $cupo    = $grupo->cupo_maximo ?? $grupo->capacidad_maxima ?? 40;
-            $ocupados= $grupo->postulantes->count();
-            $libres  = max(0, $cupo - $ocupados);
+                    // Crear grupo activo
+                    $grupo = Grupo::create([
+                        'codigo'           => $codigo,
+                        'nombre_grupo'     => $codigo,
+                        'turno'            => $info['label'],
+                        'dias'             => ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
+                        'cupo_maximo'      => 70,
+                        'capacidad_maxima' => 70,
+                        'estado'           => 'activo',
+                        'gestion'          => 'I-2026',
+                    ]);
 
-            while ($libres > 0 && $cursor < $postQueue->count()) {
-                $postulante = $postQueue[$cursor];
-                $grupo->postulantes()->syncWithoutDetaching([$postulante->id]);
-                $asignados++;
-                $libres--;
-                $cursor++;
+                    // Generar horarios automáticos
+                    $this->generarHorarios($grupo);
+
+                    // Asignar postulantes
+                    $grupo->postulantes()->sync($chunk->pluck('id')->toArray());
+                }
             }
-        }
+        });
 
-        $sinGrupo = $postQueue->count() - $cursor;
-
-        $gruposLlenos    = $grupos->filter(fn($g) => $g->estaLleno())->count();
-        $gruposDisponibles = $grupos->count() - $gruposLlenos;
+        $totalInscritos = $postulantes->count();
+        $grupos = Grupo::whereNotNull('codigo')->where('estado', 'activo')->get();
 
         return response()->json([
-            'message'           => "Asignación completada. Asignados: {$asignados}, Sin grupo: {$sinGrupo}.",
-            'total_inscritos'   => $postQueue->count(),
+            'message'           => "Generación y asignación de grupos completada con éxito. Creados " . $grupos->count() . " grupos.",
+            'total_inscritos'   => $totalInscritos,
             'total_grupos'      => $grupos->count(),
-            'asignados'         => $asignados,
-            'sin_grupo'         => $sinGrupo,
-            'grupos_llenos'     => $gruposLlenos,
-            'grupos_disponibles'=> $gruposDisponibles,
+            'asignados'         => $totalInscritos,
+            'sin_grupo'         => 0,
+            'grupos_llenos'     => $grupos->filter(fn($g) => $g->postulantes()->count() >= 70)->count(),
+            'grupos_disponibles'=> $grupos->filter(fn($g) => $g->postulantes()->count() < 70)->count(),
         ]);
     }
 
@@ -447,5 +460,155 @@ class CoordAsignacionController extends Controller
         }
 
         return $query->exists();
+    }
+
+    public function postulantesSinGrupo(Request $request): JsonResponse
+    {
+        $yaAsignados = \DB::table('grupo_postulante')
+            ->join('grupos', 'grupo_postulante.grupo_id', '=', 'grupos.id')
+            ->where('grupos.estado', 'activo')
+            ->pluck('grupo_postulante.postulante_id')
+            ->toArray();
+
+        $query = Postulante::where('estado_tramite', 'INSCRITO')
+            ->whereNotIn('id', $yaAsignados);
+
+        if ($request->filled('carrera_id')) {
+            $carrera = Carrera::find($request->carrera_id);
+            if ($carrera) {
+                $query->where(function($q) use ($carrera) {
+                    $q->where('carrera_postulada', 'ilike', "%{$carrera->nombre}%")
+                      ->orWhere('carrera_postulada', 'ilike', "%{$carrera->codigo}%");
+                });
+            }
+        }
+
+        $postulantes = $query->get()->map(fn($p) => [
+            'id' => $p->id,
+            'nombres' => $p->nombres,
+            'apellidos' => $p->apellidos,
+            'name' => trim($p->nombres . ' ' . $p->apellidos),
+            'ci' => $p->ci,
+            'email' => $p->email,
+            'carrera_postulada' => $p->carrera_postulada,
+        ]);
+
+        return response()->json($postulantes);
+    }
+
+    public function asignarEstudiantes(Request $request, int $grupoId): JsonResponse
+    {
+        $request->validate([
+            'postulante_ids' => 'required|array|min:1',
+            'postulante_ids.*' => 'exists:postulantes,id',
+        ]);
+
+        $grupo = Grupo::where('estado', 'activo')->findOrFail($grupoId);
+
+        $cupo = $grupo->cupo_maximo ?? $grupo->capacidad_maxima ?? 70;
+        $actual = $grupo->postulantes()->count();
+        $nuevos = count($request->postulante_ids);
+
+        if ($actual + $nuevos > 70) {
+            return response()->json([
+                'message' => "No se puede realizar la asignación. El grupo superaría el límite de 70 estudiantes (actual: {$actual}, intentando agregar: {$nuevos})."
+            ], 422);
+        }
+
+        // Validate duplicates and active groups
+        foreach ($request->postulante_ids as $pid) {
+            if ($grupo->postulantes()->where('postulantes.id', $pid)->exists()) {
+                continue;
+            }
+            $inOtherActive = \DB::table('grupo_postulante')
+                ->join('grupos', 'grupo_postulante.grupo_id', '=', 'grupos.id')
+                ->where('grupo_postulante.postulante_id', $pid)
+                ->where('grupos.estado', 'activo')
+                ->where('grupos.id', '!=', $grupoId)
+                ->exists();
+
+            if ($inOtherActive) {
+                $postulante = Postulante::find($pid);
+                $name = $postulante ? trim($postulante->nombres . ' ' . $postulante->apellidos) : "ID: {$pid}";
+                return response()->json([
+                    'message' => "El estudiante {$name} ya se encuentra asignado a otro grupo activo."
+                ], 422);
+            }
+        }
+
+        $grupo->postulantes()->syncWithoutDetaching($request->postulante_ids);
+
+        return response()->json([
+            'message' => 'Estudiantes asignados correctamente al grupo.',
+            'ocupacion' => $grupo->postulantes()->count(),
+        ]);
+    }
+
+    public function asignarDocenteAGrupo(Request $request, int $grupoId): JsonResponse
+    {
+        $request->merge(['grupo_id' => $grupoId]);
+        return $this->asignarDocente($request);
+    }
+
+    private function generarHorarios(Grupo $grupo): void
+    {
+        $materias = Materia::where('estado', 'activo')->get();
+        $dias = is_array($grupo->dias) ? $grupo->dias : ($grupo->dias ? json_decode($grupo->dias, true) : ['lunes']);
+
+        foreach ($dias as $dia) {
+            $diaLower = strtolower($dia);
+            $materiasDelDia = ['Computación', 'Física'];
+            if (in_array($diaLower, ['miercoles', 'jueves'])) {
+                $materiasDelDia = ['Inglés', 'Matemáticas'];
+            }
+
+            $mats = $materias->filter(fn($m) => in_array($m->nombre, $materiasDelDia))
+                ->sortBy(fn($m) => array_search($m->nombre, $materiasDelDia))
+                ->values();
+
+            foreach ($mats as $idx => $materia) {
+                $horario = $this->getHorarioBloque($grupo->turno, $diaLower, $idx);
+                GrupoHorario::updateOrCreate(
+                    ['grupo_id' => $grupo->id, 'materia_id' => $materia->id, 'dia' => $diaLower],
+                    ['hora_inicio' => $horario['inicio'], 'hora_fin' => $horario['fin']]
+                );
+            }
+        }
+    }
+
+    private function getHorarioBloque(string $turno, string $dia, int $blockIndex): array
+    {
+        $esLmv = in_array(strtolower($dia), ['lunes', 'miercoles', 'viernes']);
+        $turnoNormalized = str_replace(['mañana', 'tarde', 'noche'], ['manana', 'tarde', 'noche'], strtolower($turno));
+
+        if ($esLmv) {
+            if ($blockIndex === 0) {
+                switch ($turnoNormalized) {
+                    case 'tarde': return ['inicio' => '13:00:00', 'fin' => '14:30:00'];
+                    case 'noche': return ['inicio' => '18:00:00', 'fin' => '19:30:00'];
+                    default:      return ['inicio' => '07:00:00', 'fin' => '08:30:00'];
+                }
+            } else {
+                switch ($turnoNormalized) {
+                    case 'tarde': return ['inicio' => '14:30:00', 'fin' => '16:00:00'];
+                    case 'noche': return ['inicio' => '19:30:00', 'fin' => '21:00:00'];
+                    default:      return ['inicio' => '08:30:00', 'fin' => '10:00:00'];
+                }
+            }
+        } else {
+            if ($blockIndex === 0) {
+                switch ($turnoNormalized) {
+                    case 'tarde': return ['inicio' => '13:00:00', 'fin' => '15:15:00'];
+                    case 'noche': return ['inicio' => '18:00:00', 'fin' => '20:15:00'];
+                    default:      return ['inicio' => '07:00:00', 'fin' => '09:15:00'];
+                }
+            } else {
+                switch ($turnoNormalized) {
+                    case 'tarde': return ['inicio' => '15:15:00', 'fin' => '17:30:00'];
+                    case 'noche': return ['inicio' => '20:15:00', 'fin' => '22:30:00'];
+                    default:      return ['inicio' => '09:15:00', 'fin' => '11:30:00'];
+                }
+            }
+        }
     }
 }

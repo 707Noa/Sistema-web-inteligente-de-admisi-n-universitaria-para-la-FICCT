@@ -92,12 +92,20 @@
             
             <div class="credentials-box">
                 <div class="credential-item">
+                    <span class="credential-label">Rol de acceso:</span> 
+                    <span class="credential-value" style="font-family: inherit; font-size: 16px; color: #1a3a6b;">Postulante</span>
+                </div>
+                <div class="credential-item">
                     <span class="credential-label">Usuario / Código:</span> 
                     <span class="credential-value">{{ $codigo }}</span>
                 </div>
                 <div class="credential-item">
                     <span class="credential-label">Contraseña inicial:</span> 
                     <span class="credential-value">{{ $ci }}</span>
+                </div>
+                <div class="credential-item" style="margin-top: 15px;">
+                    <span class="credential-label">URL de ingreso:</span> 
+                    <a href="http://localhost:5173/postulante/login" target="_blank" style="color: #1a3a6b; font-weight: bold; text-decoration: underline;">http://localhost:5173/postulante/login</a>
                 </div>
             </div>
 

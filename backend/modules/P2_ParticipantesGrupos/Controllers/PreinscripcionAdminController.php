@@ -72,7 +72,7 @@ class PreinscripcionAdminController extends Controller
                 'Código usuario', 'Fecha de cuenta creada', 'Fecha de correo enviado'
             ], ';');
 
-            $postulantes = Postulante::orderBy('created_at', 'desc')->get();
+            $postulantes = Postulante::whereIn('estado_tramite', ['PREINSCRITO', 'INSCRITO'])->orderBy('created_at', 'desc')->get();
 
             foreach ($postulantes as $p) {
                 fputcsv($file, [
@@ -109,6 +109,11 @@ class PreinscripcionAdminController extends Controller
     {
         try {
             $postulante = Postulante::findOrFail($id);
+            if (!$postulante->requisitos_completos) {
+                return response()->json([
+                    'message' => 'Faltan documentos obligatorios.'
+                ], 400);
+            }
             $user = $this->cuentaService->crearCuenta($postulante);
 
             return response()->json([
@@ -140,6 +145,9 @@ class PreinscripcionAdminController extends Controller
 
         foreach ($postulantes as $p) {
             try {
+                if (!$p->requisitos_completos) {
+                    throw new \Exception('Faltan documentos obligatorios.');
+                }
                 $this->cuentaService->crearCuenta($p);
                 $exitosas++;
             } catch (\Exception $e) {
@@ -157,24 +165,28 @@ class PreinscripcionAdminController extends Controller
     }
 
     /**
-     * Descargar documento privado de un postulante (CI o Título de Bachiller).
+     * Descargar documento privado de un postulante (CI, Título de Bachiller o Foto).
      */
     public function descargarDocumento(int $id, string $type): \Symfony\Component\HttpFoundation\BinaryFileResponse|\Illuminate\Http\JsonResponse
     {
         $postulante = Postulante::findOrFail($id);
 
         $path = null;
+        $disk = 'local';
         if ($type === 'ci') {
             $path = $postulante->imagen_ci_path;
         } elseif ($type === 'titulo') {
             $path = $postulante->imagen_titulo_bachiller_path;
+        } elseif ($type === 'foto') {
+            $path = $postulante->fotografia_path ?: $postulante->foto;
+            $disk = 'public';
         }
 
-        if (empty($path) || !\Illuminate\Support\Facades\Storage::exists($path)) {
+        if (empty($path) || !\Illuminate\Support\Facades\Storage::disk($disk)->exists($path)) {
             return response()->json(['message' => 'El archivo solicitado no existe o no fue cargado.'], 404);
         }
 
-        $fullPath = \Illuminate\Support\Facades\Storage::path($path);
+        $fullPath = \Illuminate\Support\Facades\Storage::disk($disk)->path($path);
         
         return response()->file($fullPath);
     }

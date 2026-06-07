@@ -16,3 +16,29 @@ export const generarCuentasMasivo = () => api.post('/preinscripciones/generar-cu
 export const importarPostulantesCsv = (formData) => api.post('/admin/postulantes/importar-csv', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
 })
+
+export const listarPostulantes = ({ search, carrera, estado, ordenNombre, page, perPage }) =>
+  api.get(`${p}/postulantes`, {
+    params: {
+      search,
+      carrera,
+      estado,
+      orden_nombre: ordenNombre,
+      page,
+      per_page: perPage,
+    }
+  })
+
+export const crearCuentasPostulantes = ({ postulanteIds, filtros }) =>
+  api.post(`${p}/postulantes/crear-cuentas`, {
+    postulante_ids: postulanteIds,
+    filtros,
+  })
+
+export const eliminarPostulantesMasivo = (postulanteIds) =>
+  api.post(`${p}/postulantes/eliminar-masivo`, {
+    postulante_ids: postulanteIds,
+  })
+
+export const eliminarPostulantesMultiple = (ids) =>
+  api.post(`${p}/postulantes/eliminar-multiple`, { ids })

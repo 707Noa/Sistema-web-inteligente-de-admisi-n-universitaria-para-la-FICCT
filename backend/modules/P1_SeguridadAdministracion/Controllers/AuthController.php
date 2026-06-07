@@ -26,29 +26,40 @@ class AuthController extends Controller
                     ->orWhere('codigo', $request->login)
                     ->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
+            \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Usuario no encontrado.");
+            $debugResponse = config('app.debug') ? ['debug_reason' => 'Usuario no encontrado.'] : [];
+            return response()->json(array_merge([
+                'message' => 'Credenciales incorrectas.',
+            ], $debugResponse), 401);
+        }
+
+        if (!Hash::check($request->password, $user->password)) {
             AuditoriaService::registrar(
-                $user?->id,
+                $user->id,
                 'Intento fallido de login',
                 'Autenticación',
                 $request,
                 'Login: ' . $request->login
             );
-
-            return response()->json([
+            \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Contraseña incorrecta.");
+            $debugResponse = config('app.debug') ? ['debug_reason' => 'Contraseña incorrecta.'] : [];
+            return response()->json(array_merge([
                 'message' => 'Credenciales incorrectas.',
-            ], 401);
+            ], $debugResponse), 401);
         }
 
         if (!$user->isActive()) {
-            return response()->json([
+            \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Usuario inactivo.");
+            $debugResponse = config('app.debug') ? ['debug_reason' => 'Usuario inactivo.'] : [];
+            return response()->json(array_merge([
                 'message' => 'La cuenta se encuentra inactiva. Contacte con administración.',
-            ], 403);
+            ], $debugResponse), 403);
         }
 
-        // Verificar que el rol coincida con el perfil seleccionado
+        // Verificar que el rol coincida con el perfil seleccionado (comparación flexible e insensible a mayúsculas/minúsculas)
         $roleName = $user->role->name ?? '';
-        if ($roleName !== $request->perfil) {
+        if (strtolower($roleName) !== strtolower($request->perfil)) {
             AuditoriaService::registrar(
                 $user->id,
                 'Intento de login con perfil incorrecto',
@@ -56,10 +67,11 @@ class AuthController extends Controller
                 $request,
                 "Perfil solicitado: {$request->perfil}, rol real: {$roleName}"
             );
-
-            return response()->json([
+            \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Rol incorrecto. Perfil solicitado: {$request->perfil}, rol real: {$roleName}");
+            $debugResponse = config('app.debug') ? ['debug_reason' => 'Rol incorrecto.'] : [];
+            return response()->json(array_merge([
                 'message' => 'No tienes permiso para ingresar con este perfil.',
-            ], 403);
+            ], $debugResponse), 403);
         }
 
         $token = $user->createToken('auth-token')->plainTextToken;
@@ -145,10 +157,12 @@ class AuthController extends Controller
 
     private function getRedirectPath(string $role): string
     {
-        return match($role) {
+        return match(strtolower($role)) {
             'administrador' => '/admin/dashboard',
+            'coordinador'   => '/coordinador/dashboard',
             'docente'       => '/docente/perfil',
             'postulante'    => '/postulante/perfil',
+            'autoridad'     => '/autoridad/dashboard',
             default         => '/perfil',
         };
     }

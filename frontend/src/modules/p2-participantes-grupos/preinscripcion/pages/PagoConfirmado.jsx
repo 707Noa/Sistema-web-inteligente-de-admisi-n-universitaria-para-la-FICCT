@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { consultarPagoEstado } from '@/modules/p2-participantes-grupos/postulantes/services/preinscripcionService'
+import { consultarPagoEstado, consultarStripeEstado } from '@/modules/p2-participantes-grupos/postulantes/services/preinscripcionService'
 import { FiCheckCircle, FiAlertTriangle, FiPrinter, FiArrowRight, FiInfo } from 'react-icons/fi'
 import Loading from '@/shared/components/Loading'
 
@@ -13,28 +13,110 @@ export default function PagoConfirmado() {
 
   const postulanteId = searchParams.get('postulante_id')
   const gateway = searchParams.get('gateway') || 'stripe'
+  const sessionId = searchParams.get('session_id')
 
   useEffect(() => {
-    if (!postulanteId) {
-      setError('ID de postulante ausente en la confirmación.')
-      setLoading(false)
-      return
-    }
+    let active = true
+    let pollInterval = null
+    let pollAttempts = 0
+    const maxPollAttempts = 3 // Check status up to 3 times (6 seconds total)
 
-    // Polling / consulta del estado del pago
     const checkStatus = async () => {
+      if (!active) return
+
       try {
-        const res = await consultarPagoEstado(postulanteId)
-        setStatus(res.data)
+        if (gateway === 'stripe' && sessionId) {
+          // Consultar el estado de Stripe
+          const res = await consultarStripeEstado(sessionId)
+          const data = res.data // { estado: "pagado"|"pendiente"|"fallido", postulante_id: X }
+          
+          if (data.estado === 'pagado') {
+            const pId = data.postulante_id || postulanteId
+            if (pId) {
+              const resPostulante = await consultarPagoEstado(pId)
+              if (active) {
+                setStatus(resPostulante.data)
+                setLoading(false)
+              }
+            } else {
+              if (active) {
+                setError('No se pudo encontrar el ID del postulante.')
+                setLoading(false)
+              }
+            }
+            if (pollInterval) clearInterval(pollInterval)
+          } else if (data.estado === 'fallido') {
+            const pId = data.postulante_id || postulanteId
+            if (pId) {
+              const resPostulante = await consultarPagoEstado(pId)
+              if (active) setStatus(resPostulante.data)
+            }
+            if (active) {
+              setError('El pago fue fallido o cancelado.')
+              setLoading(false)
+            }
+            if (pollInterval) clearInterval(pollInterval)
+          } else {
+            // Sigue pendiente
+            pollAttempts++
+            if (pollAttempts >= maxPollAttempts) {
+              const pId = data.postulante_id || postulanteId
+              if (pId) {
+                const resPostulante = await consultarPagoEstado(pId)
+                if (active) setStatus(resPostulante.data)
+              }
+              if (active) {
+                setError('El pago sigue en verificación. Pago pendiente de confirmación.')
+                setLoading(false)
+              }
+              if (pollInterval) clearInterval(pollInterval)
+            }
+          }
+        } else {
+          // Si no es Stripe o no hay session_id
+          if (!postulanteId) {
+            setError('ID de postulante ausente en la confirmación.')
+            setLoading(false)
+            return
+          }
+          const resPostulante = await consultarPagoEstado(postulanteId)
+          if (active) {
+            setStatus(resPostulante.data)
+            setLoading(false)
+          }
+        }
       } catch (err) {
-        setError('No se pudo verificar el estado del pago en este momento.')
-      } finally {
-        setLoading(false)
+        pollAttempts++
+        if (pollAttempts >= maxPollAttempts || !sessionId) {
+          const pId = postulanteId
+          if (pId) {
+            try {
+              const resPostulante = await consultarPagoEstado(pId)
+              if (active) setStatus(resPostulante.data)
+            } catch (innerErr) {}
+          }
+          if (active) {
+            setError('No se pudo verificar el estado del pago. Pago pendiente de confirmación.')
+            setLoading(false)
+          }
+          if (pollInterval) clearInterval(pollInterval)
+        }
       }
     }
 
+    // Ejecutar checkStatus inmediatamente
     checkStatus()
-  }, [postulanteId])
+
+    // Si es Stripe y tenemos session_id, iniciar polling
+    if (gateway === 'stripe' && sessionId) {
+      pollInterval = setInterval(checkStatus, 2000)
+    }
+
+    return () => {
+      active = false
+      if (pollInterval) clearInterval(pollInterval)
+    }
+  }, [postulanteId, gateway, sessionId])
 
   const handlePrint = () => {
     window.print()
@@ -44,7 +126,7 @@ export default function PagoConfirmado() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc' }}>
         <Loading />
-        <p style={{ marginTop: 16, color: '#475569', fontWeight: 500 }}>Confirmando su transacción con el banco...</p>
+        <p style={{ marginTop: 16, color: '#475569', fontWeight: 500 }}>Verificando pago con Stripe...</p>
       </div>
     )
   }
@@ -97,13 +179,13 @@ export default function PagoConfirmado() {
             <>
               <FiCheckCircle style={{ fontSize: '4.5rem', color: '#10b981', marginBottom: 16 }} />
               <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 700, color: '#065f46' }}>Preinscripción Completada</h2>
-              <p style={{ margin: '8px 0 0', color: '#047857', fontSize: '0.95rem', fontWeight: 500 }}>¡Su pago ha sido verificado con éxito!</p>
+              <p style={{ margin: '8px 0 0', color: '#047857', fontSize: '0.95rem', fontWeight: 500 }}>¡Su pago ha sido verificado con éxito! Pago confirmado correctamente.</p>
             </>
           ) : (
             <>
               <FiAlertTriangle style={{ fontSize: '4.5rem', color: '#f59e0b', marginBottom: 16 }} />
               <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 700, color: '#78350f' }}>Pago Pendiente / Fallido</h2>
-              <p style={{ margin: '8px 0 0', color: '#b45309', fontSize: '0.95rem', fontWeight: 500 }}>El pago aún no se encuentra confirmado en el sistema.</p>
+              <p style={{ margin: '8px 0 0', color: '#b45309', fontSize: '0.95rem', fontWeight: 500 }}>El pago aún no se encuentra confirmado en el sistema. Pago pendiente de confirmación.</p>
             </>
           )}
         </div>
@@ -173,7 +255,7 @@ export default function PagoConfirmado() {
               <div>
                 <strong>Información importante:</strong><br />
                 {isSuccess ? (
-                  'Su cuenta de acceso al preuniversitario será creada por el Administrador una vez revise y apruebe sus documentos. Recibirá un correo electrónico con sus credenciales de acceso.'
+                  'Su cuenta de acceso al preuniversitario será creada por el administrador pasadas las 24 horas. Su usuario será su correo y su contraseña será su CI.'
                 ) : (
                   'Si ya realizó la transacción pero el estado sigue figurando como pendiente, el banco podría demorar unos minutos en confirmar la transferencia asíncrona. Puede consultar el estado más tarde.'
                 )}
