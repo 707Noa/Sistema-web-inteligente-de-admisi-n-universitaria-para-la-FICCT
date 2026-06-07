@@ -157,21 +157,13 @@ class AuthController extends Controller
 
     private function getRedirectPath(string $role): string
     {
-<<<<<<< Updated upstream
-        return match($role) {
+        return match(strtolower($role)) {
             'administrador' => '/admin/dashboard',
+            'coordinador'   => '/coordinador/dashboard',
             'docente'       => '/docente/perfil',
             'postulante'    => '/postulante/perfil',
+            'autoridad'     => '/autoridad/dashboard',
             default         => '/perfil',
         };
-=======
-        if ($role === 'administrador') {
-            return '/admin/dashboard';
-        }
-        if ($role === 'coordinador') {
-            return '/coordinador/dashboard';
-        }
-        return '/perfil';
->>>>>>> Stashed changes
     }
 }

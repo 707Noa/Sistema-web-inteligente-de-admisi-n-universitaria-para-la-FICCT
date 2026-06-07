@@ -28,9 +28,9 @@ import CoordinadorPerfil from '@/modules/p2-participantes-grupos/coordinador/pag
 import CoordinadorPostulantes from '@/modules/p2-participantes-grupos/coordinador/pages/CoordinadorPostulantes'
 
 // Páginas del Postulante
-import PostulanteMiPerfil from '@/modules/p2-participantes-grupos/postulante/pages/PostulanteMiPerfil'
-import PostulanteMiHorario from '@/modules/p2-participantes-grupos/postulante/pages/PostulanteMiHorario'
-import PostulanteMisCalificaciones from '@/modules/p2-participantes-grupos/postulante/pages/PostulanteMisCalificaciones'
+import PostulanteMiPerfil from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMiPerfil'
+import PostulanteMiHorario from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMiHorario'
+import PostulanteMisCalificaciones from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMisCalificaciones'
 
 // Páginas del Docente
 import DocenteMiPerfil from '@/modules/p3-evaluacion-resultados/docente/pages/MiPerfil'

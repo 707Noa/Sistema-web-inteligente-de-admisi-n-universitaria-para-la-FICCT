@@ -50,14 +50,12 @@ class PostulanteController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-<<<<<<< Updated upstream
-        $search         = $request->input('search');
-        $filtroEstado   = $request->input('estado_tramite');
-        $filtroCarrera  = $request->input('carrera');
-=======
-        $query = Postulante::with(['user', 'grupos', 'examenes.materia'])
-            ->whereIn('estado_tramite', ['PREINSCRITO', 'INSCRITO']);
->>>>>>> Stashed changes
+         $search = $request->input('search');
+         $filtroEstado = $request->input('estado_tramite');
+         $filtroCarrera = $request->input('carrera');
+
+         $query = Postulante::with(['user', 'grupos', 'examenes.materia'])
+        ->whereIn('estado_tramite', ['PREINSCRITO', 'INSCRITO']);
 
         // ── Conteos para filtros ──────────────────────────────────────────────
         // Estado: cuenta con search + carrera (sin filtro de estado)
@@ -74,7 +72,7 @@ class PostulanteController extends Controller
             ->selectRaw('estado_tramite, count(*) as total')
             ->pluck('total', 'estado_tramite');
 
-<<<<<<< Updated upstream
+
         // Carrera: cuenta con search + estado (sin filtro de carrera)
         $qCarrera = $this->applySearch(Postulante::query(), $search);
         if ($filtroEstado) {
@@ -86,23 +84,21 @@ class PostulanteController extends Controller
             ->groupByRaw("COALESCE(NULLIF(carrera,''), carrera_postulada)")
             ->pluck('total', 'nombre_carrera');
 
-        // ── Query principal ───────────────────────────────────────────────────
-        $query = $this->applySearch(Postulante::with(['user']), $search);
+        // ── Query principal ─
+        $query = $this->applySearch(
+            Postulante::with(['user', 'grupos', 'examenes.materia'])
+            ->whereIn('estado_tramite', ['PREINSCRITO', 'INSCRITO']),
+            $search
+            );
 
         if ($filtroEstado) {
             $query->where('estado_tramite', $filtroEstado);
         }
+
         if ($filtroCarrera) {
             $query->where(function ($q) use ($filtroCarrera) {
-                $q->where('carrera', $filtroCarrera)
-                  ->orWhere('carrera_postulada', $filtroCarrera);
-=======
-        if ($request->filled('carrera')) {
-            $c = $request->carrera;
-            $query->where(function ($q) use ($c) {
-                $q->where('carrera', 'ilike', "%{$c}%")
-                  ->orWhere('carrera_postulada', 'ilike', "%{$c}%");
->>>>>>> Stashed changes
+            $q->where('carrera', $filtroCarrera)
+            ->orWhere('carrera_postulada', $filtroCarrera);
             });
         }
 
@@ -166,6 +162,7 @@ class PostulanteController extends Controller
             'ciudad'              => 'nullable|string|max:100',
             'estado_tramite'      => 'nullable|in:PENDIENTE_PAGO,PREINSCRITO,INSCRITO',
             'direccion'           => 'nullable|string|max:500',
+            'preferencia_turno'   => 'nullable|string|in:manana,tarde,noche',
         ], [
             'ci.unique'      => 'El CI ya está registrado.',
             'email.unique'   => 'El correo electrónico ya está registrado.',
@@ -176,6 +173,7 @@ class PostulanteController extends Controller
             'nombres', 'apellidos', 'ci', 'email', 'celular', 'genero',
             'fecha_nacimiento', 'carrera', 'carrera_postulada',
             'colegio_procedencia', 'ciudad', 'estado_tramite', 'direccion',
+            'preferencia_turno',
         ]);
 
         $data = $this->nullifyEmpty($data, ['email', 'celular', 'fecha_nacimiento', 'carrera', 'carrera_postulada', 'colegio_procedencia', 'ciudad', 'direccion']);
@@ -216,20 +214,21 @@ class PostulanteController extends Controller
         $postulante = Postulante::findOrFail($id);
 
         $request->validate([
-<<<<<<< Updated upstream
-            'nombres'             => 'required|string|max:191',
-            'apellidos'           => 'required|string|max:191',
-            'ci'                  => "required|string|max:20|unique:postulantes,ci,{$id}",
-            'email'               => "nullable|email|max:191|unique:postulantes,email,{$id}",
-            'celular'             => "nullable|string|max:20|unique:postulantes,celular,{$id}",
-            'genero'              => 'nullable|in:masculino,femenino,otro',
-            'fecha_nacimiento'    => 'nullable|date',
-            'carrera'             => 'nullable|string|max:191',
-            'carrera_postulada'   => 'nullable|string|max:191',
-            'colegio_procedencia' => 'nullable|string|max:191',
-            'ciudad'              => 'nullable|string|max:100',
-            'estado_tramite'      => 'nullable|in:PENDIENTE_PAGO,PREINSCRITO,INSCRITO',
-            'direccion'           => 'nullable|string|max:500',
+            'nombres'              => 'required|string|max:191',
+            'apellidos'            => 'required|string|max:191',
+            'ci'                   => "required|string|max:20|unique:postulantes,ci,{$id}",
+            'email'                => "nullable|email|max:191|unique:postulantes,email,{$id}",
+            'celular'              => "nullable|string|max:20|unique:postulantes,celular,{$id}",
+            'genero'               => 'nullable|in:masculino,femenino,otro',
+            'fecha_nacimiento'     => 'nullable|date',
+            'carrera'              => 'nullable|string|max:191',
+            'carrera_postulada'    => 'nullable|string|max:191',
+            'colegio_procedencia'  => 'nullable|string|max:191',
+            'ciudad'               => 'nullable|string|max:100',
+            'estado_tramite'       => 'nullable|in:PENDIENTE_PAGO,PREINSCRITO,INSCRITO',
+            'direccion'            => 'nullable|string|max:500',
+            'requisitos_completos' => 'nullable|boolean',
+            'preferencia_turno'    => 'nullable|string|in:manana,tarde,noche',
         ], [
             'ci.unique'      => 'El CI ya está registrado.',
             'email.unique'   => 'El correo electrónico ya está registrado.',
@@ -240,30 +239,28 @@ class PostulanteController extends Controller
             'nombres', 'apellidos', 'ci', 'email', 'celular', 'genero',
             'fecha_nacimiento', 'carrera', 'carrera_postulada',
             'colegio_procedencia', 'ciudad', 'estado_tramite', 'direccion',
+            'requisitos_completos', 'preferencia_turno',
         ]);
 
-        $data = $this->nullifyEmpty($data, ['email', 'celular', 'fecha_nacimiento', 'carrera', 'carrera_postulada', 'colegio_procedencia', 'ciudad', 'direccion']);
+    $data = $this->nullifyEmpty($data, [
+        'email', 'celular', 'fecha_nacimiento', 'carrera',
+        'carrera_postulada', 'colegio_procedencia', 'ciudad', 'direccion'
+    ]);
 
-        // Recalcular registro si el CI cambió
-        if (!empty($data['ci']) && $data['ci'] !== $postulante->ci) {
-            $data['codigo_usuario'] = $this->generarRegistro($data['ci']);
-        }
+    if (!$request->user() || !$request->user()->hasRole('coordinador')) {
+        unset($data['requisitos_completos']);
+    }
 
-        // Sincronizar carrera_postulada
-        if (empty($data['carrera_postulada']) && !empty($data['carrera'])) {
-            $data['carrera_postulada'] = $data['carrera'];
-=======
-            'nombres' => 'required|string|max:191',
-            'apellidos' => 'required|string|max:191',
-            'ci' => "required|string|unique:postulantes,ci,{$id}",
-            'requisitos_completos' => 'nullable|boolean',
-        ]);
+    // Recalcular registro si el CI cambió
+    if (!empty($data['ci']) && $data['ci'] !== $postulante->ci) {
+        $data['codigo_usuario'] = $this->generarRegistro($data['ci']);
+    }
 
-        $data = $request->all();
-        if (!$request->user() || !$request->user()->hasRole('coordinador')) {
-            unset($data['requisitos_completos']);
->>>>>>> Stashed changes
-        }
+    // Sincronizar carrera_postulada
+    if (empty($data['carrera_postulada']) && !empty($data['carrera'])) {
+        $data['carrera_postulada'] = $data['carrera'];
+    }
+
 
         $postulante->update($data);
 

@@ -66,6 +66,7 @@ class ImportacionController extends Controller
             'ciudad'           => ['ciudad'],
             'estado'           => ['estado'],
             'requisitos'       => ['requisitos', 'requisito', 'requisitos_completos', 'documentos_completos', 'verificado', 'estado_documentos', 'documentos_verificados'],
+            'preferencia_turno'=> ['turno elegido', 'turno', 'preferencia_turno', 'preferencia turno'],
         ];
 
         $colMap = [];
@@ -134,10 +135,9 @@ class ImportacionController extends Controller
             $estadoTramite = in_array($estadoCsv, ['INSCRITO', 'PREINSCRITO']) ? $estadoCsv : 'PREINSCRITO';
             $segundaCarrera = $get('segunda_carrera');
 
-<<<<<<< Updated upstream
             // Generar registro automáticamente: 2026 + CI al revés
             $codigoUsuario = '2026' . strrev(trim($ci));
-=======
+
             $requisitosRaw = $get('requisitos');
             $requisitosCompletos = false;
             if ($requisitosRaw !== '') {
@@ -146,7 +146,19 @@ class ImportacionController extends Controller
                     $requisitosCompletos = true;
                 }
             }
->>>>>>> Stashed changes
+
+            $preferenciaTurnoRaw = $get('preferencia_turno');
+            $preferenciaTurno = null;
+            if ($preferenciaTurnoRaw !== '') {
+                $normTurno = mb_strtolower(trim($preferenciaTurnoRaw));
+                if (in_array($normTurno, ['mañana', 'manana'])) {
+                    $preferenciaTurno = 'manana';
+                } elseif ($normTurno === 'tarde') {
+                    $preferenciaTurno = 'tarde';
+                } elseif ($normTurno === 'noche') {
+                    $preferenciaTurno = 'noche';
+                }
+            }
 
             try {
                 $postulante = Postulante::create([
@@ -165,11 +177,9 @@ class ImportacionController extends Controller
                     'pago_estado'         => 'PAGADO',
                     'pago_metodo'         => 'CSV',
                     'pago_fecha'          => now(),
-<<<<<<< Updated upstream
                     'codigo_usuario'      => $codigoUsuario,
-=======
                     'requisitos_completos'=> $requisitosCompletos,
->>>>>>> Stashed changes
+                    'preferencia_turno'   => $preferenciaTurno,
                 ]);
 
                 $importados++;

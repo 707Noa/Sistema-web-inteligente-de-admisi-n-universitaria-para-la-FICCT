@@ -303,6 +303,7 @@ export default function Postulantes() {
       ciudad:               p.ciudad || '',
       estado_tramite:       p.estado_tramite || 'PREINSCRITO',
       direccion:            p.direccion || '',
+      preferencia_turno:    p.preferencia_turno || '',
     })
     setFormErrors({})
     setShowForm(true)
@@ -736,6 +737,17 @@ export default function Postulantes() {
                     </select>
                   </div>
 
+                  <div className="form-group">
+                    <label className="form-label">Turno elegido</label>
+                    <select className="form-select" value={formData.preferencia_turno || ''}
+                      onChange={e => setFormData({ ...formData, preferencia_turno: e.target.value })}>
+                      <option value="">Sin definir</option>
+                      <option value="manana">Mañana</option>
+                      <option value="tarde">Tarde</option>
+                      <option value="noche">Noche</option>
+                    </select>
+                  </div>
+
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                     <label className="form-label">Carrera</label>
                     <input className="form-input" value={formData.carrera}
@@ -817,7 +829,7 @@ export default function Postulantes() {
                     <div>
                       <strong>Formato CSV (separador <code>;</code>):</strong>
                       <code style={{ display: 'block', marginTop: 4, marginBottom: 6, wordBreak: 'break-all' }}>
-                        Nombres;Apellidos;CI;Correo;Teléfono;"1ª Carrera";"2ª Carrera";"Unidad Educativa";Ciudad;Estado
+                        Nombres;Apellidos;CI;Correo;Teléfono;"1ª Carrera";"2ª Carrera";"Unidad Educativa";Ciudad;Estado;"Turno Elegido"
                       </code>
                       <span>
                         Estado <code>PREINSCRITO</code>: importa el postulante <strong>sin</strong> crear cuenta.{' '}

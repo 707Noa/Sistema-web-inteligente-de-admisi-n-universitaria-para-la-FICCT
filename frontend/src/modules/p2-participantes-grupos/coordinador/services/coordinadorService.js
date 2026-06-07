@@ -19,12 +19,9 @@ export const getGrupo           = (id)     => api.get(`${BASE}/grupos/${id}`)
 export const generarGruposAuto  = ()       => api.post(`${BASE}/grupos/auto-generar`)
 export const updateGrupo        = (id, d)  => api.put(`${BASE}/grupos/${id}`, d)
 export const toggleEstadoGrupo  = (id)     => api.patch(`${BASE}/grupos/${id}/toggle-estado`)
-<<<<<<< Updated upstream
 export const deleteGrupo        = (id)     => api.delete(`${BASE}/grupos/${id}`)
-=======
 export const getGrupoEstudiantes = (id)     => api.get(`${BASE}/grupos/${id}/estudiantes`)
 export const calcularGrupos     = (totalInscritos) => api.post(`${BASE}/grupos/calcular`, { total_inscritos: totalInscritos })
->>>>>>> Stashed changes
 
 // ── Asignaciones ──
 export const getStatsAsignacion        = ()      => api.get(`${BASE}/asignacion/stats`)
@@ -45,7 +42,6 @@ export const exportarHorariosCsv = (params) => {
   window.open(`${api.defaults.baseURL}${BASE}/reporte/horarios/csv?${q}`)
 }
 
-<<<<<<< Updated upstream
 // ── Cupos por carrera ──
 export const getCuposCarrera       = (params)   => api.get(`${BASE}/cupos-carrera`, { params })
 export const crearCupoCarrera      = (data)     => api.post(`${BASE}/cupos-carrera`, data)
@@ -60,7 +56,8 @@ export const procesarAdmision      = (data)   => api.post(`${BASE}/admision/proc
 export const exportarAdmisionCsv   = (params) => {
   const q = new URLSearchParams(params).toString()
   window.open(`${api.defaults.baseURL}${BASE}/admision/exportar-csv?${q}`)
-=======
+}
+
 // ── Postulantes ──
 export const getPostulantesCoordinador = (params) => api.get(`${BASE}/postulantes`, { params })
 export const getPostulanteCoordinador = (id) => api.get(`${BASE}/postulantes/${id}`)
@@ -71,5 +68,4 @@ export const eliminarPostulantesMultipleCoordinador = (ids) => api.post(`${BASE}
 export const exportarPostulantesCsv = (params) => {
   const q = new URLSearchParams(params).toString()
   window.open(`${api.defaults.baseURL}${BASE}/postulantes/export/csv?${q}`)
->>>>>>> Stashed changes
 }

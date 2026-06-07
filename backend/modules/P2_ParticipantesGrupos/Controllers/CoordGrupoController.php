@@ -40,29 +40,8 @@ class CoordGrupoController extends Controller
             $query->where('carrera_id', $request->carrera_id);
         }
 
-<<<<<<< Updated upstream
+
         $grupos = $query->orderBy('codigo')->get()->map(fn($g) => $this->formatGrupo($g));
-=======
-        $grupos = $query->orderBy('codigo')->get()->map(fn($g) => [
-            'id'           => $g->id,
-            'codigo'       => $g->codigo,
-            'turno'        => $g->turno,
-            'dias'         => $g->dias ?? [],
-            'cupo_maximo'  => $g->cupo_maximo ?? $g->capacidad_maxima ?? 70,
-            'estado'       => $g->estado,
-            'ocupacion'    => $g->ocupacion(),
-            'carrera_id'   => $g->carrera_id,
-            'carrera_nombre'=> $g->carrera?->nombre ?? 'Sin carrera',
-            'gestion'      => $g->gestion ?? 'I-2026',
-            'horarios'     => $g->horarios->map(fn($h) => [
-                'materia_id'    => $h->materia_id,
-                'materia_nombre'=> $h->materia?->nombre,
-                'dia'           => $h->dia,
-                'hora_inicio'   => substr($h->hora_inicio, 0, 5),
-                'hora_fin'      => substr($h->hora_fin, 0, 5),
-            ]),
-        ]);
->>>>>>> Stashed changes
 
         return response()->json($grupos);
     }
@@ -79,7 +58,7 @@ class CoordGrupoController extends Controller
      */
     public function generarGruposAuto(): JsonResponse
     {
-<<<<<<< Updated upstream
+
         // 1. Contar postulantes INSCRITOS
         $totalInscritos = Postulante::where('estado_tramite', 'INSCRITO')->count();
 
@@ -88,29 +67,7 @@ class CoordGrupoController extends Controller
                 'message' => 'No hay postulantes con estado INSCRITO. Inscriba postulantes antes de generar grupos.',
             ], 422);
         }
-=======
-        $request->validate([
-            'codigo'      => 'required|string|max:10|unique:grupos,codigo',
-            'turno'       => 'required|in:mañana,tarde,noche',
-            'dias'        => 'required|array|min:1',
-            'dias.*'      => 'in:lunes,martes,miercoles,jueves,viernes,sabado',
-            'cupo_maximo' => 'required|integer|min:1|max:70',
-            'carrera_id'  => 'nullable|exists:carreras,id',
-            'gestion'     => 'nullable|string|max:20',
-        ]);
 
-        $grupo = Grupo::create([
-            'codigo'      => strtoupper($request->codigo),
-            'nombre_grupo'=> strtoupper($request->codigo),
-            'turno'       => $request->turno,
-            'dias'        => $request->dias,
-            'cupo_maximo' => $request->cupo_maximo,
-            'capacidad_maxima' => $request->cupo_maximo,
-            'carrera_id'  => $request->carrera_id,
-            'gestion'     => $request->gestion ?? 'I-2026',
-            'estado'      => 'activo',
-        ]);
->>>>>>> Stashed changes
 
         // 2. Evitar duplicación si ya existen grupos activos
         $gruposActivos = Grupo::whereNotNull('codigo')->where('estado', 'activo')->count();
@@ -193,51 +150,48 @@ class CoordGrupoController extends Controller
      * Edición restringida: solo permite cambiar estado del grupo.
      * Código, cupo máximo y materias son inmutables.
      */
-    public function update(Request $request, int $id): JsonResponse
-    {
-        $grupo = Grupo::whereNotNull('codigo')->findOrFail($id);
 
-        $request->validate([
-<<<<<<< Updated upstream
-            'estado' => 'required|in:activo,inactivo',
-        ]);
+public function update(Request $request, int $id): JsonResponse
+{
+    $grupo = Grupo::whereNotNull('codigo')->findOrFail($id);
 
-        $grupo->update(['estado' => $request->estado]);
-=======
-            'codigo'      => "required|string|max:10|unique:grupos,codigo,{$id}",
-            'turno'       => 'required|in:mañana,tarde,noche',
-            'dias'        => 'required|array|min:1',
-            'dias.*'      => 'in:lunes,martes,miercoles,jueves,viernes,sabado',
-            'cupo_maximo' => 'required|integer|min:1|max:70',
-            'carrera_id'  => 'nullable|exists:carreras,id',
-            'gestion'     => 'nullable|string|max:20',
-        ]);
+    $request->validate([
+        'codigo'      => "required|string|max:10|unique:grupos,codigo,{$id}",
+        'turno'       => 'required|in:mañana,tarde,noche',
+        'dias'        => 'required|array|min:1',
+        'dias.*'      => 'in:lunes,martes,miercoles,jueves,viernes,sabado',
+        'cupo_maximo' => 'required|integer|min:1|max:70',
+        'carrera_id'  => 'nullable|exists:carreras,id',
+        'gestion'     => 'nullable|string|max:20',
+        'estado'      => 'nullable|in:activo,inactivo',
+    ]);
 
-        $turnoChanged = $grupo->turno !== $request->turno;
+    $turnoChanged = $grupo->turno !== $request->turno;
 
-        $grupo->update([
-            'codigo'      => strtoupper($request->codigo),
-            'nombre_grupo'=> strtoupper($request->codigo),
-            'turno'       => $request->turno,
-            'dias'        => $request->dias,
-            'cupo_maximo' => $request->cupo_maximo,
-            'capacidad_maxima' => $request->cupo_maximo,
-            'carrera_id'  => $request->carrera_id,
-            'gestion'     => $request->gestion ?? 'I-2026',
-        ]);
+    $grupo->update([
+        'codigo'           => strtoupper($request->codigo),
+        'nombre_grupo'     => strtoupper($request->codigo),
+        'turno'            => $request->turno,
+        'dias'             => $request->dias,
+        'cupo_maximo'      => $request->cupo_maximo,
+        'capacidad_maxima' => $request->cupo_maximo,
+        'carrera_id'       => $request->carrera_id,
+        'gestion'          => $request->gestion ?? 'I-2026',
+        'estado'           => $request->estado ?? $grupo->estado,
+    ]);
 
-        if ($turnoChanged) {
-            // Regenerar horarios si cambió el turno
-            $grupo->horarios()->delete();
-            $this->generarHorarios($grupo);
-        }
->>>>>>> Stashed changes
-
-        return response()->json([
-            'message' => 'Estado del grupo actualizado.',
-            'grupo'   => $this->formatGrupo($grupo->fresh(['horarios.materia'])),
-        ]);
+    if ($turnoChanged) {
+        // Regenerar horarios si cambió el turno
+        $grupo->horarios()->delete();
+        $this->generarHorarios($grupo);
     }
+
+    return response()->json([
+        'message' => 'Grupo actualizado correctamente.',
+        'grupo'   => $this->formatGrupo($grupo->fresh(['horarios.materia'])),
+    ]);
+}
+
 
     /** Activar o inactivar un grupo (toggle). */
     public function toggleEstado(int $id): JsonResponse
@@ -273,19 +227,23 @@ class CoordGrupoController extends Controller
      */
     private function generarHorarios(Grupo $grupo): void
     {
-<<<<<<< Updated upstream
         $turnoConfig = self::TURNOS[$grupo->turno] ?? self::TURNOS['mañana'];
-        $materias    = Materia::whereIn('nombre', self::MATERIAS_ORDEN)
+
+        $materias = Materia::whereIn('nombre', self::MATERIAS_ORDEN)
             ->where('estado', 'activo')
             ->get()
-            ->sortBy(fn($m) => array_search($m->nombre, self::MATERIAS_ORDEN));
+            ->sortBy(fn($m) => array_search($m->nombre, self::MATERIAS_ORDEN))
+            ->values();
 
-        $horaBase = (int) substr($turnoConfig['inicio'], 0, 2);
-        $dias     = is_array($grupo->dias) ? $grupo->dias : ['lunes'];
-=======
-        $materias = Materia::where('estado', 'activo')->get();
-        $dias = is_array($grupo->dias) ? $grupo->dias : ($grupo->dias ? json_decode($grupo->dias, true) : ['lunes']);
->>>>>>> Stashed changes
+            $horaBase = (int) substr($turnoConfig['inicio'], 0, 2);
+
+            $dias = is_array($grupo->dias)
+                ? $grupo->dias
+                : ($grupo->dias ? json_decode($grupo->dias, true) : ['lunes']);
+
+        if (!is_array($dias) || empty($dias)) {
+            $dias = ['lunes'];
+        }
 
         foreach ($dias as $dia) {
             $diaLower = strtolower($dia);
@@ -352,11 +310,7 @@ class CoordGrupoController extends Controller
             'turno'       => $g->turno,
             'aula'        => $g->aula ?? '-',
             'dias'        => $g->dias ?? [],
-<<<<<<< Updated upstream
-            'cupo_maximo' => self::CUPO,
-=======
             'cupo_maximo' => $g->cupo_maximo ?? $g->capacidad_maxima ?? 70,
->>>>>>> Stashed changes
             'estado'      => $g->estado,
             'ocupacion'   => $g->ocupacion(),
             'carrera_id'   => $g->carrera_id,

@@ -10,13 +10,12 @@ use Modules\P2_ParticipantesGrupos\Controllers\MateriaController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordDocenteController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordGrupoController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordAsignacionController;
-<<<<<<< Updated upstream
-=======
 use Modules\P2_ParticipantesGrupos\Controllers\CoordReporteController;
 use Modules\P2_ParticipantesGrupos\Controllers\DocentePortalController;
 use Modules\P2_ParticipantesGrupos\Controllers\AutoridadPortalController;
->>>>>>> Stashed changes
 use Illuminate\Support\Facades\Route;
+
+
 
 // Preinscripción pública
 Route::post('/preinscripcion', [PreinscripcionController::class, 'store']);
@@ -92,25 +91,24 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/docentes/{id}',                      [CoordDocenteController::class, 'show']);
         Route::get('/docentes/{id}/carga-horaria',        [CoordDocenteController::class, 'cargaHoraria']);
         Route::post('/docentes/{id}/asignar-materia',     [CoordDocenteController::class, 'asignarMateria']);
-
         // Grupos coordinados
-        Route::get('/grupos',                             [CoordGrupoController::class, 'index']);
-<<<<<<< Updated upstream
-        Route::post('/grupos/auto-generar',               [CoordGrupoController::class, 'generarGruposAuto']);
-=======
-        Route::post('/grupos',                            [CoordGrupoController::class, 'store']);
-        Route::post('/grupos/calcular',                   [CoordGrupoController::class, 'calcularGrupos']);
->>>>>>> Stashed changes
-        Route::get('/grupos/{id}',                        [CoordGrupoController::class, 'show']);
-        Route::put('/grupos/{id}',                        [CoordGrupoController::class, 'update']);
-        Route::get('/grupos/{id}/estudiantes',            [CoordGrupoController::class, 'estudiantes']);
-        Route::patch('/grupos/{id}/toggle-estado',        [CoordGrupoController::class, 'toggleEstado']);
-<<<<<<< Updated upstream
-        Route::delete('/grupos/{id}',                     [CoordGrupoController::class, 'destroy']);
-=======
-        Route::post('/grupos/{id}/asignar-estudiantes',   [CoordAsignacionController::class, 'asignarEstudiantes']);
-        Route::post('/grupos/{id}/asignar-docente',       [CoordAsignacionController::class, 'asignarDocenteAGrupo']);
->>>>>>> Stashed changes
+        Route::get('/grupos',                     [CoordGrupoController::class, 'index']);
+        Route::post('/grupos',                    [CoordGrupoController::class, 'store']);
+        Route::post('/grupos/auto-generar',       [CoordGrupoController::class, 'generarGruposAuto']);
+        Route::post('/grupos/calcular',           [CoordGrupoController::class, 'calcularGrupos']);
+
+        Route::get('/grupos/{id}',                [CoordGrupoController::class, 'show']);
+        Route::put('/grupos/{id}',                [CoordGrupoController::class, 'update']);
+        Route::delete('/grupos/{id}',             [CoordGrupoController::class, 'destroy']);
+
+        Route::get('/grupos/{id}/estudiantes',    [CoordGrupoController::class, 'estudiantes']);
+        Route::patch('/grupos/{id}/toggle-estado',[CoordGrupoController::class, 'toggleEstado']);
+
+        Route::post('/grupos/{id}/asignar-estudiantes', [CoordAsignacionController::class, 'asignarEstudiantes']);
+        Route::post('/grupos/{id}/asignar-docente',     [CoordAsignacionController::class, 'asignarDocenteAGrupo']);
+
+
+
 
         // Asignaciones
         Route::get('/asignacion/stats',                   [CoordAsignacionController::class, 'statsAsignacion']);
@@ -122,38 +120,35 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/asignacion/asignaciones',            [CoordAsignacionController::class, 'getAsignaciones']);
         Route::get('/postulantes-sin-grupo',              [CoordAsignacionController::class, 'postulantesSinGrupo']);
 
-<<<<<<< Updated upstream
-=======
-        // Reportes & Horarios
-        Route::get('/horarios',                           [CoordReporteController::class, 'horarios']);
-        Route::post('/horarios',                          [CoordGrupoController::class, 'crearHorario']);
-        Route::get('/reporte/horarios',                   [CoordReporteController::class, 'horarios']);
-        Route::get('/reporte/horarios/csv',               [CoordReporteController::class, 'exportarCsv']);
+       // Reportes & Horarios
+        Route::get('/horarios',              [CoordReporteController::class, 'horarios']);
+        Route::post('/horarios',             [CoordGrupoController::class, 'crearHorario']);
+        Route::get('/reporte/horarios',      [CoordReporteController::class, 'horarios']);
+        Route::get('/reporte/horarios/csv',  [CoordReporteController::class, 'exportarCsv']);
 
-        // Gestión de postulantes (Coordinador)
-        Route::get('/postulantes/export/csv',             [PostulanteController::class, 'exportarCsv']);
-        Route::get('/postulantes',                        [PostulanteController::class, 'index']);
-        Route::post('/postulantes/eliminar-multiple',      [PostulanteController::class, 'eliminarMultiple']);
-        Route::get('/postulantes/{id}',                   [PostulanteController::class, 'show']);
-        Route::put('/postulantes/{id}',                   [PostulanteController::class, 'update']);
-        Route::patch('/postulantes/{id}/requisitos',       [PostulanteController::class, 'updateRequisitos']);
-        Route::delete('/postulantes/{id}',                 [PostulanteController::class, 'destroy']);
+        // Gestión de postulantes (coordinador)
+        Route::get('/postulantes/export/csv',       [PostulanteController::class, 'exportarCsv']);
+        Route::get('/postulantes',                  [PostulanteController::class, 'index']);
+        Route::post('/postulantes/eliminar-multiple',[PostulanteController::class, 'eliminarMultiple']);
+        Route::get('/postulantes/{id}',             [PostulanteController::class, 'show']);
+        Route::put('/postulantes/{id}',             [PostulanteController::class, 'update']);
+        Route::patch('/postulantes/{id}/requisitos',[PostulanteController::class, 'updateRequisitos']);
+        Route::delete('/postulantes/{id}',          [PostulanteController::class, 'destroy']);
     });
 
     /*
-    |----------------------------------------------------------------------
-    | Rutas de Autoridad Académica
-    |----------------------------------------------------------------------
-    */
-    Route::middleware('role:autoridad,administrador')->prefix('autoridad')->group(function () {
-        Route::get('/perfil',                             [AutoridadPortalController::class, 'perfil']);
-        Route::get('/dashboard',                          [AutoridadPortalController::class, 'dashboard']);
-        Route::get('/grupos',                             [AutoridadPortalController::class, 'grupos']);
-        Route::get('/docentes-asignados',                 [AutoridadPortalController::class, 'docentesAsignados']);
-        Route::get('/horarios',                           [AutoridadPortalController::class, 'horarios']);
-        Route::get('/estadisticas',                       [AutoridadPortalController::class, 'estadisticas']);
->>>>>>> Stashed changes
-    });
+|--------------------------------------------------------------------------
+| Rutas de Autoridad Académica
+|--------------------------------------------------------------------------
+*/
+        Route::middleware('role:autoridad,administrador')->prefix('autoridad')->group(function () {
+        Route::get('/perfil',             [AutoridadPortalController::class, 'perfil']);
+        Route::get('/dashboard',          [AutoridadPortalController::class, 'dashboard']);
+        Route::get('/grupos',             [AutoridadPortalController::class, 'grupos']);
+        Route::get('/docentes_asignados', [AutoridadPortalController::class, 'docentesAsignados']);
+        Route::get('/horarios',           [AutoridadPortalController::class, 'horarios']);
+    Route::get('/estadisticas',       [AutoridadPortalController::class, 'estadisticas']);
+});
 
     /*
     |----------------------------------------------------------------------
