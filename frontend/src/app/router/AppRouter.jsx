@@ -21,20 +21,36 @@ import DocentesAcademicos from '@/modules/p2-participantes-grupos/coordinador/pa
 import AdministrarGrupos from '@/modules/p2-participantes-grupos/coordinador/pages/AdministrarGrupos'
 import ProcesarAsignacion from '@/modules/p2-participantes-grupos/coordinador/pages/ProcesarAsignacion'
 import ReporteHorarios from '@/modules/p2-participantes-grupos/coordinador/pages/ReporteHorarios'
-import CuposCarrera   from '@/modules/p2-participantes-grupos/coordinador/pages/CuposCarrera'
-import AdmisionFinal  from '@/modules/p2-participantes-grupos/coordinador/pages/AdmisionFinal'
+import CuposCarrera from '@/modules/p2-participantes-grupos/coordinador/pages/CuposCarrera'
+import AdmisionFinal from '@/modules/p2-participantes-grupos/coordinador/pages/AdmisionFinal'
+import CoordinadorDashboard from '@/modules/p2-participantes-grupos/coordinador/pages/CoordinadorDashboard'
+import CoordinadorPerfil from '@/modules/p2-participantes-grupos/coordinador/pages/CoordinadorPerfil'
+import CoordinadorPostulantes from '@/modules/p2-participantes-grupos/coordinador/pages/CoordinadorPostulantes'
 
 // Páginas del Postulante
-import PostulanteMiPerfil         from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMiPerfil'
-import PostulanteMiHorario        from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMiHorario'
+import PostulanteMiPerfil from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMiPerfil'
+import PostulanteMiHorario from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMiHorario'
 import PostulanteMisCalificaciones from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMisCalificaciones'
 
 // Páginas del Docente
-import DocenteMiPerfil       from '@/modules/p3-evaluacion-resultados/docente/pages/MiPerfil'
-import DocenteMisGrupos      from '@/modules/p3-evaluacion-resultados/docente/pages/MisGrupos'
-import DocenteAsistencia     from '@/modules/p3-evaluacion-resultados/docente/pages/Asistencia'
+import DocenteMiPerfil from '@/modules/p3-evaluacion-resultados/docente/pages/MiPerfil'
+import DocenteMisGrupos from '@/modules/p3-evaluacion-resultados/docente/pages/MisGrupos'
+import DocenteAsistencia from '@/modules/p3-evaluacion-resultados/docente/pages/Asistencia'
 import DocenteCalificaciones from '@/modules/p3-evaluacion-resultados/docente/pages/Calificaciones'
-import DocenteReportes       from '@/modules/p3-evaluacion-resultados/docente/pages/Reportes'
+import DocenteReportes from '@/modules/p3-evaluacion-resultados/docente/pages/Reportes'
+
+// Docente Pages
+import MisGrupos from '@/modules/p2-participantes-grupos/docente/pages/MisGrupos'
+import MisMaterias from '@/modules/p2-participantes-grupos/docente/pages/MisMaterias'
+import MisEstudiantes from '@/modules/p2-participantes-grupos/docente/pages/MisEstudiantes'
+import RegistroNotas from '@/modules/p2-participantes-grupos/docente/pages/RegistroNotas'
+
+// Autoridad Pages
+import DashboardAutoridad from '@/modules/p2-participantes-grupos/autoridad/pages/DashboardAutoridad'
+import GruposAutoridad from '@/modules/p2-participantes-grupos/autoridad/pages/GruposAutoridad'
+import DocentesAsignados from '@/modules/p2-participantes-grupos/autoridad/pages/DocentesAsignados'
+import HorariosAutoridad from '@/modules/p2-participantes-grupos/autoridad/pages/HorariosAutoridad'
+import EstadisticasAutoridad from '@/modules/p2-participantes-grupos/autoridad/pages/EstadisticasAutoridad'
 
 import PrivateRoute from './PrivateRoute'
 import Layout from '@/layouts/Layout'
@@ -120,6 +136,7 @@ export default function AppRouter() {
       <Route path="/preinscripcion" element={<PreinscripcionForm />} />
       <Route path="/preinscripcion/comprobante/:id" element={<Comprobante />} />
       <Route path="/preinscripcion/pago-confirmado" element={<PagoConfirmado />} />
+      <Route path="/pago/exitoso" element={<PagoConfirmado />} />
 
       {/* Protected Routes */}
       <Route path="/admin/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
@@ -135,28 +152,50 @@ export default function AppRouter() {
       <Route path="/admin/auditoria" element={<PrivateRoute><AuditoriaMock /></PrivateRoute>} />
 
       {/* Rutas Coordinador Académico */}
-      <Route path="/coordinador/docentes"         element={<PrivateRoute><DocentesAcademicos /></PrivateRoute>} />
-      <Route path="/coordinador/grupos"           element={<PrivateRoute><AdministrarGrupos /></PrivateRoute>} />
-      <Route path="/coordinador/asignacion"       element={<PrivateRoute><ProcesarAsignacion /></PrivateRoute>} />
+      <Route path="/coordinador/dashboard" element={<PrivateRoute><CoordinadorDashboard /></PrivateRoute>} />
+      <Route path="/coordinador/perfil" element={<PrivateRoute><CoordinadorPerfil /></PrivateRoute>} />
+      <Route path="/coordinador/postulantes" element={<PrivateRoute><CoordinadorPostulantes /></PrivateRoute>} />
+      <Route path="/coordinador/postulantes/:id" element={<PrivateRoute><PostulantePerfil /></PrivateRoute>} />
+      <Route path="/coordinador/docentes" element={<PrivateRoute><DocentesAcademicos /></PrivateRoute>} />
+      <Route path="/coordinador/grupos" element={<PrivateRoute><AdministrarGrupos /></PrivateRoute>} />
+      <Route path="/coordinador/asignacion" element={<PrivateRoute><ProcesarAsignacion /></PrivateRoute>} />
       <Route path="/coordinador/reporte-horarios" element={<PrivateRoute><ReporteHorarios /></PrivateRoute>} />
-      <Route path="/coordinador/cupos-carrera"   element={<PrivateRoute><CuposCarrera /></PrivateRoute>} />
-      <Route path="/coordinador/admision-final"  element={<PrivateRoute><AdmisionFinal /></PrivateRoute>} />
+      <Route path="/coordinador/cupos-carrera" element={<PrivateRoute><CuposCarrera /></PrivateRoute>} />
+      <Route path="/coordinador/admision-final" element={<PrivateRoute><AdmisionFinal /></PrivateRoute>} />
 
-      <Route path="/autoridad/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+      {/* Rutas Autoridad Académica */}
+      <Route path="/autoridad/dashboard" element={<PrivateRoute><DashboardAutoridad /></PrivateRoute>} />
+      <Route path="/autoridad/grupos" element={<PrivateRoute><GruposAutoridad /></PrivateRoute>} />
+      <Route path="/autoridad/docentes" element={<PrivateRoute><DocentesAsignados /></PrivateRoute>} />
+      <Route path="/autoridad/horarios" element={<PrivateRoute><HorariosAutoridad /></PrivateRoute>} />
+      <Route path="/autoridad/estadisticas" element={<PrivateRoute><EstadisticasAutoridad /></PrivateRoute>} />
+      {
+        /* Rutas del Docente */
+      }
+      <Route path="/docente/perfil" element={<PrivateRoute><DocenteMiPerfil /></PrivateRoute>} />
+      <Route path="/docente/horario" element={<PrivateRoute><Navigate to="/docente/grupos" replace /></PrivateRoute>} />
+      <Route path="/docente/grupos" element={<PrivateRoute><DocenteMisGrupos /></PrivateRoute>} />
+      <Route path="/docente/asistencia" element={<PrivateRoute><DocenteAsistencia /></PrivateRoute>} />
+      <Route path="/docente/calificaciones" element={<PrivateRoute><DocenteCalificaciones /></PrivateRoute>} />
+      <Route path="/docente/reportes" element={<PrivateRoute><DocenteReportes /></PrivateRoute>} />
+      <Route path="/docente/inicio" element={<PrivateRoute><DocenteMiPerfil /></PrivateRoute>} />
 
-      {/* Rutas del Docente */}
-      <Route path="/docente/perfil"           element={<PrivateRoute><DocenteMiPerfil /></PrivateRoute>} />
-      <Route path="/docente/horario"          element={<Navigate to="/docente/grupos" replace />} />
-      <Route path="/docente/grupos"           element={<PrivateRoute><DocenteMisGrupos /></PrivateRoute>} />
-      <Route path="/docente/asistencia"       element={<PrivateRoute><DocenteAsistencia /></PrivateRoute>} />
-      <Route path="/docente/calificaciones"   element={<PrivateRoute><DocenteCalificaciones /></PrivateRoute>} />
-      <Route path="/docente/reportes"         element={<PrivateRoute><DocenteReportes /></PrivateRoute>} />
-      <Route path="/docente/inicio"           element={<PrivateRoute><DocenteMiPerfil /></PrivateRoute>} />
-      {/* Rutas del Postulante */}
-      <Route path="/postulante/perfil"          element={<PrivateRoute><PostulanteMiPerfil /></PrivateRoute>} />
-      <Route path="/postulante/horario"         element={<PrivateRoute><PostulanteMiHorario /></PrivateRoute>} />
-      <Route path="/postulante/calificaciones"  element={<PrivateRoute><PostulanteMisCalificaciones /></PrivateRoute>} />
-      <Route path="/postulante/inicio"          element={<PrivateRoute><PostulanteMiPerfil /></PrivateRoute>} />
+      {
+        /* Rutas Docente P2 */
+      }
+      <Route path="/docente/mis-grupos" element={<PrivateRoute><MisGrupos /></PrivateRoute>} />
+      <Route path="/docente/mis-materias" element={<PrivateRoute><MisMaterias /></PrivateRoute>} />
+      <Route path="/docente/mis-estudiantes" element={<PrivateRoute><MisEstudiantes /></PrivateRoute>} />
+      <Route path="/docente/registro-notas" element={<PrivateRoute><RegistroNotas /></PrivateRoute>} />
+
+      {
+        /* Rutas del Postulante */
+      }
+      <Route path="/postulante/perfil" element={<PrivateRoute><PostulanteMiPerfil /></PrivateRoute>} />
+      <Route path="/postulante/horario" element={<PrivateRoute><PostulanteMiHorario /></PrivateRoute>} />
+      <Route path="/postulante/calificaciones" element={<PrivateRoute><PostulanteMisCalificaciones /></PrivateRoute>} />
+      <Route path="/postulante/inicio" element={<PrivateRoute><PostulanteMiPerfil /></PrivateRoute>} />
+
 
       {/* Fallback Route */}
       <Route path="*" element={<NotFound />} />

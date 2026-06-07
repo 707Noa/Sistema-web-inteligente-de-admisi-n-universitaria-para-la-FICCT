@@ -20,35 +20,78 @@ class AuthController extends Controller
             'perfil' => 'required|string|in:postulante,docente,coordinador,autoridad,administrador',
         ]);
 
-        // Buscar usuario por email, CI o código de usuario
-        $user = User::where('email', $request->login)
-                    ->orWhere('ci', $request->login)
-                    ->orWhere('codigo', $request->login)
-                    ->first();
+        // Buscar usuario por email, CI o código de usuario (insensible a mayúsculas/minúsculas y recortando espacios)
+        $login = trim($request->login);
+        $user = User::where(function ($query) use ($login) {
+            $query->where('ci', 'ilike', $login)
+                  ->orWhere('codigo', 'ilike', $login)
+                  ->orWhere('email', 'ilike', $login)
+                  ->orWhereHas('postulante', function ($q) use ($login) {
+                      $q->where('codigo_usuario', 'ilike', $login)
+                        ->orWhere('ci', 'ilike', $login);
+                  });
+        })->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        if (!$user) {
+            \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Usuario no encontrado.");
+            $debugResponse = config('app.debug') ? ['debug_reason' => 'Usuario no encontrado.'] : [];
+            return response()->json(array_merge([
+                'message' => 'El usuario no se encuentra registrado.',
+            ], $debugResponse), 401);
+        }
+
+        if (!Hash::check($request->password, $user->password)) {
             AuditoriaService::registrar(
-                $user?->id,
+                $user->id,
                 'Intento fallido de login',
                 'Autenticación',
                 $request,
                 'Login: ' . $request->login
             );
-
-            return response()->json([
-                'message' => 'Credenciales incorrectas.',
-            ], 401);
+            \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Contraseña incorrecta.");
+            $debugResponse = config('app.debug') ? ['debug_reason' => 'Contraseña incorrecta.'] : [];
+            return response()->json(array_merge([
+                'message' => 'Contraseña incorrecta.',
+            ], $debugResponse), 401);
         }
 
         if (!$user->isActive()) {
-            return response()->json([
+            \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Usuario inactivo.");
+            $debugResponse = config('app.debug') ? ['debug_reason' => 'Usuario inactivo.'] : [];
+            return response()->json(array_merge([
                 'message' => 'La cuenta se encuentra inactiva. Contacte con administración.',
-            ], 403);
+            ], $debugResponse), 403);
         }
 
-        // Verificar que el rol coincida con el perfil seleccionado
+        // Reglas de acceso dual
         $roleName = $user->role->name ?? '';
-        if ($roleName !== $request->perfil) {
+        if (!$user->must_change_password) {
+            if (strtolower($user->email ?? '') === strtolower($login)) {
+                return response()->json([
+                    'message' => 'Acceso denegado. El usuario ya actualizó sus datos de acceso. Use su código de registro.',
+                ], 401);
+            }
+            if (strtolower($roleName) === 'postulante') {
+                $codigo = $user->codigo ?? '';
+                if (strtolower($codigo) !== strtolower($login)) {
+                    return response()->json([
+                        'message' => 'Acceso denegado. Para ingresar debe utilizar su código de registro.',
+                    ], 401);
+                }
+            } else {
+                $codigo = $user->codigo ?? '';
+                $ci = $user->ci ?? '';
+                if (strtolower($codigo) !== strtolower($login) && strtolower($ci) !== strtolower($login)) {
+                    return response()->json([
+                        'message' => 'Acceso denegado. Debe iniciar sesión con su código de usuario o CI.',
+                    ], 401);
+                }
+            }
+        }
+
+        // Verificar que el rol coincida con el perfil seleccionado (comparación flexible e insensible a mayúsculas/minúsculas)
+        $roleName = $user->role->name ?? '';
+        if (strtolower($roleName) !== strtolower($request->perfil)) {
             AuditoriaService::registrar(
                 $user->id,
                 'Intento de login con perfil incorrecto',
@@ -56,10 +99,11 @@ class AuthController extends Controller
                 $request,
                 "Perfil solicitado: {$request->perfil}, rol real: {$roleName}"
             );
-
-            return response()->json([
+            \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Rol incorrecto. Perfil solicitado: {$request->perfil}, rol real: {$roleName}");
+            $debugResponse = config('app.debug') ? ['debug_reason' => 'Rol incorrecto.'] : [];
+            return response()->json(array_merge([
                 'message' => 'No tienes permiso para ingresar con este perfil.',
-            ], 403);
+            ], $debugResponse), 403);
         }
 
         $token = $user->createToken('auth-token')->plainTextToken;
@@ -125,11 +169,23 @@ class AuthController extends Controller
     public function changePassword(Request $request): JsonResponse
     {
         $request->validate([
-            'new_password' => 'required|string|min:6|confirmed',
+            'new_password' => [
+                'required',
+                'string',
+                'min:8',
+                'confirmed',
+                'regex:/[a-z]/',
+                'regex:/[A-Z]/',
+                'regex:/[!@#$%^&*(),.?":{}|<>_+\\-=\\[\\]]/',
+            ],
+        ], [
+            'new_password.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'new_password.regex' => 'La contraseña debe contener al menos una minúscula, una mayúscula y un carácter especial.',
+            'new_password.confirmed' => 'Las contraseñas de confirmación no coinciden.',
         ]);
 
         $user = $request->user();
-        $user->password = $request->new_password; // cast 'hashed' lo hashea automáticamente
+        $user->password = Hash::make($request->new_password);
         $user->must_change_password = false;
         $user->save();
 
@@ -145,10 +201,12 @@ class AuthController extends Controller
 
     private function getRedirectPath(string $role): string
     {
-        return match($role) {
+        return match(strtolower($role)) {
             'administrador' => '/admin/dashboard',
-            'docente'       => '/docente/perfil',
-            'postulante'    => '/postulante/perfil',
+            'coordinador'   => '/coordinador/dashboard',
+            'docente'       => '/docente/grupos',
+            'postulante'    => '/perfil',
+            'autoridad'     => '/autoridad/dashboard',
             default         => '/perfil',
         };
     }
