@@ -71,9 +71,9 @@ class AuthController extends Controller
         }
 
 
-        // Reglas de acceso dual
+        // Reglas de acceso dual (no aplica para administradores: cuenta de sistema)
         $roleName = $user->role->name ?? '';
-        if (!$user->must_change_password) {
+        if (!$user->must_change_password && strtolower($roleName) !== 'administrador') {
             if (strtolower($user->email ?? '') === strtolower($login)) {
                 return response()->json([
                     'message' => 'Acceso denegado. El usuario ya actualizó sus datos de acceso. Use su código de registro.',
@@ -97,12 +97,7 @@ class AuthController extends Controller
             }
         }
 
-        // Verificar que el rol coincida con el perfil seleccionado (comparación flexible e insensible a mayúsculas/minúsculas)
-        $roleName = $user->role->name ?? '';
-
-        // Verificar que el rol coincida con el perfil seleccionado (comparación flexible e insensible a mayúsculas/minúsculas)
-        $roleName = $user->role->name ?? '';
-
+        // Verificar que el rol coincida con el perfil seleccionado
         if (strtolower($roleName) !== strtolower($request->perfil)) {
             AuditoriaService::registrar(
                 $user->id,

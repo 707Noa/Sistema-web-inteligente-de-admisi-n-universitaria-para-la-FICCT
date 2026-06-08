@@ -12,7 +12,6 @@ use Modules\P2_ParticipantesGrupos\Controllers\CoordGrupoController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordAsignacionController;
 
 use Modules\P4_ReportesMonitoreoAuditoria\Controllers\CoordReporteController;
-use Modules\P2_ParticipantesGrupos\Controllers\CoordReporteController;
 use Modules\P2_ParticipantesGrupos\Controllers\DocentePortalController;
 use Modules\P2_ParticipantesGrupos\Controllers\AutoridadPortalController;
 use Illuminate\Support\Facades\Route;
