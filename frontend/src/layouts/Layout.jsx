@@ -1,9 +1,9 @@
-﻿import React, { useState } from 'react'
+﻿import { useState } from 'react'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
 import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
 import { changePassword } from '@/modules/p1-seguridad-administracion/auth/services/authService'
-import { FiLock, FiCheckCircle, FiXCircle, FiAlertTriangle, FiEye, FiEyeOff } from 'react-icons/fi'
+import { FiLock, FiCheckCircle, FiXCircle, FiEye, FiEyeOff } from 'react-icons/fi'
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)

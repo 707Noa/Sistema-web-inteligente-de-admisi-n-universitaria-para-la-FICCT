@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import {
-  FiLogOut, FiMenu, FiX, FiSun, FiMoon, FiSearch, FiHelpCircle,
+  FiLogOut, FiMenu, FiX, FiSun, FiMoon,
   FiCalendar, FiBell, FiChevronDown, FiUser, FiCreditCard, FiMail,
   FiHash, FiCheckCircle, FiKey, FiAlertCircle
 } from 'react-icons/fi'
@@ -78,10 +78,6 @@ export default function Navbar({ onMenuToggle, isOpen }) {
     window.addEventListener('click', handleOutsideClick)
     return () => window.removeEventListener('click', handleOutsideClick)
   }, [])
-
-  const handleLogout = () => {
-    setMostrarConfirmacionSalir(true)
-  }
 
   const confirmarSalir = async () => {
     setCerrandoSesion(true)
