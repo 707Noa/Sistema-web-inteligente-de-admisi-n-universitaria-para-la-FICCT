@@ -22,10 +22,10 @@ class AdminSeeder extends Seeder
                 'role_id'              => $adminRole->id,
                 'name'                 => 'Administrador',
                 'ci'                   => '00000001',
-                'password'             => Hash::make('Admin123456'),
+                'password'             => Hash::make('00000001'),
                 'estado'               => 'activo',
                 'codigo'               => 'admin',
-                'must_change_password' => false,
+                'must_change_password' => true,
                 'created_at'           => now(),
                 'updated_at'           => now(),
             ]

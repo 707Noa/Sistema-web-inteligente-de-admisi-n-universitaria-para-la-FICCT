@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Layout from '@/layouts/Layout'
 import Loading from '@/shared/components/Loading'
 import { getDashboard } from '../services/coordinadorService'
-import { FiUsers, FiGrid, FiBook, FiCheckCircle, FiAlertTriangle, FiClock, FiAlertOctagon } from 'react-icons/fi'
+import { FiUsers, FiGrid, FiBook, FiCheckCircle, FiAlertTriangle, FiClock, FiAlertOctagon, FiList, FiSliders, FiUserPlus, FiUserCheck } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 
 export default function CoordinadorDashboard() {
@@ -64,6 +64,40 @@ export default function CoordinadorDashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Accesos Rápidos */}
+      <div className="card" style={{ marginTop: 24 }}>
+        <div className="card-header">
+          <span className="card-title">Accesos Rápidos</span>
+        </div>
+        <div style={{ padding: '0 20px 20px 20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+          {[
+            { label: 'Postulantes',      path: '/coordinador/postulantes',    icon: <FiUserCheck />, color: 'var(--primary)' },
+            { label: 'Grupos',           path: '/coordinador/grupos',         icon: <FiGrid />,      color: '#0891b2' },
+            { label: 'Asignaciones',     path: '/coordinador/asignacion',     icon: <FiList />,      color: '#7c3aed' },
+            { label: 'Docentes',         path: '/coordinador/docentes',       icon: <FiBook />,      color: '#059669' },
+            { label: 'Cupos por Carrera',path: '/coordinador/cupos-carrera',  icon: <FiSliders />,   color: '#d97706' },
+            { label: 'Admisión Final',   path: '/coordinador/admision-final', icon: <FiUserPlus />,  color: '#dc2626' },
+          ].map(({ label, path, icon, color }) => (
+            <Link
+              key={path}
+              to={path}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                gap: 8, padding: '16px 12px', borderRadius: 'var(--radius)',
+                border: `1px solid var(--gray-200)`, background: 'var(--gray-50)',
+                textDecoration: 'none', color: 'var(--gray-800)', fontWeight: 600,
+                fontSize: '0.85rem', textAlign: 'center', transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = color; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = color }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--gray-50)'; e.currentTarget.style.color = 'var(--gray-800)'; e.currentTarget.style.borderColor = 'var(--gray-200)' }}
+            >
+              <span style={{ fontSize: '1.5rem' }}>{icon}</span>
+              {label}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Sección de Alertas Académicas */}

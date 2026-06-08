@@ -19,27 +19,30 @@ class DocenteSeeder extends Seeder
         $ci = '1234567';
         $email = 'docente@sistema.com';
         $codigo = '2026' . strrev($ci); // 20267654321
-        $password = Hash::make($ci); // contraseña: CI (1234567)
 
-        // Check if user already exists
+        // Actualiza si ya existe, inserta si no
         $existingUser = DB::table('users')->where('email', $email)->orWhere('ci', $ci)->first();
         if ($existingUser) {
-            return;
+            DB::table('users')->where('id', $existingUser->id)->update([
+                'password'             => Hash::make($ci),
+                'must_change_password' => true,
+                'updated_at'           => now(),
+            ]);
+            $userId = $existingUser->id;
+        } else {
+            $userId = DB::table('users')->insertGetId([
+                'role_id'              => $roleDocente->id,
+                'name'                 => 'Docente de Prueba',
+                'email'                => $email,
+                'ci'                   => $ci,
+                'password'             => Hash::make($ci),
+                'estado'               => 'activo',
+                'codigo'               => $codigo,
+                'must_change_password' => true,
+                'created_at'           => now(),
+                'updated_at'           => now(),
+            ]);
         }
-
-        // 1. Crear el registro en users
-        $userId = DB::table('users')->insertGetId([
-            'role_id'              => $roleDocente->id,
-            'name'                 => 'Docente de Prueba',
-            'email'                => $email,
-            'ci'                   => $ci,
-            'password'             => $password,
-            'estado'               => 'activo',
-            'codigo'               => $codigo,
-            'must_change_password' => false,
-            'created_at'           => now(),
-            'updated_at'           => now(),
-        ]);
 
         // 2. Crear el registro en docentes
         DB::table('docentes')->updateOrInsert(

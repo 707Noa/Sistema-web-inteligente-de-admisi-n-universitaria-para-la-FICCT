@@ -211,13 +211,8 @@ class AuthController extends Controller
         return match(strtolower($role)) {
             'administrador' => '/admin/dashboard',
             'coordinador'   => '/coordinador/dashboard',
-
             'docente'       => '/docente/grupos',
-            'postulante'    => '/perfil',
-
-            'docente'       => '/docente/perfil',
             'postulante'    => '/postulante/perfil',
-
             'autoridad'     => '/autoridad/dashboard',
             default         => '/perfil',
         };

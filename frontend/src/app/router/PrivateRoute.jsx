@@ -5,7 +5,7 @@ import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAut
 // Rutas permitidas por rol (además de /perfil que aplica a todos)
 const ALLOWED_PATHS = {
   coordinador: ['/perfil', '/coordinador/'],
-  autoridad:   ['/perfil'],
+  autoridad:   ['/perfil', '/autoridad/'],
   docente:     ['/perfil', '/docente/'],
   postulante:  ['/perfil', '/postulante/'],
   // administrador: sin restricción

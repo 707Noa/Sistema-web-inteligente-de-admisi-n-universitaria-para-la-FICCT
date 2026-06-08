@@ -25,13 +25,10 @@ const menuItems = {
   ],
   // ── Autoridad Académica ──
   autoridad: [
-
-    { label: 'Perfil', path: '/perfil', icon: <FiUser /> },
-
-    { label: 'Dashboard académico', path: '/autoridad/dashboard', icon: <FiHome /> },
-    { label: 'Grupos habilitados', path: '/autoridad/grupos', icon: <FiGrid /> },
-    { label: 'Docentes asignados', path: '/autoridad/docentes', icon: <FiBook /> },
-    { label: 'Horarios', path: '/autoridad/horarios', icon: <FiList /> },
+    { label: 'Dashboard académico',  path: '/autoridad/dashboard',   icon: <FiHome /> },
+    { label: 'Grupos habilitados',   path: '/autoridad/grupos',       icon: <FiGrid /> },
+    { label: 'Docentes asignados',   path: '/autoridad/docentes',     icon: <FiBook /> },
+    { label: 'Horarios',             path: '/autoridad/horarios',     icon: <FiList /> },
     { label: 'Estadísticas generales', path: '/autoridad/estadisticas', icon: <FiBarChart2 /> },
   ],
   // ── Docente ──
