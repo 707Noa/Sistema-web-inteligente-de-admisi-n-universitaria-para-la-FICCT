@@ -1,15 +1,14 @@
-﻿import { useState } from 'react'
+import { useState } from 'react'
 import Navbar from './Navbar'
 import Sidebar from './Sidebar'
 import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
 import { changePassword } from '@/modules/p1-seguridad-administracion/auth/services/authService'
-import { FiLock, FiCheckCircle, FiXCircle, FiEye, FiEyeOff } from 'react-icons/fi'
+import { FiLock, FiCheckCircle, FiXCircle, FiEye, FiEyeOff, FiUser } from 'react-icons/fi'
 
 export default function Layout({ children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { user, checkAuth } = useAuth()
 
-  // Password change modal states
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -24,7 +23,6 @@ export default function Layout({ children }) {
   const closeSidebar = () => setSidebarOpen(false)
   const toggleSidebar = () => setSidebarOpen(prev => !prev)
 
-  // Real-time validations
   const hasMinLength = newPassword.length >= 8
   const hasLowercase = /[a-z]/.test(newPassword)
   const hasUppercase = /[A-Z]/.test(newPassword)
@@ -39,7 +37,7 @@ export default function Layout({ children }) {
     setModalSuccess('')
 
     if (!isFormValid) {
-      setModalError('La contraseÃ±a no cumple con todos los requisitos de seguridad.')
+      setModalError('La contraseña no cumple con todos los requisitos de seguridad.')
       return
     }
 
@@ -49,13 +47,12 @@ export default function Layout({ children }) {
         new_password: newPassword,
         new_password_confirmation: confirmPassword,
       })
-      setModalSuccess('Â¡ContraseÃ±a actualizada con Ã©xito!')
-      // Refresh user auth state after a brief delay
+      setModalSuccess('¡Contraseña actualizada con éxito!')
       setTimeout(async () => {
         await checkAuth()
       }, 1500)
     } catch (err) {
-      setModalError(err.response?.data?.message || 'Error al cambiar la contraseÃ±a.')
+      setModalError(err.response?.data?.message || 'Error al cambiar la contraseña.')
     } finally {
       setModalLoading(false)
     }
@@ -65,6 +62,8 @@ export default function Layout({ children }) {
     sessionStorage.setItem('temp_hide_password_modal', 'true')
     setModalDismissed(true)
   }
+
+  const userDisplay = user?.codigo || user?.ci || user?.email || '—'
 
   return (
     <div className="app-layout">
@@ -79,155 +78,226 @@ export default function Layout({ children }) {
         </main>
       </div>
 
-      {/* Mandatory Password Change Modal */}
+      {/* Modal de cambio de contraseña obligatorio al iniciar sesión */}
       {user && user.must_change_password && !modalDismissed && (
-        <div className="mandatory-modal-overlay">
-          <div className="mandatory-modal-card" style={{ maxWidth: '440px' }}>
-            <div className="mandatory-modal-header" style={{ padding: '18px 24px' }}>
+        <div className="modal-overlay" style={{ zIndex: 9997 }}>
+          <div
+            className="modal"
+            style={{ maxWidth: '480px', width: '90%', overflow: 'hidden' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Encabezado */}
+            <div style={{
+              background: 'var(--primary-gradient)',
+              padding: '18px 24px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '12px'
+            }}>
+              <div>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '1.1rem',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontWeight: 700
+                }}>
+                  <FiLock />
+                  Actualizar datos de acceso
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: 'rgba(255,255,255,0.85)' }}>
+                  Por seguridad debes cambiar tu contraseña inicial.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={handleDismissModal}
+                title="Cerrar"
                 style={{
-                  position: 'absolute',
-                  top: '12px',
-                  right: '16px',
-                  background: 'none',
+                  background: 'rgba(255,255,255,0.2)',
                   border: 'none',
                   color: 'white',
-                  fontSize: '1.5rem',
+                  fontSize: '1.2rem',
                   cursor: 'pointer',
-                  opacity: 0.8,
-                  transition: 'opacity 0.2s',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
                   lineHeight: 1,
-                  padding: 0
+                  padding: 0,
+                  transition: 'background 0.2s',
                 }}
-                onMouseEnter={(e) => e.target.style.opacity = 1}
-                onMouseLeave={(e) => e.target.style.opacity = 0.8}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
               >
                 &times;
               </button>
-              <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Actualizar datos de acceso</h3>
-              <p style={{ margin: '4px 0 0', fontSize: '0.8rem' }}>Por seguridad debes cambiar tu contraseÃ±a inicial</p>
             </div>
 
-            <div className="mandatory-modal-body" style={{ padding: '20px' }}>
-              <div className="info-alert-box" style={{ padding: '12px 14px', marginBottom: '16px', fontSize: '0.82rem', gap: '4px' }}>
-                <span className="info-alert-title" style={{ fontSize: '0.85rem' }}>Â¡Importante!</span>
-                <p style={{ margin: 0 }}>Tu nuevo usuario para iniciar sesiÃ³n serÃ¡ tu cÃ³digo de usuario:</p>
-                <p style={{ fontWeight: 'bold', margin: '4px 0', fontSize: '0.92rem', color: 'var(--primary-dark)' }}>
-                  Usuario: {user?.codigo}
-                </p>
-                <p style={{ margin: 0, opacity: 0.9 }}>
-                  El acceso mediante tu correo electrÃ³nico inicial ya no estarÃ¡ disponible una vez que realices esta actualizaciÃ³n.
-                </p>
+            <div className="modal-body">
+              {/* Usuario actual */}
+              <div style={{
+                background: '#eff6ff',
+                border: '1px solid #bfdbfe',
+                borderRadius: 'var(--radius)',
+                padding: '10px 14px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                fontSize: '0.83rem'
+              }}>
+                <FiUser style={{ color: '#2563eb', flexShrink: 0 }} />
+                <div>
+                  <span style={{ color: 'var(--gray-600)' }}>Usuario actual: </span>
+                  <strong style={{ color: '#1e40af', fontFamily: 'monospace' }}>{userDisplay}</strong>
+                </div>
               </div>
 
               {modalError && (
-                <div className="login-alert" style={{ marginBottom: '16px', background: 'var(--danger-light)', color: 'var(--danger)', padding: '10px 12px', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem' }}>
-                  <FiXCircle style={{ flexShrink: 0, fontSize: '1rem' }} />
+                <div style={{
+                  display: 'flex', gap: '8px', alignItems: 'center',
+                  background: 'var(--danger-light)', color: '#991b1b',
+                  padding: '10px 12px', borderRadius: 'var(--radius)',
+                  marginBottom: '12px', fontSize: '0.82rem'
+                }}>
+                  <FiXCircle style={{ flexShrink: 0 }} />
                   <span>{modalError}</span>
                 </div>
               )}
 
               {modalSuccess && (
-                <div className="login-alert" style={{ marginBottom: '16px', background: 'var(--success-light)', color: 'var(--success)', padding: '10px 12px', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem' }}>
-                  <FiCheckCircle style={{ flexShrink: 0, fontSize: '1rem' }} />
+                <div style={{
+                  display: 'flex', gap: '8px', alignItems: 'center',
+                  background: 'var(--success-light)', color: 'var(--success)',
+                  padding: '10px 12px', borderRadius: 'var(--radius)',
+                  marginBottom: '12px', fontSize: '0.82rem'
+                }}>
+                  <FiCheckCircle style={{ flexShrink: 0 }} />
                   <span>{modalSuccess}</span>
                 </div>
               )}
 
               <form onSubmit={handlePasswordChangeSubmit}>
-                <div className="form-group" style={{ position: 'relative', marginBottom: '12px' }}>
-                  <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '4px' }}>Nueva ContraseÃ±a</label>
+                <div className="form-group" style={{ marginBottom: '12px' }}>
+                  <label className="form-label" style={{ fontSize: '0.82rem' }}>Nueva contraseña</label>
                   <div style={{ position: 'relative' }}>
                     <input
                       type={showPass ? 'text' : 'password'}
                       className="form-input"
-                      placeholder="Ingresa tu nueva contraseÃ±a"
+                      placeholder="Ingresa tu nueva contraseña"
                       value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
+                      onChange={e => setNewPassword(e.target.value)}
                       disabled={modalLoading}
-                      style={{ paddingRight: '40px', fontSize: '0.85rem', padding: '8px 12px' }}
+                      style={{ paddingRight: '40px' }}
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPass(!showPass)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-500)', display: 'flex', alignItems: 'center' }}
+                      tabIndex={-1}
+                      style={{
+                        position: 'absolute', right: '12px', top: '50%',
+                        transform: 'translateY(-50%)', background: 'none',
+                        border: 'none', cursor: 'pointer',
+                        color: 'var(--gray-500)', display: 'flex', alignItems: 'center'
+                      }}
                     >
                       {showPass ? <FiEyeOff /> : <FiEye />}
                     </button>
                   </div>
                 </div>
 
-                <div className="form-group" style={{ position: 'relative', marginBottom: '12px' }}>
-                  <label className="form-label" style={{ fontSize: '0.8rem', marginBottom: '4px' }}>Confirmar ContraseÃ±a</label>
+                <div className="form-group" style={{ marginBottom: '12px' }}>
+                  <label className="form-label" style={{ fontSize: '0.82rem' }}>Confirmar contraseña</label>
                   <div style={{ position: 'relative' }}>
                     <input
                       type={showConfirmPass ? 'text' : 'password'}
                       className="form-input"
-                      placeholder="Confirma tu nueva contraseÃ±a"
+                      placeholder="Confirma tu nueva contraseña"
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={e => setConfirmPassword(e.target.value)}
                       disabled={modalLoading}
-                      style={{ paddingRight: '40px', fontSize: '0.85rem', padding: '8px 12px' }}
+                      style={{ paddingRight: '40px' }}
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPass(!showConfirmPass)}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-500)', display: 'flex', alignItems: 'center' }}
+                      tabIndex={-1}
+                      style={{
+                        position: 'absolute', right: '12px', top: '50%',
+                        transform: 'translateY(-50%)', background: 'none',
+                        border: 'none', cursor: 'pointer',
+                        color: 'var(--gray-500)', display: 'flex', alignItems: 'center'
+                      }}
                     >
                       {showConfirmPass ? <FiEyeOff /> : <FiEye />}
                     </button>
                   </div>
                 </div>
 
-                <div className="password-requirements" style={{ padding: '10px 12px', marginTop: '12px' }}>
-                  <div className="requirements-title" style={{ fontSize: '0.75rem', marginBottom: '6px' }}>Requisitos de seguridad:</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px' }}>
-                    <div className={`requirement-item ${hasMinLength ? 'met' : 'unmet'}`} style={{ fontSize: '0.72rem', marginBottom: 0 }}>
-                      <span className="requirement-icon" style={{ fontSize: '0.8rem' }}>
-                        {hasMinLength ? <FiCheckCircle /> : <FiXCircle />}
-                      </span>
-                      <span>MÃ­nimo 8 caracteres</span>
-                    </div>
-
-                    <div className={`requirement-item ${hasLowercase ? 'met' : 'unmet'}`} style={{ fontSize: '0.72rem', marginBottom: 0 }}>
-                      <span className="requirement-icon" style={{ fontSize: '0.8rem' }}>
-                        {hasLowercase ? <FiCheckCircle /> : <FiXCircle />}
-                      </span>
-                      <span>Al menos una minÃºscula</span>
-                    </div>
-
-                    <div className={`requirement-item ${hasUppercase ? 'met' : 'unmet'}`} style={{ fontSize: '0.72rem', marginBottom: 0 }}>
-                      <span className="requirement-icon" style={{ fontSize: '0.8rem' }}>
-                        {hasUppercase ? <FiCheckCircle /> : <FiXCircle />}
-                      </span>
-                      <span>Al menos una mayÃºscula</span>
-                    </div>
-
-                    <div className={`requirement-item ${hasSpecialChar ? 'met' : 'unmet'}`} style={{ fontSize: '0.72rem', marginBottom: 0 }}>
-                      <span className="requirement-icon" style={{ fontSize: '0.8rem' }}>
-                        {hasSpecialChar ? <FiCheckCircle /> : <FiXCircle />}
-                      </span>
-                      <span>Un carÃ¡cter especial</span>
-                    </div>
-
-                    <div className={`requirement-item ${passwordsMatch ? 'met' : 'unmet'}`} style={{ fontSize: '0.72rem', marginBottom: 0, gridColumn: 'span 2' }}>
-                      <span className="requirement-icon" style={{ fontSize: '0.8rem' }}>
-                        {passwordsMatch ? <FiCheckCircle /> : <FiXCircle />}
-                      </span>
-                      <span>Las contraseÃ±as coinciden</span>
+                {/* Requisitos de seguridad */}
+                <div style={{
+                  background: 'var(--gray-50)',
+                  border: '1px solid var(--gray-200)',
+                  borderRadius: 'var(--radius)',
+                  padding: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray-600)', margin: '0 0 8px' }}>
+                    Requisitos de seguridad:
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5px 12px' }}>
+                    {[
+                      { met: hasMinLength, label: 'Mínimo 8 caracteres' },
+                      { met: hasLowercase, label: 'Al menos una minúscula' },
+                      { met: hasUppercase, label: 'Al menos una mayúscula' },
+                      { met: hasSpecialChar, label: 'Un carácter especial' },
+                    ].map(({ met, label }) => (
+                      <div
+                        key={label}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '6px',
+                          fontSize: '0.73rem',
+                          color: met ? '#16a34a' : 'var(--gray-400)'
+                        }}
+                      >
+                        {met
+                          ? <FiCheckCircle style={{ flexShrink: 0 }} />
+                          : <FiXCircle style={{ flexShrink: 0 }} />
+                        }
+                        {label}
+                      </div>
+                    ))}
+                    <div
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        fontSize: '0.73rem',
+                        color: passwordsMatch ? '#16a34a' : 'var(--gray-400)',
+                        gridColumn: 'span 2'
+                      }}
+                    >
+                      {passwordsMatch
+                        ? <FiCheckCircle style={{ flexShrink: 0 }} />
+                        : <FiXCircle style={{ flexShrink: 0 }} />
+                      }
+                      Las contraseñas coinciden
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
                   <button
                     type="button"
                     className="btn btn-outline"
-                    style={{ flex: 1, padding: '8px 16px', fontSize: '0.85rem' }}
+                    style={{ flex: 1 }}
                     onClick={handleDismissModal}
                     disabled={modalLoading}
                   >
@@ -236,7 +306,7 @@ export default function Layout({ children }) {
                   <button
                     type="submit"
                     className="btn btn-primary"
-                    style={{ flex: 2, padding: '8px 16px', fontSize: '0.85rem' }}
+                    style={{ flex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                     disabled={!isFormValid || modalLoading}
                   >
                     {modalLoading ? 'Actualizando...' : <><FiLock /> Guardar</>}
