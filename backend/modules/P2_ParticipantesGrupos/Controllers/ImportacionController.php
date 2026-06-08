@@ -65,6 +65,8 @@ class ImportacionController extends Controller
             'unidad_educativa' => ['unidad educativa', 'colegio', 'colegio_procedencia', 'unidad_educativa'],
             'ciudad'           => ['ciudad'],
             'estado'           => ['estado'],
+            'requisitos'       => ['requisitos', 'requisito', 'requisitos_completos', 'documentos_completos', 'verificado', 'estado_documentos', 'documentos_verificados'],
+            'preferencia_turno'=> ['turno elegido', 'turno', 'preferencia_turno', 'preferencia turno'],
         ];
 
         $colMap = [];
@@ -136,6 +138,28 @@ class ImportacionController extends Controller
             // Generar registro automáticamente: 2026 + CI al revés
             $codigoUsuario = '2026' . strrev(trim($ci));
 
+            $requisitosRaw = $get('requisitos');
+            $requisitosCompletos = false;
+            if ($requisitosRaw !== '') {
+                $normReq = mb_strtolower(trim($requisitosRaw));
+                if (in_array($normReq, ['sí', 'si', 'sì', 'true', '1', 'cumple', 'completo', 'completado'])) {
+                    $requisitosCompletos = true;
+                }
+            }
+
+            $preferenciaTurnoRaw = $get('preferencia_turno');
+            $preferenciaTurno = null;
+            if ($preferenciaTurnoRaw !== '') {
+                $normTurno = mb_strtolower(trim($preferenciaTurnoRaw));
+                if (in_array($normTurno, ['mañana', 'manana'])) {
+                    $preferenciaTurno = 'manana';
+                } elseif ($normTurno === 'tarde') {
+                    $preferenciaTurno = 'tarde';
+                } elseif ($normTurno === 'noche') {
+                    $preferenciaTurno = 'noche';
+                }
+            }
+
             try {
                 $postulante = Postulante::create([
                     'nombres'             => $nombres,
@@ -154,6 +178,8 @@ class ImportacionController extends Controller
                     'pago_metodo'         => 'CSV',
                     'pago_fecha'          => now(),
                     'codigo_usuario'      => $codigoUsuario,
+                    'requisitos_completos'=> $requisitosCompletos,
+                    'preferencia_turno'   => $preferenciaTurno,
                 ]);
 
                 $importados++;

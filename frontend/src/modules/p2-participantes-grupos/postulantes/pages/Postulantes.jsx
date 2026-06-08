@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Layout from '@/layouts/Layout'
 import StatusBadge from '@/shared/components/StatusBadge'
 import Loading from '@/shared/components/Loading'
@@ -8,7 +8,11 @@ import {
   deletePostulante,
   generarCuenta,
   importarPostulantesCsv,
+  listarPostulantes,
+  crearCuentasPostulantes,
+  eliminarPostulantesMasivo,
 } from '../services/postulanteService'
+import { getCarrerasDisponibles } from '@/modules/p4-reportes-monitoreo-auditoria/reportes/services/reporteService'
 import {
   FiSearch, FiEye, FiUserCheck, FiRefreshCw, FiUpload, FiUsers,
   FiAlertCircle, FiCheckCircle, FiEdit2, FiTrash2,
@@ -16,7 +20,7 @@ import {
 } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 
-// ── Utilidades ────────────────────────────────────────────────────────────────
+// â”€â”€ Utilidades â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function toInputDate(dateStr) {
   if (!dateStr) return ''
@@ -28,93 +32,255 @@ function previewRegistro(ci) {
   return '2026' + ci.split('').reverse().join('')
 }
 
+function formatFecha(dateStr) {
+  if (!dateStr) return '-'
+  const solo = String(dateStr).substring(0, 10)
+  if (!solo || solo === 'null') return '-'
+  const [y, m, d] = solo.split('-')
+  return `${d}/${m}/${y}`
+}
+
 const ESTADOS_TRAMITE = ['PREINSCRITO', 'INSCRITO', 'PENDIENTE_PAGO']
 
-// ── Componente principal ──────────────────────────────────────────────────────
+// â”€â”€ Componente principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function Postulantes() {
   const navigate    = useNavigate()
   const fileInputRef = useRef(null)
 
-  // ── Lista ──
+  // â”€â”€ Lista â”€â”€
   const [items, setItems]     = useState([])
-  const [meta, setMeta]       = useState({ current_page: 1, last_page: 1, total: 0, per_page: 15 })
-  const [conteos, setConteos] = useState({ estado_tramite: {}, carrera: {} })
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState('')
-  const [filtroEstado, setFiltroEstado]   = useState('')
-  const [filtroCarrera, setFiltroCarrera] = useState('')
-  const [pagina, setPagina]   = useState(1)
   const [generando, setGenerando] = useState(null)
   const [mensaje, setMensaje]    = useState(null)
 
-  // ── Modal edición ──
+  // Pagination, filter and sorting states (from Stashed)
+  const [page, setPage]                 = useState(1)
+  const [totalPages, setTotalPages]     = useState(1)
+  const [carreraFilter, setCarreraFilter] = useState('')
+  const [estadoFilter, setEstadoFilter]   = useState('')
+  const [ordenNombre, setOrdenNombre]     = useState('')
+  const [carreras, setCarreras]           = useState([])
+  const [meta, setMeta]                 = useState({ total: 0 })
+
+  // Selection states (from Stashed)
+  const [seleccionados, setSeleccionados] = useState([])
+
+  // Process actions states (from Stashed)
+  const [procesandoCuentas, setProcesandoCuentas] = useState(false)
+  const [procesandoEliminar, setProcesandoEliminar] = useState(false)
+  const [actionResultModal, setActionResultModal] = useState(null)
+
+  // â”€â”€ Modal ediciÃ³n â”€â”€ (from Upstream)
   const [showForm, setShowForm]     = useState(false)
   const [editId, setEditId]         = useState(null)
   const [formData, setFormData]     = useState({})
   const [formErrors, setFormErrors] = useState({})
   const [formLoading, setFormLoading] = useState(false)
 
-  // ── Confirmación eliminar ──
-  const [deleteTarget, setDeleteTarget] = useState(null)
-  const [deleting, setDeleting]         = useState(false)
-
-  // ── Modal masivo ──
+  // â”€â”€ Modal masivo â”€â”€ (from Upstream)
   const [showMasivo, setShowMasivo] = useState(false)
   const [csvFile, setCsvFile]       = useState(null)
   const [dragOver, setDragOver]     = useState(false)
   const [procesando, setProcesando] = useState(false)
   const [resultado, setResultado]   = useState(null)
 
-  // ── Helpers ──
+  // â”€â”€ Helpers â”€â”€
   const showMsg = (type, text) => {
     setMensaje({ type, text })
     setTimeout(() => setMensaje(null), 6000)
   }
 
-  // ── Fetch ──
-  const fetchData = useCallback(async () => {
+  // Fetch careers on mount
+  useEffect(() => {
+    getCarrerasDisponibles()
+      .then(r => setCarreras(r.data || []))
+      .catch(() => {})
+  }, [])
+
+  const fetchData = useCallback(async (targetPage = page, searchStr = search) => {
     setLoading(true)
     try {
-      const params = { page: pagina }
-      if (search)        params.search        = search
-      if (filtroEstado)  params.estado_tramite = filtroEstado
-      if (filtroCarrera) params.carrera        = filtroCarrera
-
-      const r = await getPostulantes(params)
-      const d = r.data
-      setItems(d.data || [])
-      setMeta({
-        current_page: d.current_page,
-        last_page:    d.last_page,
-        total:        d.total,
-        per_page:     d.per_page,
+      const r = await listarPostulantes({
+        search: searchStr,
+        carrera: carreraFilter,
+        estado: estadoFilter,
+        ordenNombre: ordenNombre,
+        page: targetPage,
+        perPage: 70
       })
-      if (d.conteos) setConteos(d.conteos)
+      setItems(r.data.data || [])
+      setPage(r.data.current_page || 1)
+      setTotalPages(r.data.last_page || 1)
+      setMeta({ total: r.data.total || 0 })
     } catch {
       setItems([])
+      setPage(1)
+      setTotalPages(1)
+      setMeta({ total: 0 })
     } finally {
       setLoading(false)
     }
-  }, [pagina, search, filtroEstado, filtroCarrera])
+  }, [carreraFilter, estadoFilter, search, ordenNombre])
 
+  // Debounced effect for search/filters to reset page and fetch
   useEffect(() => {
-    const t = setTimeout(fetchData, 300)
+    const t = setTimeout(() => {
+      fetchData(1, search)
+    }, 300)
     return () => clearTimeout(t)
-  }, [fetchData])
+  }, [search, carreraFilter, estadoFilter, ordenNombre])
 
-  const handleSearch        = (v) => { setSearch(v);        setPagina(1) }
-  const handleFiltroEstado  = (v) => { setFiltroEstado(v);  setPagina(1) }
-  const handleFiltroCarrera = (v) => { setFiltroCarrera(v); setPagina(1) }
+  const handlePageChange = (targetPage) => {
+    fetchData(targetPage, search)
+  }
 
-  // ── Generar cuenta ──
+  const handleSearch = (v) => {
+    setSearch(v)
+    setPage(1)
+  }
+
+  /* â”€â”€ Selection handlers â”€â”€ */
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const visibleIds = items.map(item => item.id)
+      setSeleccionados(prev => {
+        const newSelection = [...prev]
+        visibleIds.forEach(id => {
+          if (!newSelection.includes(id)) {
+            newSelection.push(id)
+          }
+        })
+        return newSelection
+      })
+    } else {
+      const visibleIds = items.map(item => item.id)
+      setSeleccionados(prev => prev.filter(id => !visibleIds.includes(id)))
+    }
+  }
+
+  const handleSelectOne = (id, checked) => {
+    if (checked) {
+      setSeleccionados(prev => [...prev, id])
+    } else {
+      setSeleccionados(prev => prev.filter(x => x !== id))
+    }
+  }
+
+  const allVisibleSelected = items.length > 0 && items.every(item => seleccionados.includes(item.id))
+  const someVisibleSelected = items.length > 0 && items.some(item => seleccionados.includes(item.id)) && !allVisibleSelected
+
+  /* â”€â”€ Mass actions handlers â”€â”€ */
+  const handleCrearCuentas = async () => {
+    let msg = ''
+    let mode = ''
+
+    if (seleccionados.length > 0) {
+      msg = `Â¿EstÃ¡ seguro de crear cuentas para los ${seleccionados.length} postulantes seleccionados?`
+      mode = 'seleccionados'
+    } else if (search || carreraFilter || estadoFilter) {
+      msg = 'Â¿EstÃ¡ seguro de crear cuentas para los postulantes que cumplen con los filtros actuales?'
+      mode = 'filtrados'
+    } else {
+      msg = 'Â¿EstÃ¡ seguro de crear cuentas para todos los postulantes preinscritos elegibles?'
+      mode = 'general'
+    }
+
+    if (!window.confirm(msg)) return
+
+    setProcesandoCuentas(true)
+    try {
+      const filtros = (mode === 'filtrados' || mode === 'general') ? {
+        search,
+        carrera: carreraFilter,
+        estado: estadoFilter,
+      } : null
+
+      const res = await crearCuentasPostulantes({
+        postulanteIds: seleccionados,
+        filtros
+      })
+
+      setActionResultModal({
+        title: 'Resumen de CreaciÃ³n de Cuentas',
+        type: 'crear',
+        data: res.data
+      })
+      showMsg('success', 'Proceso de creaciÃ³n de cuentas finalizado.')
+      setSeleccionados([])
+      fetchData(page)
+    } catch (err) {
+      showMsg('error', err.response?.data?.message || 'Error al procesar la creaciÃ³n de cuentas.')
+    } finally {
+      setProcesandoCuentas(false)
+    }
+  }
+
+  const handleEliminarMasivo = async () => {
+    if (seleccionados.length === 0) {
+      alert('Seleccione al menos un postulante.')
+      return
+    }
+
+    // Calculate summary of states
+    const summary = {}
+    seleccionados.forEach(id => {
+      const item = items.find(p => p.id === id)
+      if (item) {
+        const state = item.estado_tramite || item.estado || 'PENDIENTE_PAGO'
+        summary[state] = (summary[state] || 0) + 1
+      }
+    })
+
+    const summaryText = Object.entries(summary)
+      .map(([state, count]) => `- ${count} ${state}`)
+      .join('\n')
+
+    const message = `EstÃ¡ a punto de eliminar ${seleccionados.length} postulantes:\n${summaryText}\n\nÂ¿Desea continuar?`
+
+    if (!window.confirm(message)) {
+      return
+    }
+
+    setProcesandoEliminar(true)
+    try {
+      const res = await eliminarPostulantesMasivo(seleccionados)
+      setActionResultModal({
+        title: 'Resumen de EliminaciÃ³n/DesactivaciÃ³n',
+        type: 'eliminar',
+        data: res.data
+      })
+      showMsg('success', 'Proceso de eliminaciÃ³n finalizado.')
+      setSeleccionados([])
+      fetchData(page)
+    } catch (err) {
+      showMsg('error', err.response?.data?.message || 'Error al procesar la eliminaciÃ³n.')
+    } finally {
+      setProcesandoEliminar(false)
+    }
+  }
+
+  const handleEliminarIndividual = async (id, nombre, estado) => {
+    if (!window.confirm(`Â¿EstÃ¡ seguro de eliminar este postulante? Estado actual: ${estado || 'Desconocido'}.`)) return
+    try {
+      const res = await deletePostulante(id)
+      showMsg('success', res.data?.message || 'Postulante eliminado correctamente.')
+      setSeleccionados(prev => prev.filter(selId => selId !== id))
+      fetchData(page)
+    } catch (err) {
+      showMsg('error', err.response?.data?.message || 'Error al eliminar el postulante.')
+    }
+  }
+
+  /* â”€â”€ Generar cuenta individual â”€â”€ */
   const handleGenerarCuenta = async (p) => {
     setGenerando(p.id)
     try {
       const r = await generarCuenta(p.id)
       const codigo = r.data.user?.codigo || r.data.postulante?.codigo_usuario || ''
-      showMsg('success', `Cuenta creada. Código: ${codigo}`)
-      fetchData()
+      showMsg('success', `Cuenta creada. CÃ³digo de acceso: ${codigo}`)
+      fetchData(page)
     } catch (err) {
       showMsg('error', err.response?.data?.message || 'Error al generar cuenta.')
     } finally {
@@ -122,7 +288,7 @@ export default function Postulantes() {
     }
   }
 
-  // ── Abrir edición ──
+  // â”€â”€ Abrir ediciÃ³n â”€â”€
   const openEdit = (p) => {
     setEditId(p.id)
     setFormData({
@@ -137,6 +303,7 @@ export default function Postulantes() {
       ciudad:               p.ciudad || '',
       estado_tramite:       p.estado_tramite || 'PREINSCRITO',
       direccion:            p.direccion || '',
+      preferencia_turno:    p.preferencia_turno || '',
     })
     setFormErrors({})
     setShowForm(true)
@@ -150,7 +317,7 @@ export default function Postulantes() {
       await updatePostulante(editId, formData)
       showMsg('success', 'Postulante actualizado correctamente.')
       setShowForm(false)
-      fetchData()
+      fetchData(page)
     } catch (err) {
       const errs = err.response?.data?.errors || {}
       if (Object.keys(errs).length > 0) {
@@ -165,24 +332,7 @@ export default function Postulantes() {
 
   const fieldErr = (f) => formErrors[f]?.[0]
 
-  // ── Eliminar ──
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    setDeleting(true)
-    try {
-      await deletePostulante(deleteTarget.id)
-      showMsg('success', `"${deleteTarget.nombres} ${deleteTarget.apellidos}" eliminado.`)
-      setDeleteTarget(null)
-      fetchData()
-    } catch (err) {
-      showMsg('error', err.response?.data?.message || 'Error al eliminar.')
-      setDeleteTarget(null)
-    } finally {
-      setDeleting(false)
-    }
-  }
-
-  // ── Masivo ──
+  // â”€â”€ Masivo â”€â”€
   const closeMasivo = () => {
     setShowMasivo(false); setCsvFile(null); setResultado(null); setDragOver(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
@@ -199,7 +349,8 @@ export default function Postulantes() {
     fd.append('archivo', csvFile)
     try {
       const r = await importarPostulantesCsv(fd)
-      setResultado(r.data); fetchData()
+      setResultado(r.data)
+      fetchData(1)
     } catch (err) {
       setResultado({ error: err.response?.data?.message || 'Error al procesar el archivo.' })
     } finally {
@@ -207,56 +358,12 @@ export default function Postulantes() {
     }
   }
 
-  // ── Paginación ──
-  const renderPaginas = () => {
-    const total = meta.last_page
-    const cur   = meta.current_page
-    if (total <= 1) return null
-    const radius = 2
-    const pages  = []
-    for (let i = Math.max(1, cur - radius); i <= Math.min(total, cur + radius); i++) pages.push(i)
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, flexWrap: 'wrap', gap: 10 }}>
-        <span style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>
-          Mostrando {Math.min((cur - 1) * meta.per_page + 1, meta.total)}–{Math.min(cur * meta.per_page, meta.total)} de {meta.total} postulantes
-        </span>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button className="btn btn-outline btn-sm" disabled={cur <= 1} onClick={() => setPagina(cur - 1)}>
-            <FiChevronLeft />
-          </button>
-          {pages[0] > 1 && (
-            <>
-              <button className="btn btn-outline btn-sm" onClick={() => setPagina(1)}>1</button>
-              {pages[0] > 2 && <span style={{ padding: '4px 6px', color: 'var(--gray-400)' }}>…</span>}
-            </>
-          )}
-          {pages.map(p => (
-            <button key={p} className={`btn btn-sm ${p === cur ? 'btn-primary' : 'btn-outline'}`} onClick={() => setPagina(p)}>{p}</button>
-          ))}
-          {pages[pages.length - 1] < total && (
-            <>
-              {pages[pages.length - 1] < total - 1 && <span style={{ padding: '4px 6px', color: 'var(--gray-400)' }}>…</span>}
-              <button className="btn btn-outline btn-sm" onClick={() => setPagina(total)}>{total}</button>
-            </>
-          )}
-          <button className="btn btn-outline btn-sm" disabled={cur >= total} onClick={() => setPagina(cur + 1)}>
-            <FiChevronRight />
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ── Opciones para selects ──
-  const carrerasOpciones = Object.keys(conteos.carrera || {}).sort()
-  const estadosOpciones  = Object.keys(conteos.estado_tramite || {}).sort()
-
-  // Texto de contador dinámico
+  // Texto de contador dinÃ¡mico
   const textoContador = () => {
     const parts = []
-    if (filtroEstado)  parts.push(filtroEstado)
-    if (filtroCarrera) parts.push(filtroCarrera)
-    if (parts.length > 0) return `${meta.total} postulante${meta.total !== 1 ? 's' : ''} — ${parts.join(', ')}`
+    if (estadoFilter)  parts.push(estadoFilter)
+    if (carreraFilter) parts.push(carreraFilter)
+    if (parts.length > 0) return `${meta.total} postulante${meta.total !== 1 ? 's' : ''} â€” ${parts.join(', ')}`
     if (search) return `${meta.total} resultado${meta.total !== 1 ? 's' : ''} para "${search}"`
     return `${meta.total} postulante${meta.total !== 1 ? 's' : ''} en total`
   }
@@ -265,16 +372,12 @@ export default function Postulantes() {
 
   return (
     <Layout>
+      {/* â”€â”€ Cabecera â”€â”€ */}
+      <div className="page-header" style={{ marginBottom: 20 }}>
+        <h1>GestiÃ³n de Postulantes</h1>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
 
-      {/* ══════════════════════════════════════════════
-          Cabecera con controles en una sola barra
-      ══════════════════════════════════════════════ */}
-      <div className="page-header">
-        <h1>Gestión de Postulantes</h1>
-        <div className="page-header-actions" style={{ flexWrap: 'wrap', gap: '10px' }}>
-
-          {/* Buscador */}
-          <div className="search-container" style={{ minWidth: 200, flex: '1 1 200px', maxWidth: 280 }}>
+          <div className="search-container" style={{ margin: 0 }}>
             <FiSearch className="search-icon" />
             <input
               className="search-input"
@@ -284,41 +387,104 @@ export default function Postulantes() {
             />
           </div>
 
-          {/* Filtro carrera */}
           <select
-            className="form-select"
-            value={filtroCarrera}
-            onChange={e => handleFiltroCarrera(e.target.value)}
-            style={{ minWidth: 180, flex: '1 1 180px', maxWidth: 260 }}
+            value={carreraFilter}
+            onChange={e => {
+              setCarreraFilter(e.target.value)
+              setPage(1)
+            }}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid #cbd5e1',
+              fontSize: '0.9rem',
+              outline: 'none',
+              backgroundColor: '#ffffff',
+            }}
           >
             <option value="">Todas las carreras</option>
-            {carrerasOpciones.map(c => (
-              <option key={c} value={c}>{c}</option>
+            {carreras.map((c, i) => (
+              <option key={i} value={c.nombre}>{c.nombre}</option>
             ))}
           </select>
 
-          {/* Filtro estado */}
           <select
-            className="form-select"
-            value={filtroEstado}
-            onChange={e => handleFiltroEstado(e.target.value)}
-            style={{ minWidth: 150, flex: '1 1 150px', maxWidth: 200 }}
+            value={estadoFilter}
+            onChange={e => {
+              setEstadoFilter(e.target.value)
+              setPage(1)
+            }}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid #cbd5e1',
+              fontSize: '0.9rem',
+              outline: 'none',
+              backgroundColor: '#ffffff',
+            }}
           >
             <option value="">Todos los estados</option>
-            {(estadosOpciones.length > 0 ? estadosOpciones : ESTADOS_TRAMITE).map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
+            <option value="PENDIENTE_PAGO">Pendiente de pago</option>
+            <option value="PREINSCRITO">Preinscrito</option>
+            <option value="INSCRITO">Inscrito</option>
+            <option value="INACTIVO">Inactivo</option>
           </select>
 
-          {/* Generación masiva */}
-          <button
-            className="btn btn-primary"
-            onClick={() => { setShowMasivo(true); setResultado(null) }}
-            style={{ whiteSpace: 'nowrap' }}
+          <select
+            value={ordenNombre}
+            onChange={e => {
+              setOrdenNombre(e.target.value)
+              setPage(1)
+            }}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '6px',
+              border: '1px solid #cbd5e1',
+              fontSize: '0.9rem',
+              outline: 'none',
+              backgroundColor: '#ffffff',
+            }}
           >
-            <FiUsers /> Generación Masiva
+            <option value="">Orden normal</option>
+            <option value="asc">Nombre A-Z</option>
+            <option value="desc">Nombre Z-A</option>
+          </select>
+
+          <button
+            className="btn btn-outline"
+            onClick={() => { setShowMasivo(true); setResultado(null) }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FiUsers /> GeneraciÃ³n Masiva
           </button>
 
+          <button
+            className="btn btn-primary"
+            onClick={handleCrearCuentas}
+            disabled={procesandoCuentas}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#10b981', borderColor: '#10b981', color: '#fff' }}
+          >
+            {procesandoCuentas ? <FiRefreshCw style={{ animation: 'spin 0.8s linear infinite' }} /> : <FiUserCheck />}
+            Crear cuentas
+          </button>
+
+          <button
+            className="btn btn-danger"
+            onClick={handleEliminarMasivo}
+            disabled={seleccionados.length === 0 || procesandoEliminar}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: seleccionados.length === 0 ? '#fca5a5' : '#ef4444',
+              borderColor: seleccionados.length === 0 ? '#fca5a5' : '#ef4444',
+              color: '#fff',
+              cursor: seleccionados.length === 0 ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {procesandoEliminar ? <FiRefreshCw style={{ animation: 'spin 0.8s linear infinite' }} /> : <FiTrash2 />}
+            Eliminar
+          </button>
         </div>
       </div>
 
@@ -327,7 +493,7 @@ export default function Postulantes() {
         {loading ? 'Actualizando...' : textoContador()}
       </p>
 
-      {/* ── Mensaje flotante ── */}
+      {/* â”€â”€ Mensaje flotante â”€â”€ */}
       {mensaje && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
@@ -338,103 +504,177 @@ export default function Postulantes() {
           {mensaje.type === 'success' ? <FiCheckCircle /> : <FiAlertCircle />}
           <span style={{ flex: 1 }}>{mensaje.text}</span>
           <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'inherit' }}
-            onClick={() => setMensaje(null)}>×</button>
+            onClick={() => setMensaje(null)}>Ã—</button>
         </div>
       )}
 
-      {/* ── Tabla ── */}
-      <div className="table-container">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Nombre Completo</th>
-              <th>CI</th>
-              <th>Carrera</th>
-              <th>Estado</th>
-              <th>Registro</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(p => (
-              <tr key={p.id}>
-                <td><strong>{p.nombres} {p.apellidos}</strong></td>
-                <td>{p.ci}</td>
-                <td
-                  style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                  title={p.carrera || p.carrera_postulada}
-                >
-                  {p.carrera || p.carrera_postulada || '-'}
-                </td>
-                <td><StatusBadge status={p.estado_tramite} /></td>
-                <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', fontFamily: 'monospace', color: 'var(--gray-600)' }}>
-                  {p.codigo_usuario || '-'}
-                </td>
-                <td>
-                  <div className="table-actions">
-                    <button
-                      className="btn btn-outline btn-sm"
-                      title="Ver perfil"
-                      onClick={() => navigate(`/admin/postulantes/${p.id}`)}
-                    >
-                      <FiEye />
-                    </button>
-                    <button
-                      className="btn btn-outline btn-sm"
-                      title="Editar"
-                      onClick={() => openEdit(p)}
-                    >
-                      <FiEdit2 />
-                    </button>
-                    <button
-                      className="btn btn-sm"
-                      title="Eliminar"
-                      style={{ color: '#dc2626', borderColor: '#fca5a5', background: 'transparent', border: '1px solid' }}
-                      onClick={() => setDeleteTarget(p)}
-                    >
-                      <FiTrash2 />
-                    </button>
-                    {p.estado_tramite === 'PREINSCRITO' && !p.user_id && (
-                      <button
-                        className="btn btn-primary btn-sm"
-                        title="Crear cuenta e inscribir"
-                        disabled={generando === p.id}
-                        onClick={() => handleGenerarCuenta(p)}
-                      >
-                        {generando === p.id
-                          ? <FiRefreshCw style={{ animation: 'spin 0.8s linear infinite' }} />
-                          : <FiUserCheck />}
-                        Inscribir
-                      </button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {!loading && items.length === 0 && (
+      {/* â”€â”€ Tabla â”€â”€ */}
+      <div className="tabla-scroll-postulantes">
+        {loading ? <div style={{ padding: '40px 0' }}><Loading /></div> : (
+          <table className="table">
+            <thead>
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>
-                  No se encontraron postulantes
-                </td>
+                <th style={{ width: '40px', textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    ref={el => {
+                      if (el) el.indeterminate = someVisibleSelected;
+                    }}
+                    onChange={handleSelectAll}
+                    style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                  />
+                </th>
+                <th>Nombre Completo</th>
+                <th>CI</th>
+                <th>Correo</th>
+                <th>Carrera</th>
+                <th>Requisitos</th>
+                <th>Estado</th>
+                <th>Registro</th>
+                <th>Acciones</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {items.map(p => (
+                <tr key={p.id} style={{ backgroundColor: seleccionados.includes(p.id) ? '#f8fafc' : 'transparent' }}>
+                  <td style={{ textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      checked={seleccionados.includes(p.id)}
+                      onChange={e => handleSelectOne(p.id, e.target.checked)}
+                      style={{
+                        cursor: 'pointer',
+                        width: '16px',
+                        height: '16px'
+                      }}
+                    />
+                  </td>
+                  <td><strong>{p.nombres} {p.apellidos}</strong></td>
+                  <td>{p.ci}</td>
+                  <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.email}>
+                    {p.email || '-'}
+                  </td>
+                  <td style={{ maxWidth: 180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {p.carrera || p.carrera_postulada || '-'}
+                  </td>
+                  <td>
+                    {p.requisitos_cumplidos ? (
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        backgroundColor: '#d1fae5',
+                        color: '#065f46',
+                        fontWeight: '600',
+                        fontSize: '0.8rem',
+                        display: 'inline-block'
+                      }}>SÃ­</span>
+                    ) : (
+                      <span style={{
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        backgroundColor: '#fee2e2',
+                        color: '#991b1b',
+                        fontWeight: '600',
+                        fontSize: '0.8rem',
+                        display: 'inline-block'
+                      }}>No</span>
+                    )}
+                  </td>
+                  <td><StatusBadge status={p.estado_tramite} /></td>
+                  <td style={{ whiteSpace:'nowrap', fontSize:'0.82rem', color:'var(--gray-500)' }}>
+                    {formatFecha(p.created_at)}
+                  </td>
+                  <td>
+                    <div className="table-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        title="Ver perfil"
+                        onClick={() => navigate(`/admin/postulantes/${p.id}`)}
+                      >
+                        <FiEye />
+                      </button>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        title="Editar"
+                        onClick={() => openEdit(p)}
+                      >
+                        <FiEdit2 />
+                      </button>
+                      {p.estado_tramite === 'PREINSCRITO' && !p.user_id && (
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => {
+                            if (!p.requisitos_cumplidos) {
+                              alert('Faltan documentos obligatorios.');
+                              return;
+                            }
+                            handleGenerarCuenta(p);
+                          }}
+                          disabled={generando === p.id}
+                          title="Crear cuenta e inscribir"
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          {generando === p.id
+                            ? <FiRefreshCw style={{ animation:'spin 0.8s linear infinite' }} />
+                            : <FiUserCheck />}
+                          Inscribir
+                        </button>
+                      )}
+                      <button
+                        className="btn btn-outline btn-sm"
+                        title="Eliminar postulante"
+                        onClick={() => handleEliminarIndividual(p.id, `${p.nombres} ${p.apellidos}`, p.estado_tramite || p.estado || 'PENDIENTE_PAGO')}
+                        style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+                      >
+                        <FiTrash2 /> Eliminar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {items.length === 0 && (
+                <tr><td colSpan={9} style={{ textAlign:'center', padding:40, color:'var(--gray-400)' }}>
+                  Sin postulantes registrados
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {/* ── Paginación ── */}
-      {renderPaginas()}
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '20px', marginBottom: '20px' }}>
+          <button
+            className="btn btn-outline btn-sm"
+            disabled={page === 1}
+            onClick={() => handlePageChange(page - 1)}
+          >
+            Anterior
+          </button>
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.9rem', color: '#64748b', padding: '0 8px' }}>
+            PÃ¡gina {page} de {totalPages}
+          </span>
+          <button
+            className="btn btn-outline btn-sm"
+            disabled={page === totalPages}
+            onClick={() => handlePageChange(page + 1)}
+          >
+            Siguiente
+          </button>
+        </div>
+      )}
 
-
-      {/* ══════════════════════════════════════════════
-          Modal — Editar Postulante
-      ══════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          Modal â€” Editar Postulante
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
           <div className="modal" style={{ maxWidth: 640 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">Editar Postulante</span>
-              <button className="modal-close" onClick={() => setShowForm(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowForm(false)}>Ã—</button>
             </div>
 
             <form onSubmit={handleFormSubmit}>
@@ -470,14 +710,14 @@ export default function Postulantes() {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Teléfono</label>
+                    <label className="form-label">TelÃ©fono</label>
                     <input className="form-input" value={formData.celular}
                       onChange={e => setFormData({ ...formData, celular: e.target.value })} />
                     {fieldErr('celular') && <span style={{ color: '#dc2626', fontSize: '0.78rem' }}>{fieldErr('celular')}</span>}
                   </div>
 
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label className="form-label">Correo electrónico</label>
+                    <label className="form-label">Correo electrÃ³nico</label>
                     <input className="form-input" type="email" value={formData.email}
                       onChange={e => setFormData({ ...formData, email: e.target.value })} />
                     {fieldErr('email') && <span style={{ color: '#dc2626', fontSize: '0.78rem' }}>{fieldErr('email')}</span>}
@@ -494,6 +734,17 @@ export default function Postulantes() {
                     <select className="form-select" value={formData.estado_tramite}
                       onChange={e => setFormData({ ...formData, estado_tramite: e.target.value })}>
                       {ESTADOS_TRAMITE.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Turno elegido</label>
+                    <select className="form-select" value={formData.preferencia_turno || ''}
+                      onChange={e => setFormData({ ...formData, preferencia_turno: e.target.value })}>
+                      <option value="">Sin definir</option>
+                      <option value="manana">MaÃ±ana</option>
+                      <option value="tarde">Tarde</option>
+                      <option value="noche">Noche</option>
                     </select>
                   </div>
 
@@ -516,7 +767,7 @@ export default function Postulantes() {
                   </div>
 
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label className="form-label">Dirección</label>
+                    <label className="form-label">DirecciÃ³n</label>
                     <input className="form-input" value={formData.direccion}
                       onChange={e => setFormData({ ...formData, direccion: e.target.value })} />
                   </div>
@@ -547,51 +798,15 @@ export default function Postulantes() {
         </div>
       )}
 
-
-      {/* ══════════════════════════════════════════════
-          Modal — Confirmar Eliminación
-      ══════════════════════════════════════════════ */}
-      {deleteTarget && (
-        <div className="modal-overlay" onClick={() => setDeleteTarget(null)}>
-          <div className="modal" style={{ maxWidth: 430 }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <span className="modal-title">Confirmar Eliminación</span>
-              <button className="modal-close" onClick={() => setDeleteTarget(null)}>×</button>
-            </div>
-            <div className="modal-body">
-              <p style={{ color: 'var(--gray-600)', lineHeight: 1.6, marginBottom: 10 }}>
-                ¿Está seguro de que desea eliminar al postulante{' '}
-                <strong>{deleteTarget.nombres} {deleteTarget.apellidos}</strong> (CI: {deleteTarget.ci})?
-              </p>
-              <p style={{ color: '#991b1b', fontSize: '0.85rem', margin: 0 }}>
-                Esta acción eliminará permanentemente el registro.
-              </p>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={() => setDeleteTarget(null)}>Cancelar</button>
-              <button
-                className="btn"
-                style={{ background: '#dc2626', color: '#fff', border: 'none' }}
-                onClick={handleDelete}
-                disabled={deleting}
-              >
-                {deleting ? 'Eliminando...' : 'Eliminar definitivamente'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-
-      {/* ══════════════════════════════════════════════
-          Modal — Generación Masiva
-      ══════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          Modal â€” GeneraciÃ³n Masiva
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showMasivo && (
         <div className="modal-overlay" onClick={closeMasivo}>
           <div className="modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <span className="modal-title">Generación Masiva de Cuentas</span>
-              <button className="modal-close" onClick={closeMasivo}>×</button>
+              <span className="modal-title">GeneraciÃ³n Masiva de Cuentas</span>
+              <button className="modal-close" onClick={closeMasivo}>Ã—</button>
             </div>
 
             <div className="modal-body">
@@ -614,17 +829,18 @@ export default function Postulantes() {
                     <div>
                       <strong>Formato CSV (separador <code>;</code>):</strong>
                       <code style={{ display: 'block', marginTop: 4, marginBottom: 6, wordBreak: 'break-all' }}>
-                        Nombres;Apellidos;CI;Correo;Teléfono;"1ª Carrera";"2ª Carrera";"Unidad Educativa";Ciudad;Estado
+                        Nombres;Apellidos;CI;Correo;TelÃ©fono;"1Âª Carrera";"2Âª Carrera";"Unidad Educativa";Ciudad;Estado;"Turno Elegido"
                       </code>
                       <span>
                         Estado <code>PREINSCRITO</code>: importa el postulante <strong>sin</strong> crear cuenta.{' '}
-                        Estado <code>INSCRITO</code>: importa <strong>y</strong> genera cuenta automáticamente.{' '}
-                        El campo <strong>Registro</strong> se genera automáticamente desde el CI.
+                        Estado <code>INSCRITO</code>: importa <strong>y</strong> genera cuenta automÃ¡ticamente.{' '}
+                        El campo <strong>Registro</strong> se genera automÃ¡ticamente desde el CI.
                       </span>
                     </div>
                   </div>
 
-                  <div className="form-group">
+                  {/* Zona de carga drag & drop */}
+                  <div className="form-group" style={{ marginTop: '20px' }}>
                     <label className="form-label">Archivo CSV</label>
                     <div
                       onClick={() => fileInputRef.current?.click()}
@@ -633,9 +849,13 @@ export default function Postulantes() {
                       onDrop={handleDrop}
                       style={{
                         border: `2px dashed ${dragOver ? 'var(--primary)' : csvFile ? 'var(--success)' : 'var(--gray-300)'}`,
-                        borderRadius: 'var(--radius-md)', padding: '32px 20px', textAlign: 'center',
-                        cursor: 'pointer', background: dragOver ? '#eff6ff' : csvFile ? '#f0fdf4' : 'var(--gray-50)',
-                        transition: 'all 0.2s ease', userSelect: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '40px 20px',
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        background: dragOver ? '#eff6ff' : csvFile ? '#f0fdf4' : 'var(--gray-50)',
+                        transition: 'all 0.2s ease',
+                        userSelect: 'none',
                       }}
                     >
                       <FiUpload style={{ fontSize: '2rem', color: csvFile ? 'var(--success)' : 'var(--gray-400)', display: 'block', margin: '0 auto 10px' }} />
@@ -648,7 +868,7 @@ export default function Postulantes() {
                         </p>
                       ) : (
                         <p style={{ color: 'var(--gray-500)', fontSize: '0.875rem', margin: 0 }}>
-                          Haga clic para seleccionar o arrastre un archivo CSV aquí
+                          Haga clic para seleccionar o arrastre un archivo CSV aquÃ­
                         </p>
                       )}
                       <input
@@ -718,6 +938,79 @@ export default function Postulantes() {
         </div>
       )}
 
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          Modal â€” Resumen de AcciÃ³n Masiva
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {actionResultModal && (
+        <div className="modal-overlay" onClick={() => setActionResultModal(null)}>
+          <div className="modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">{actionResultModal.title}</span>
+              <button className="modal-close" onClick={() => setActionResultModal(null)}>Ã—</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+                <div style={{ textAlign: 'center', background: 'var(--gray-50)', borderRadius: 'var(--radius)', padding: '12px 8px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--gray-700)' }}>
+                    {actionResultModal.type === 'crear'
+                      ? (actionResultModal.data.total_procesados ?? 0)
+                      : ((actionResultModal.data.eliminados_fisicamente ?? 0) + (actionResultModal.data.desactivados ?? 0) + (actionResultModal.data.errores?.length ?? 0))
+                    }
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--gray-500)', marginTop: 2 }}>Total Procesados</div>
+                </div>
+                <div style={{ textAlign: 'center', background: 'var(--gray-50)', borderRadius: 'var(--radius)', padding: '12px 8px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--success)' }}>
+                    {actionResultModal.type === 'crear'
+                      ? (actionResultModal.data.cuentas_creadas ?? 0)
+                      : ((actionResultModal.data.eliminados_fisicamente ?? 0) + (actionResultModal.data.desactivados ?? 0))
+                    }
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--gray-500)', marginTop: 2 }}>
+                    {actionResultModal.type === 'crear' ? 'Cuentas Creadas' : 'Exitosos'}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'center', background: 'var(--gray-50)', borderRadius: 'var(--radius)', padding: '12px 8px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--warning)' }}>
+                    {actionResultModal.type === 'crear'
+                      ? (actionResultModal.data.omitidos ?? 0)
+                      : (actionResultModal.data.errores?.length ?? 0)
+                    }
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--gray-500)', marginTop: 2 }}>
+                    {actionResultModal.type === 'crear' ? 'Omitidos / Fallidos' : 'Omitidos'}
+                  </div>
+                </div>
+              </div>
+
+              {actionResultModal.type === 'eliminar' && (
+                <div style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: 12, lineHeight: 1.6 }}>
+                  <p><strong>Eliminados fÃ­sicamente (sin cuenta):</strong> {actionResultModal.data.eliminados_fisicamente ?? 0}</p>
+                  <p><strong>Desactivados (con cuenta):</strong> {actionResultModal.data.desactivados ?? 0}</p>
+                </div>
+              )}
+
+              {actionResultModal.data.errores?.length > 0 && (
+                <div style={{ marginTop: 15 }}>
+                  <p style={{ fontWeight: 600, fontSize: '0.9rem', color: '#991b1b', marginBottom: 8 }}>Detalles de errores / omisiones:</p>
+                  <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid #fee2e2', borderRadius: 4, padding: 8, background: '#fef2f2' }}>
+                    <ul style={{ paddingLeft: 16, margin: 0, fontSize: '0.82rem', color: '#991b1b', lineHeight: 1.6 }}>
+                      {actionResultModal.data.errores.map((err, i) => (
+                        <li key={i}>
+                          <strong>{err.nombre || `ID ${err.postulante_id}`}:</strong> {err.error}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setActionResultModal(null)}>Listo</button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

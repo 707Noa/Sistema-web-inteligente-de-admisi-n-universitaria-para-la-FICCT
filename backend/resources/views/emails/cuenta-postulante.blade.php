@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -87,25 +87,33 @@
         </div>
         <div class="content">
             <div class="greeting">Estimado/a {{ $nombres }} {{ $apellidos }}:</div>
-            <p>Su preinscripción fue procesada correctamente en nuestro sistema.</p>
-            <p>A continuación se detallan sus credenciales para ingresar al portal:</p>
-            
+            <p>Su preinscripciÃ³n fue procesada correctamente en nuestro sistema.</p>
+            <p>A continuaciÃ³n se detallan sus credenciales para ingresar al portal:</p>
+
             <div class="credentials-box">
                 <div class="credential-item">
-                    <span class="credential-label">Usuario / Código:</span> 
+                    <span class="credential-label">Rol de acceso:</span>
+                    <span class="credential-value" style="font-family: inherit; font-size: 16px; color: #1a3a6b;">Postulante</span>
+                </div>
+                <div class="credential-item">
+                    <span class="credential-label">Usuario / CÃ³digo:</span>
                     <span class="credential-value">{{ $codigo }}</span>
                 </div>
                 <div class="credential-item">
-                    <span class="credential-label">Contraseña inicial:</span> 
+                    <span class="credential-label">ContraseÃ±a inicial:</span>
                     <span class="credential-value">{{ $ci }}</span>
+                </div>
+                <div class="credential-item" style="margin-top: 15px;">
+                    <span class="credential-label">URL de ingreso:</span>
+                    <a href="http://localhost:5173/postulante/login" target="_blank" style="color: #1a3a6b; font-weight: bold; text-decoration: underline;">http://localhost:5173/postulante/login</a>
                 </div>
             </div>
 
-            <p class="warning-text">⚠️ <strong>Por seguridad</strong>, se le solicitará que cambie su contraseña después de iniciar sesión por primera vez.</p>
+            <p class="warning-text">âš ï¸ <strong>Por seguridad</strong>, se le solicitarÃ¡ que cambie su contraseÃ±a despuÃ©s de iniciar sesiÃ³n por primera vez.</p>
         </div>
         <div class="footer">
-            <p>Atentamente,<br><strong>Administración Académica - CUP-FICCT</strong></p>
-            <p style="margin-top: 15px; font-size: 11px;">Este es un correo automático, por favor no responda a este mensaje.</p>
+            <p>Atentamente,<br><strong>AdministraciÃ³n AcadÃ©mica - CUP-FICCT</strong></p>
+            <p style="margin-top: 15px; font-size: 11px;">Este es un correo automÃ¡tico, por favor no responda a este mensaje.</p>
         </div>
     </div>
 </body>

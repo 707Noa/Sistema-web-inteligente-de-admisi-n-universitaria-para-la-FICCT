@@ -36,7 +36,11 @@ class AuthController extends Controller
             \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Usuario no encontrado.");
             $debugResponse = config('app.debug') ? ['debug_reason' => 'Usuario no encontrado.'] : [];
             return response()->json(array_merge([
+
                 'message' => 'El usuario no se encuentra registrado.',
+
+                'message' => 'Credenciales incorrectas.',
+
             ], $debugResponse), 401);
         }
 
@@ -51,7 +55,10 @@ class AuthController extends Controller
             \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Contraseña incorrecta.");
             $debugResponse = config('app.debug') ? ['debug_reason' => 'Contraseña incorrecta.'] : [];
             return response()->json(array_merge([
+
                 'message' => 'Contraseña incorrecta.',
+                'message' => 'Credenciales incorrectas.',
+
             ], $debugResponse), 401);
         }
 
@@ -62,6 +69,7 @@ class AuthController extends Controller
                 'message' => 'La cuenta se encuentra inactiva. Contacte con administración.',
             ], $debugResponse), 403);
         }
+
 
         // Reglas de acceso dual
         $roleName = $user->role->name ?? '';
@@ -91,6 +99,10 @@ class AuthController extends Controller
 
         // Verificar que el rol coincida con el perfil seleccionado (comparación flexible e insensible a mayúsculas/minúsculas)
         $roleName = $user->role->name ?? '';
+
+        // Verificar que el rol coincida con el perfil seleccionado (comparación flexible e insensible a mayúsculas/minúsculas)
+        $roleName = $user->role->name ?? '';
+
         if (strtolower($roleName) !== strtolower($request->perfil)) {
             AuditoriaService::registrar(
                 $user->id,
@@ -204,8 +216,13 @@ class AuthController extends Controller
         return match(strtolower($role)) {
             'administrador' => '/admin/dashboard',
             'coordinador'   => '/coordinador/dashboard',
+
             'docente'       => '/docente/grupos',
             'postulante'    => '/perfil',
+
+            'docente'       => '/docente/perfil',
+            'postulante'    => '/postulante/perfil',
+
             'autoridad'     => '/autoridad/dashboard',
             default         => '/perfil',
         };

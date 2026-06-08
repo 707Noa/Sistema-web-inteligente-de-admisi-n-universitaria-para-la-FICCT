@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -12,16 +12,16 @@ import { changePassword } from '@/modules/p1-seguridad-administracion/auth/servi
 
 const ROL_LABELS = {
   administrador: 'Administrador',
-  docente:       'Docente',
-  coordinador:   'Coordinador AcadÃ©mico',
-  autoridad:     'Autoridad AcadÃ©mica',
-  postulante:    'Postulante',
+  docente: 'Docente',
+  coordinador: 'Coordinador Académico',
+  autoridad: 'Autoridad Académica',
+  postulante: 'Postulante',
 }
 
 function calcRegistro(codigo, ci) {
   if (codigo) return codigo
   if (ci) return '2026' + String(ci).split('').reverse().join('')
-  return 'â€”'
+  return '—'
 }
 
 function DropdownInfoRow({ icon, label, value }) {
@@ -30,7 +30,7 @@ function DropdownInfoRow({ icon, label, value }) {
       <span style={{ color: 'var(--gray-400)', display: 'flex', alignItems: 'center' }}>{icon}</span>
       <div style={{ flex: 1, minWidth: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
         <span style={{ color: 'var(--gray-500)', marginRight: '4px' }}>{label}:</span>
-        <strong style={{ color: 'var(--gray-700)', fontWeight: 600 }}>{value || 'â€”'}</strong>
+        <strong style={{ color: 'var(--gray-700)', fontWeight: 600 }}>{value || '—'}</strong>
       </div>
     </div>
   )
@@ -59,7 +59,7 @@ export default function Navbar({ onMenuToggle, isOpen }) {
     if (user && user.role === 'postulante') {
       getPostulantePerfil()
         .then(r => setProfileData(r.data))
-        .catch(() => {})
+        .catch(() => { })
     }
   }, [user])
 
@@ -89,7 +89,7 @@ export default function Navbar({ onMenuToggle, isOpen }) {
       await logout()
       navigate('/')
     } catch (err) {
-      console.error('Error al cerrar sesiÃ³n:', err)
+      console.error('Error al cerrar sesión:', err)
     } finally {
       setCerrandoSesion(false)
       setMostrarConfirmacionSalir(false)
@@ -100,22 +100,22 @@ export default function Navbar({ onMenuToggle, isOpen }) {
     e.preventDefault()
     setPassError('')
     if (formPass.new_password.length < 8) {
-      setPassError('La contraseÃ±a debe tener al menos 8 caracteres.')
+      setPassError('La contraseña debe tener al menos 8 caracteres.')
       return
     }
     if (formPass.new_password !== formPass.new_password_confirmation) {
-      setPassError('Las contraseÃ±as de confirmaciÃ³n no coinciden.')
+      setPassError('Las contraseñas de confirmación no coinciden.')
       return
     }
 
     setPassSaving(true)
     try {
       await changePassword(formPass)
-      alert('ContraseÃ±a actualizada correctamente.')
+      alert('Contraseña actualizada correctamente.')
       setShowPasswordModal(false)
       setFormPass({ new_password: '', new_password_confirmation: '' })
     } catch (err) {
-      setPassError(err.response?.data?.message || 'Error al cambiar la contraseÃ±a.')
+      setPassError(err.response?.data?.message || 'Error al cambiar la contraseña.')
     } finally {
       setPassSaving(false)
     }
@@ -219,12 +219,12 @@ export default function Navbar({ onMenuToggle, isOpen }) {
           <button
             className="hamburger-btn"
             onClick={onMenuToggle}
-            aria-label={isOpen ? 'Cerrar menÃº' : 'Abrir menÃº'}
+            aria-label={isOpen ? 'Cerrar menú' : 'Abrir menú'}
           >
             {isOpen ? <FiX /> : <FiMenu />}
           </button>
           <div className="navbar-brand">
-            <div className="navbar-brand-icon">ðŸŽ“</div>
+            <div className="navbar-brand-icon">🎓</div>
             <span>CUP-FICCT</span>
           </div>
         </div>
@@ -360,7 +360,7 @@ export default function Navbar({ onMenuToggle, isOpen }) {
                 <div style={{ display: 'flex', gap: '10px', background: 'var(--danger-light)', color: '#991b1b', padding: '12px', borderRadius: 'var(--radius)', fontSize: '0.8rem', lineHeight: '1.4' }}>
                   <FiAlertCircle style={{ flexShrink: 0, fontSize: '1.1rem', marginTop: '2px' }} />
                   <div>
-                    <strong>ContraseÃ±a inicial activa:</strong> Debes cambiar tu contraseÃ±a inicial. Esta opciÃ³n se encuentra en tu perfil.
+                    <strong>Contraseña inicial activa:</strong> Debes cambiar tu contraseña inicial. Esta opción se encuentra en tu perfil.
                   </div>
                 </div>
               ) : (
@@ -417,16 +417,16 @@ export default function Navbar({ onMenuToggle, isOpen }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <DropdownInfoRow icon={<FiUser />} label="Nombre completo" value={user?.name} />
               <DropdownInfoRow icon={<FiCreditCard />} label="CI" value={user?.ci} />
-              <DropdownInfoRow icon={<FiMail />} label="Correo electrÃ³nico" value={user?.email} />
+              <DropdownInfoRow icon={<FiMail />} label="Correo electrónico" value={user?.email} />
               {user?.role === 'postulante' && (
                 <>
                   <DropdownInfoRow icon={<FiHash />} label="Registro" value={profileData?.codigo_usuario || calcRegistro(user?.codigo, user?.ci)} />
-                  <DropdownInfoRow icon={<FiCheckCircle />} label="Estado TrÃ¡mite" value={profileData?.estado_tramite || user?.estado} />
+                  <DropdownInfoRow icon={<FiCheckCircle />} label="Estado Trámite" value={profileData?.estado_tramite || user?.estado} />
                 </>
               )}
               {user?.role !== 'postulante' && (
                 <>
-                  <DropdownInfoRow icon={<FiHash />} label="CÃ³digo" value={user?.codigo} />
+                  <DropdownInfoRow icon={<FiHash />} label="Código" value={user?.codigo} />
                   <DropdownInfoRow icon={<FiCheckCircle />} label="Estado" value={user?.estado} />
                 </>
               )}
@@ -441,7 +441,7 @@ export default function Navbar({ onMenuToggle, isOpen }) {
                   setShowPasswordModal(true)
                 }}
               >
-                <FiKey /> Actualizar contraseÃ±a
+                <FiKey /> Actualizar contraseña
               </button>
               <button
                 className="btn btn-outline btn-sm"
@@ -451,7 +451,7 @@ export default function Navbar({ onMenuToggle, isOpen }) {
                   setMostrarConfirmacionSalir(true)
                 }}
               >
-                <FiLogOut /> Cerrar sesiÃ³n
+                <FiLogOut /> Cerrar sesión
               </button>
             </div>
           </div>
@@ -475,14 +475,14 @@ export default function Navbar({ onMenuToggle, isOpen }) {
                 fontSize: '1.8rem',
                 margin: '0 auto'
               }}>
-                âš ï¸
+                ⚠️
               </div>
             </div>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8, color: '#1e293b' }}>
-              Â¿EstÃ¡ seguro de salir?
+              ¿Está seguro de salir?
             </h3>
             <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: 24 }}>
-              EstÃ¡ saliendo de su perfil. Â¿Desea continuar?
+              Está saliendo de su perfil. ¿Desea continuar?
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
               <button
@@ -499,7 +499,7 @@ export default function Navbar({ onMenuToggle, isOpen }) {
                 disabled={cerrandoSesion}
                 style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
-                {cerrandoSesion ? 'Saliendo...' : 'SÃ­'}
+                {cerrandoSesion ? 'Saliendo...' : 'Sí'}
               </button>
             </div>
           </div>
@@ -512,7 +512,7 @@ export default function Navbar({ onMenuToggle, isOpen }) {
           <div className="modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">Actualizar datos de acceso</span>
-              <button className="modal-close" onClick={() => setShowPasswordModal(false)}>Ã—</button>
+              <button className="modal-close" onClick={() => setShowPasswordModal(false)}>×</button>
             </div>
 
             <form onSubmit={handlePasswordSubmit}>
@@ -530,25 +530,25 @@ export default function Navbar({ onMenuToggle, isOpen }) {
                   }}>
                     <strong>Por seguridad, debes actualizar tus datos de acceso.</strong>
                     <br />
-                    A partir de ahora, tu usuario para ingresar serÃ¡:
+                    A partir de ahora, tu usuario para ingresar será:
                     <div style={{ fontWeight: 'bold', margin: '6px 0', fontFamily: 'monospace', fontSize: '0.95rem', color: '#78350f' }}>
                       Usuario: {user?.role === 'postulante'
                         ? (profileData?.codigo_usuario || calcRegistro(user?.codigo, user?.ci))
                         : `${user?.codigo} o CI: ${user?.ci}`
                       }
                     </div>
-                    Luego cambia tu contraseÃ±a inicial.
+                    Luego cambia tu contraseña inicial.
                   </div>
                 )}
 
                 <p style={{ fontSize: '0.82rem', color: 'var(--gray-600)', marginBottom: '8px', fontWeight: 600 }}>
-                  Requisitos para la nueva contraseÃ±a:
+                  Requisitos para la nueva contraseña:
                 </p>
                 <ul style={{ fontSize: '0.78rem', color: 'var(--gray-500)', paddingLeft: '20px', margin: '0 0 16px', lineHeight: 1.5 }}>
-                  <li>MÃ­nimo 8 caracteres de longitud</li>
-                  <li>Al menos una letra minÃºscula</li>
-                  <li>Al menos una letra mayÃºscula</li>
-                  <li>Al menos un carÃ¡cter especial (ej: @, $, !, %, *, #, -, _)</li>
+                  <li>Mínimo 8 caracteres de longitud</li>
+                  <li>Al menos una letra minúscula</li>
+                  <li>Al menos una letra mayúscula</li>
+                  <li>Al menos un carácter especial (ej: @, $, !, %, *, #, -, _)</li>
                 </ul>
 
                 {passError && (
@@ -563,11 +563,11 @@ export default function Navbar({ onMenuToggle, isOpen }) {
                 )}
 
                 <div className="form-group">
-                  <label className="form-label">Nueva contraseÃ±a</label>
+                  <label className="form-label">Nueva contraseña</label>
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="MÃ­nimo 8 caracteres"
+                    placeholder="Mínimo 8 caracteres"
                     value={formPass.new_password}
                     onChange={e => setFormPass({ ...formPass, new_password: e.target.value })}
                     required
@@ -576,11 +576,11 @@ export default function Navbar({ onMenuToggle, isOpen }) {
                 </div>
 
                 <div className="form-group" style={{ marginTop: '12px' }}>
-                  <label className="form-label">Confirmar nueva contraseÃ±a</label>
+                  <label className="form-label">Confirmar nueva contraseña</label>
                   <input
                     type="password"
                     className="form-input"
-                    placeholder="Repita la nueva contraseÃ±a"
+                    placeholder="Repita la nueva contraseña"
                     value={formPass.new_password_confirmation}
                     onChange={e => setFormPass({ ...formPass, new_password_confirmation: e.target.value })}
                     required
@@ -593,7 +593,7 @@ export default function Navbar({ onMenuToggle, isOpen }) {
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={passSaving} style={{ backgroundColor: '#f59e0b', borderColor: '#f59e0b', color: '#fff' }}>
-                  {passSaving ? 'Guardando...' : 'Actualizar contraseÃ±a'}
+                  {passSaving ? 'Guardando...' : 'Actualizar contraseña'}
                 </button>
               </div>
             </form>

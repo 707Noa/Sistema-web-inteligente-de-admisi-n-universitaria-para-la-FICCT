@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getCarrerasDisponibles } from '@/modules/p4-reportes-monitoreo-auditoria/reportes/services/reporteService'
 import {
   registrarPreinscripcion,
   generarStripeCheckout,
+  preinscripcionStripeCheckout,
   crearPaypalOrder,
   capturarPaypalPago,
-  simularPagoPostulante
+  simularPagoPostulante,
+  cancelarPreinscripcion
 } from '@/modules/p2-participantes-grupos/postulantes/services/preinscripcionService'
 import {
   FiUser,
@@ -27,13 +29,13 @@ import {
 export default function PreinscripcionForm() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  
+
   // Stepper state (1: Datos, 2: Documentos, 3: Pago)
   const [step, setStep] = useState(1)
-  
+
   // Postulante ID retrieved after completing Step 2
   const [postulanteId, setPostulanteId] = useState(null)
-  
+
   const [carreras, setCarreras] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -45,15 +47,19 @@ export default function PreinscripcionForm() {
     celular: '', segundo_celular: '', email: '', direccion: '',
     unidad_educativa: '', tipo_colegio: '', turno: '', provincia: '', anio_egreso: '',
     primera_opcion_carrera: '', segunda_opcion_carrera: '',
+    preferencia_turno: '',
     declaracion_jurada: false,
   })
 
   // File uploads state
   const [imagenCi, setImagenCi] = useState(null)
   const [imagenCiPreview, setImagenCiPreview] = useState(null)
-  
+
   const [imagenTituloBachiller, setImagenTituloBachiller] = useState(null)
   const [imagenTituloBachillerPreview, setImagenTituloBachillerPreview] = useState(null)
+
+  const [foto, setFoto] = useState(null)
+  const [fotoPreview, setFotoPreview] = useState(null)
 
   // Payment states
   const [paymentGateway, setPaymentGateway] = useState('stripe') // stripe or paypal
@@ -68,17 +74,25 @@ export default function PreinscripcionForm() {
     titular: ''
   })
   const [correoPaypal, setCorreoPaypal] = useState('')
+  const [showCancelModal, setShowCancelModal] = useState(false)
+  const [canceling, setCanceling] = useState(false)
 
   useEffect(() => {
     getCarrerasDisponibles().then(r => setCarreras(r.data)).catch(() => {})
 
-    // Check if redirecting back from a canceled checkout session
-    const isCanceled = searchParams.get('cancelado')
+    // Check if we have a saved ID in URL to resume the payment step directly
     const savedId = searchParams.get('id')
-    if (isCanceled && savedId) {
+    const isCanceled = searchParams.get('cancelado')
+    const isPending = searchParams.get('pago_pendiente')
+
+    if (savedId) {
       setPostulanteId(parseInt(savedId))
       setStep(3)
-      setError('El proceso de pago fue cancelado. Por favor intente nuevamente.')
+      if (isCanceled) {
+        setError('El proceso de pago fue cancelado. Por favor intente nuevamente.')
+      } else if (isPending) {
+        setError('Su pago sigue en verificaciÃ³n o pendiente. Por favor intente realizar el pago nuevamente.')
+      }
     }
   }, [searchParams])
 
@@ -97,7 +111,7 @@ export default function PreinscripcionForm() {
       }
     } else if (optionName === 'segunda_opcion_carrera') {
       if (carreraNombre === form.primera_opcion_carrera) {
-        setError('La segunda opción debe ser diferente a la primera.')
+        setError('La segunda opciÃ³n debe ser diferente a la primera.')
       } else {
         setForm(prev => ({ ...prev, segunda_opcion_carrera: carreraNombre }))
       }
@@ -109,24 +123,24 @@ export default function PreinscripcionForm() {
     e.preventDefault()
     setError('')
 
-    if (!form.nombres || !form.apellidos || !form.ci || !form.email) {
+    if (!form.nombres || !form.apellidos || !form.ci || !form.email || !form.preferencia_turno) {
       setError('Por favor complete todos los campos obligatorios (*).'); return
     }
     const emailRegexStep1 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegexStep1.test(form.email)) {
-      setError('El formato del correo electrónico no es válido.'); return
+      setError('El formato del correo electrÃ³nico no es vÃ¡lido.'); return
     }
     if (!form.primera_opcion_carrera) {
-      setError('Seleccione su primera opción de carrera.'); return
+      setError('Seleccione su primera opciÃ³n de carrera.'); return
     }
     if (!form.segunda_opcion_carrera) {
-      setError('Seleccione su segunda opción de carrera.'); return
+      setError('Seleccione su segunda opciÃ³n de carrera.'); return
     }
     if (form.primera_opcion_carrera === form.segunda_opcion_carrera) {
-      setError('La segunda opción de carrera debe ser diferente a la primera.'); return
+      setError('La segunda opciÃ³n de carrera debe ser diferente a la primera.'); return
     }
     if (!form.declaracion_jurada) {
-      setError('Debe aceptar la declaración jurada.'); return
+      setError('Debe aceptar la declaraciÃ³n jurada.'); return
     }
 
     setStep(2)
@@ -138,8 +152,15 @@ export default function PreinscripcionForm() {
     const file = e.target.files[0]
     if (!file) return
 
+    const ext = file.name.split('.').pop().toLowerCase()
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp']
+    if (!allowedExts.includes(ext)) {
+      setError('El CI debe estar en formato JPG, JPEG, PNG o WEBP.')
+      return
+    }
+
     if (file.size > 5 * 1024 * 1024) {
-      setError('La imagen del CI supera el límite de 5 MB.')
+      setError('La imagen del CI supera el lÃ­mite de 5 MB.')
       return
     }
 
@@ -152,13 +173,41 @@ export default function PreinscripcionForm() {
     const file = e.target.files[0]
     if (!file) return
 
+    const ext = file.name.split('.').pop().toLowerCase()
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp']
+    if (!allowedExts.includes(ext)) {
+      setError('El tÃ­tulo debe estar en formato JPG, JPEG, PNG o WEBP.')
+      return
+    }
+
     if (file.size > 5 * 1024 * 1024) {
-      setError('La imagen del Título de Bachiller supera el límite de 5 MB.')
+      setError('La imagen del TÃ­tulo de Bachiller supera el lÃ­mite de 5 MB.')
       return
     }
 
     setImagenTituloBachiller(file)
     setImagenTituloBachillerPreview(URL.createObjectURL(file))
+  }
+
+  const handleFotoChange = (e) => {
+    setError('')
+    const file = e.target.files[0]
+    if (!file) return
+
+    const ext = file.name.split('.').pop().toLowerCase()
+    const allowedExts = ['jpg', 'jpeg', 'png', 'webp']
+    if (!allowedExts.includes(ext)) {
+      setError('La fotografÃ­a debe estar en formato JPG, JPEG, PNG o WEBP.')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('La fotografÃ­a supera el lÃ­mite de 5 MB.')
+      return
+    }
+
+    setFoto(file)
+    setFotoPreview(URL.createObjectURL(file))
   }
 
   // Submit Step 2 (Multipart Form Upload & Save Postulante)
@@ -173,7 +222,12 @@ export default function PreinscripcionForm() {
     }
 
     if (!imagenTituloBachiller) {
-      setError('La imagen del Título de Bachiller es obligatoria.')
+      setError('La imagen del TÃ­tulo de Bachiller es obligatoria.')
+      return
+    }
+
+    if (!foto) {
+      setError('La fotografÃ­a del postulante es obligatoria.')
       return
     }
 
@@ -194,17 +248,19 @@ export default function PreinscripcionForm() {
       formData.append('carrera', form.primera_opcion_carrera)
       formData.append('primera_opcion_carrera', form.primera_opcion_carrera)
       formData.append('segunda_opcion_carrera', form.segunda_opcion_carrera)
+      formData.append('preferencia_turno', form.preferencia_turno)
       formData.append('titulo_bachiller', '1') // default flag
-      formData.append('otros', `Primera opción: ${form.primera_opcion_carrera}, Segunda opción: ${form.segunda_opcion_carrera}. Tipo: ${form.tipo_colegio || ''}, Turno: ${form.turno || ''}, Egreso: ${form.anio_egreso || ''}`)
+      formData.append('otros', `Primera opciÃ³n: ${form.primera_opcion_carrera}, Segunda opciÃ³n: ${form.segunda_opcion_carrera}. Tipo: ${form.tipo_colegio || ''}, Turno: ${form.turno || ''}, Egreso: ${form.anio_egreso || ''}`)
 
       // Append files
       formData.append('imagen_ci', imagenCi)
       formData.append('imagen_titulo_bachiller', imagenTituloBachiller)
+      formData.append('fotografia', foto)
 
       const res = await registrarPreinscripcion(formData)
       setPostulanteId(res.data.data.id)
       setSuccess('Documentos y datos registrados correctamente.')
-      
+
       setTimeout(() => {
         setSuccess('')
         setStep(3)
@@ -215,9 +271,9 @@ export default function PreinscripcionForm() {
 
       // Errores de datos duplicados: volver al Step 1 para que el usuario los corrija
       const dataDuplicateFields = {
-        ci: 'El CI ya está registrado.',
-        correo_electronico: 'El correo electrónico ya está registrado.',
-        telefono: 'El teléfono ya está registrado.',
+        ci: 'El CI ya estÃ¡ registrado.',
+        correo_electronico: 'El correo electrÃ³nico ya estÃ¡ registrado.',
+        telefono: 'El telÃ©fono ya estÃ¡ registrado.',
       }
       const duplicateMessages = Object.entries(dataDuplicateFields)
         .filter(([field]) => errs[field])
@@ -242,13 +298,13 @@ export default function PreinscripcionForm() {
     setSuccess('')
 
     if (!tarjetaForm.numeroTarjeta) {
-      setError('El número de tarjeta es obligatorio.'); return
+      setError('El nÃºmero de tarjeta es obligatorio.'); return
     }
     if (!tarjetaForm.fechaVencimiento) {
       setError('La fecha de vencimiento es obligatoria.'); return
     }
     if (!tarjetaForm.cvv) {
-      setError('El código de seguridad (CVV) es obligatorio.'); return
+      setError('El cÃ³digo de seguridad (CVV) es obligatorio.'); return
     }
     if (!tarjetaForm.titular) {
       setError('El nombre del titular es obligatorio.'); return
@@ -257,12 +313,12 @@ export default function PreinscripcionForm() {
     setLoading(true)
     try {
       const res = await simularPagoPostulante(postulanteId, 'PAGADO', 'TARJETA')
-      setSuccess('¡Pago simulado con tarjeta exitoso!')
+      setSuccess('Â¡Pago simulado con tarjeta exitoso!')
       setTimeout(() => {
         navigate(`/preinscripcion/pago-confirmado?gateway=stripe&session_id=${res.data.data.pago_referencia}&postulante_id=${postulanteId}`)
       }, 1500)
     } catch (err) {
-      setError('Error al procesar la simulación de pago con tarjeta.')
+      setError('Error al procesar la simulaciÃ³n de pago con tarjeta.')
     } finally {
       setLoading(false)
     }
@@ -280,7 +336,7 @@ export default function PreinscripcionForm() {
         navigate(`/preinscripcion?cancelado=true&id=${postulanteId}`)
       }, 1500)
     } catch (err) {
-      setError('Error al registrar la cancelación de pago.')
+      setError('Error al registrar la cancelaciÃ³n de pago.')
     } finally {
       setLoading(false)
     }
@@ -312,18 +368,18 @@ export default function PreinscripcionForm() {
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(correoPaypal)) {
-      setError('Ingrese un formato de correo electrónico válido.'); return
+      setError('Ingrese un formato de correo electrÃ³nico vÃ¡lido.'); return
     }
 
     setLoading(true)
     try {
       const res = await simularPagoPostulante(postulanteId, 'PAGADO', 'PAYPAL')
-      setSuccess('¡Pago simulado con PayPal aprobado con éxito!')
+      setSuccess('Â¡Pago simulado con PayPal aprobado con Ã©xito!')
       setTimeout(() => {
         navigate(`/preinscripcion/pago-confirmado?gateway=paypal&order_id=${res.data.data.pago_referencia}&postulante_id=${postulanteId}`)
       }, 1500)
     } catch (err) {
-      setError('Error al procesar la simulación de pago de PayPal.')
+      setError('Error al procesar la simulaciÃ³n de pago de PayPal.')
     } finally {
       setLoading(false)
     }
@@ -341,9 +397,44 @@ export default function PreinscripcionForm() {
         navigate(`/preinscripcion?cancelado=true&id=${postulanteId}`)
       }, 1500)
     } catch (err) {
-      setError('Error al registrar la cancelación de pago.')
+      setError('Error al registrar la cancelaciÃ³n de pago.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleOpenCancelModal = () => {
+    setShowCancelModal(true)
+  }
+
+  const handleCloseCancelModal = () => {
+    setShowCancelModal(false)
+  }
+
+  const handleConfirmCancel = async () => {
+    const id = postulanteId || searchParams.get('id') || localStorage.getItem('postulante_id')
+    const token = searchParams.get('token') || searchParams.get('cancel_token') || localStorage.getItem('cancel_token')
+
+    if (!id) {
+      setError('No se pudo encontrar el identificador de la preinscripciÃ³n para cancelar.')
+      return
+    }
+
+    setCanceling(true)
+    setError('')
+    setSuccess('')
+    try {
+      const res = await cancelarPreinscripcion(id, token)
+      setSuccess(res.data.message || 'PreinscripciÃ³n cancelada correctamente.')
+      setShowCancelModal(false)
+      setTimeout(() => {
+        window.location.href = '/preinscripcion'
+      }, 1500)
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al cancelar la preinscripciÃ³n.')
+      setShowCancelModal(false)
+    } finally {
+      setCanceling(false)
     }
   }
 
@@ -355,8 +446,8 @@ export default function PreinscripcionForm() {
             <FiArrowLeft /> Volver al portal
           </a>
         </div>
-        <h1>📋 Formulario de Preinscripción</h1>
-        <p>Cursos Preuniversitarios — Gestión 2026</p>
+        <h1>ðŸ“‹ Formulario de PreinscripciÃ³n</h1>
+        <p>Cursos Preuniversitarios â€” GestiÃ³n 2026</p>
       </div>
 
       {/* stepper progress indicators */}
@@ -427,7 +518,7 @@ export default function PreinscripcionForm() {
             boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
             transition: 'all 0.3s ease'
           }}>
-            '3'
+            3
           </div>
           <span style={{ fontSize: '0.8rem', fontWeight: 600, color: step >= 3 ? '#1e3a8a' : '#64748b' }}>Pasarela de Pago</span>
         </div>
@@ -436,7 +527,7 @@ export default function PreinscripcionForm() {
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '0 20px' }}>
         {error && (
           <div className="login-alert" style={{ marginBottom: 20, textAlign: 'left', borderRadius: '8px' }}>
-            ⚠️ {error}
+            âš ï¸ {error}
           </div>
         )}
         {success && (
@@ -457,7 +548,7 @@ export default function PreinscripcionForm() {
       </div>
 
       <div style={{ maxWidth: '850px', margin: '0 auto' }}>
-        
+
         {/* STEP 1: PERSONAL & ACADEMIC DATA */}
         {step === 1 && (
           <form className="preinscripcion-form" onSubmit={handleNextToStep2}>
@@ -467,16 +558,25 @@ export default function PreinscripcionForm() {
                 <div className="form-group"><label className="form-label">Nombres *</label><input className="form-input" name="nombres" value={form.nombres} onChange={handleChange} required /></div>
                 <div className="form-group"><label className="form-label">Apellidos *</label><input className="form-input" name="apellidos" value={form.apellidos} onChange={handleChange} required /></div>
                 <div className="form-group"><label className="form-label">CI *</label><input className="form-input" name="ci" value={form.ci} onChange={handleChange} required /></div>
-                <div className="form-group"><label className="form-label">Género</label>
+                <div className="form-group"><label className="form-label">GÃ©nero</label>
                   <select className="form-select" name="genero" value={form.genero} onChange={handleChange}>
                     <option value="">Seleccionar</option><option value="masculino">Masculino</option><option value="femenino">Femenino</option><option value="otro">Otro</option>
                   </select>
                 </div>
                 <div className="form-group"><label className="form-label">Fecha de nacimiento</label><input className="form-input" name="fecha_nacimiento" type="date" value={form.fecha_nacimiento} onChange={handleChange} /></div>
-                <div className="form-group"><label className="form-label">Teléfono</label><input className="form-input" name="celular" value={form.celular} onChange={handleChange} /></div>
-                <div className="form-group"><label className="form-label">Segundo teléfono</label><input className="form-input" name="segundo_celular" value={form.segundo_celular} onChange={handleChange} /></div>
-                <div className="form-group"><label className="form-label">Correo electrónico *</label><input className="form-input" name="email" type="email" value={form.email} onChange={handleChange} required /></div>
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label">Dirección</label><input className="form-input" name="direccion" value={form.direccion} onChange={handleChange} /></div>
+                <div className="form-group"><label className="form-label">TelÃ©fono</label><input className="form-input" name="celular" value={form.celular} onChange={handleChange} /></div>
+                <div className="form-group"><label className="form-label">Segundo telÃ©fono</label><input className="form-input" name="segundo_celular" value={form.segundo_celular} onChange={handleChange} /></div>
+                <div className="form-group"><label className="form-label">Correo electrÃ³nico *</label><input className="form-input" name="email" type="email" value={form.email} onChange={handleChange} required /></div>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label">DirecciÃ³n</label><input className="form-input" name="direccion" value={form.direccion} onChange={handleChange} /></div>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label className="form-label">Â¿En quÃ© turno prefiere pasar clases? *</label>
+                  <select className="form-select" name="preferencia_turno" value={form.preferencia_turno} onChange={handleChange} required>
+                    <option value="">Seleccionar turno</option>
+                    <option value="manana">MaÃ±ana: 07:00 a 11:00</option>
+                    <option value="tarde">Tarde: 13:00 a 17:00</option>
+                    <option value="noche">Noche: 18:00 a 22:00</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -491,11 +591,11 @@ export default function PreinscripcionForm() {
                 </div>
                 <div className="form-group"><label className="form-label">Turno</label>
                   <select className="form-select" name="turno" value={form.turno} onChange={handleChange}>
-                    <option value="">Seleccionar</option><option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="noche">Noche</option>
+                    <option value="">Seleccionar</option><option value="maÃ±ana">MaÃ±ana</option><option value="tarde">Tarde</option><option value="noche">Noche</option>
                   </select>
                 </div>
                 <div className="form-group"><label className="form-label">Provincia</label><input className="form-input" name="provincia" value={form.provincia} onChange={handleChange} /></div>
-                <div className="form-group"><label className="form-label">Año de egreso</label><input className="form-input" name="anio_egreso" value={form.anio_egreso} onChange={handleChange} placeholder="2026" /></div>
+                <div className="form-group"><label className="form-label">AÃ±o de egreso</label><input className="form-input" name="anio_egreso" value={form.anio_egreso} onChange={handleChange} placeholder="2026" /></div>
               </div>
             </div>
 
@@ -528,27 +628,27 @@ export default function PreinscripcionForm() {
                 }
               `}</style>
               <div className="preinscripcion-section-title"><FiCheckSquare /> 3. Carrera(s) a Postular *</div>
-              
+
               <div className="carreras-options-layout">
                 <div className="opcion-columna">
-                  <h3 style={{ fontSize: '1.05rem', color: 'var(--gray-700)', marginBottom: '12px', fontWeight: '700' }}>Primera opción</h3>
+                  <h3 style={{ fontSize: '1.05rem', color: 'var(--gray-700)', marginBottom: '12px', fontWeight: '700' }}>Primera opciÃ³n</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {carreras.map((c) => (
                       <label key={`primera-${c.id}`} className="carrera-card" style={{ border: `2px solid ${form.primera_opcion_carrera === c.nombre ? 'var(--primary)' : 'var(--gray-200)'}` }}>
                         <input type="radio" name="primera_opcion_carrera" checked={form.primera_opcion_carrera === c.nombre} onChange={() => handleOptionChange('primera_opcion_carrera', c.nombre)} />
-                        <div><strong>{c.nombre}</strong><br /><small style={{ color: 'var(--gray-500)' }}>Código: {c.codigo} | Plan: {c.plan} | {c.modalidad}</small></div>
+                        <div><strong>{c.nombre}</strong><br /><small style={{ color: 'var(--gray-500)' }}>CÃ³digo: {c.codigo} | Plan: {c.plan} | {c.modalidad}</small></div>
                       </label>
                     ))}
                   </div>
                 </div>
 
                 <div className="opcion-columna">
-                  <h3 style={{ fontSize: '1.05rem', color: 'var(--gray-700)', marginBottom: '12px', fontWeight: '700' }}>Segunda opción</h3>
+                  <h3 style={{ fontSize: '1.05rem', color: 'var(--gray-700)', marginBottom: '12px', fontWeight: '700' }}>Segunda opciÃ³n</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {carreras.map((c) => (
                       <label key={`segunda-${c.id}`} className="carrera-card" style={{ border: `2px solid ${form.segunda_opcion_carrera === c.nombre ? 'var(--primary)' : 'var(--gray-200)'}` }}>
                         <input type="radio" name="segunda_opcion_carrera" checked={form.segunda_opcion_carrera === c.nombre} onChange={() => handleOptionChange('segunda_opcion_carrera', c.nombre)} />
-                        <div><strong>{c.nombre}</strong><br /><small style={{ color: 'var(--gray-500)' }}>Código: {c.codigo} | Plan: {c.plan} | {c.modalidad}</small></div>
+                        <div><strong>{c.nombre}</strong><br /><small style={{ color: 'var(--gray-500)' }}>CÃ³digo: {c.codigo} | Plan: {c.plan} | {c.modalidad}</small></div>
                       </label>
                     ))}
                   </div>
@@ -557,15 +657,15 @@ export default function PreinscripcionForm() {
             </div>
 
             <div className="preinscripcion-section">
-              <div className="preinscripcion-section-title">4. Declaración Jurada *</div>
+              <div className="preinscripcion-section-title">4. DeclaraciÃ³n Jurada *</div>
               <label className="checkbox-group">
                 <input type="checkbox" name="declaracion_jurada" checked={form.declaracion_jurada} onChange={handleChange} />
-                <span>Declaro que los datos ingresados son correctos y acepto las normas y reglamentos del proceso de admisión.</span>
+                <span>Declaro que los datos ingresados son correctos y acepto las normas y reglamentos del proceso de admisiÃ³n.</span>
               </label>
             </div>
 
             <button className="btn btn-primary btn-block btn-lg" type="submit" style={{ marginBottom: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              Siguiente Paso <span style={{ marginLeft: 4 }}>→</span>
+              Siguiente Paso <span style={{ marginLeft: 4 }}>â†’</span>
             </button>
           </form>
         )}
@@ -576,12 +676,12 @@ export default function PreinscripcionForm() {
             <div className="preinscripcion-section" style={{ textAlign: 'left' }}>
               <div className="preinscripcion-section-title"><FiFileText /> 2. Carga de Documentos Obligatorios</div>
               <p style={{ color: '#475569', fontSize: '0.9rem', marginBottom: 24, lineHeight: '1.5' }}>
-                Para continuar con el trámite preuniversitario, es estrictamente obligatorio que adjunte fotografías nítidas o escaneos de su <strong>Cédula de Identidad</strong> y de su <strong>Título de Bachiller</strong>. 
-                Los formatos aceptados son JPG, JPEG, PNG y WEBP, con un tamaño máximo de 5 MB por archivo.
+                Para continuar con el trÃ¡mite preuniversitario, es estrictamente obligatorio que adjunte fotografÃ­as nÃ­tidas o escaneos de su <strong>CÃ©dula de Identidad</strong>, de su <strong>TÃ­tulo de Bachiller</strong> y una <strong>FotografÃ­a del postulante</strong>.
+                Los formatos aceptados son JPG, JPEG, PNG y WEBP, con un tamaÃ±o mÃ¡ximo de 5 MB por archivo.
               </p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '30px' }} className="form-grid-docs">
-                
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }} className="form-grid-docs">
+
                 {/* CI Upload Field */}
                 <div style={{
                   border: '2px dashed #cbd5e1',
@@ -616,13 +716,13 @@ export default function PreinscripcionForm() {
                     }}
                   />
                   <FiUpload style={{ fontSize: '2.2rem', color: '#94a3b8', marginBottom: 12 }} />
-                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>Cédula de Identidad (CI) *</h4>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquí (Máx. 5MB)</p>
-                  
+                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>CÃ©dula de Identidad (CI) *</h4>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquÃ­ (MÃ¡x. 5MB)</p>
+
                   {imagenCi && (
                     <div style={{ marginTop: '16px', zIndex: 4, position: 'relative', width: '100%', maxWidth: '250px' }}>
                       <span style={{ display: 'block', fontSize: '0.85rem', color: '#0f172a', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '8px' }}>
-                        ✅ {imagenCi.name}
+                        âœ… {imagenCi.name}
                       </span>
                       {imagenCiPreview && (
                         <img
@@ -643,7 +743,7 @@ export default function PreinscripcionForm() {
                   )}
                 </div>
 
-                {/* Título de Bachiller Upload Field */}
+                {/* TÃ­tulo de Bachiller Upload Field */}
                 <div style={{
                   border: '2px dashed #cbd5e1',
                   borderRadius: '12px',
@@ -677,18 +777,79 @@ export default function PreinscripcionForm() {
                     }}
                   />
                   <FiUpload style={{ fontSize: '2.2rem', color: '#94a3b8', marginBottom: 12 }} />
-                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>Título de Bachiller *</h4>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquí (Máx. 5MB)</p>
-                  
+                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>TÃ­tulo de Bachiller *</h4>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquÃ­ (MÃ¡x. 5MB)</p>
+
                   {imagenTituloBachiller && (
                     <div style={{ marginTop: '16px', zIndex: 4, position: 'relative', width: '100%', maxWidth: '250px' }}>
                       <span style={{ display: 'block', fontSize: '0.85rem', color: '#0f172a', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '8px' }}>
-                        ✅ {imagenTituloBachiller.name}
+                        âœ… {imagenTituloBachiller.name}
                       </span>
                       {imagenTituloBachillerPreview && (
                         <img
                           src={imagenTituloBachillerPreview}
-                          alt="Vista previa Título"
+                          alt="Vista previa TÃ­tulo"
+                          style={{
+                            width: '100%',
+                            maxHeight: '120px',
+                            objectFit: 'contain',
+                            borderRadius: '6px',
+                            border: '1px solid #cbd5e1',
+                            padding: '4px',
+                            backgroundColor: '#ffffff'
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* FotografÃ­a Upload Field */}
+                <div style={{
+                  border: '2px dashed #cbd5e1',
+                  borderRadius: '12px',
+                  padding: '24px',
+                  backgroundColor: '#f8fafc',
+                  textAlign: 'center',
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s',
+                  cursor: 'pointer'
+                }}
+                onMouseOver={e => e.currentTarget.style.borderColor = '#1e3a8a'}
+                onMouseOut={e => e.currentTarget.style.borderColor = '#cbd5e1'}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFotoChange}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      opacity: 0,
+                      cursor: 'pointer',
+                      zIndex: 3
+                    }}
+                  />
+                  <FiUpload style={{ fontSize: '2.2rem', color: '#94a3b8', marginBottom: 12 }} />
+                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>FotografÃ­a del postulante *</h4>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquÃ­ (MÃ¡x. 5MB)</p>
+
+                  {foto && (
+                    <div style={{ marginTop: '16px', zIndex: 4, position: 'relative', width: '100%', maxWidth: '250px' }}>
+                      <span style={{ display: 'block', fontSize: '0.85rem', color: '#0f172a', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '8px' }}>
+                        âœ… {foto.name}
+                      </span>
+                      {fotoPreview && (
+                        <img
+                          src={fotoPreview}
+                          alt="Vista previa FotografÃ­a"
                           style={{
                             width: '100%',
                             maxHeight: '120px',
@@ -721,7 +882,7 @@ export default function PreinscripcionForm() {
                 type="submit"
                 className="btn btn-primary"
                 style={{ flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                disabled={loading || !imagenCi || !imagenTituloBachiller}
+                disabled={loading || !imagenCi || !imagenTituloBachiller || !foto}
               >
                 {loading ? (
                   <>
@@ -729,7 +890,7 @@ export default function PreinscripcionForm() {
                   </>
                 ) : (
                   <>
-                    Continuar al pago <span style={{ marginLeft: 4 }}>→</span>
+                    Continuar al pago <span style={{ marginLeft: 4 }}>â†’</span>
                   </>
                 )}
               </button>
@@ -743,8 +904,8 @@ export default function PreinscripcionForm() {
             <div className="preinscripcion-section">
               <div className="preinscripcion-section-title"><FiCreditCard /> 3. Pasarela de Pago Seguro</div>
               <p style={{ color: '#475569', fontSize: '0.9rem', marginBottom: 24, lineHeight: '1.5' }}>
-                Sus datos y documentos han sido pre-registrados con éxito. Para completar de forma oficial su preinscripción en el 
-                Curso Preuniversitario FICCT, es necesario realizar el pago del arancel de admisión institucional.
+                Sus datos y documentos han sido pre-registrados con Ã©xito. Para completar de forma oficial su preinscripciÃ³n en el
+                Curso Preuniversitario FICCT, es necesario realizar el pago del arancel de admisiÃ³n institucional.
               </p>
 
               <div style={{
@@ -758,330 +919,242 @@ export default function PreinscripcionForm() {
                 alignItems: 'center'
               }}>
                 <div>
-                  <span style={{ fontSize: '0.8rem', color: '#1e40af', fontWeight: 600 }}>TARIFA DE PREINSCRIPCIÓN</span>
+                  <span style={{ fontSize: '0.8rem', color: '#1e40af', fontWeight: 600 }}>TARIFA DE PREINSCRIPCIÃ“N</span>
                   <h3 style={{ margin: '4px 0 0', fontSize: '1.6rem', fontWeight: 800, color: '#1e3a8a' }}>350.00 BOB</h3>
                 </div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#1e40af', fontSize: '0.85rem', fontWeight: 600, backgroundColor: '#dbeafe', padding: '6px 12px', borderRadius: '20px' }}>
-                  <FiLock /> Transacción Encriptada
+                  <FiLock /> TransacciÃ³n Encriptada
                 </div>
               </div>
 
-              {/* Gateway selector */}
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: '#334155', marginBottom: '12px' }}>Seleccione su método de pago preferido:</h4>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '30px' }} className="payment-grid">
-                
-                {/* Stripe/Credit Card selector card */}
-                <div
-                  onClick={() => {
-                    setPaymentGateway('stripe')
-                    setPaypalOrderId(null)
-                  }}
-                  style={{
-                    border: `2px solid ${paymentGateway === 'stripe' ? '#1e3a8a' : '#cbd5e1'}`,
-                    backgroundColor: paymentGateway === 'stripe' ? '#eff6ff' : '#ffffff',
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <div style={{ width: '100%', maxWidth: '550px' }}>
+                  <div style={{
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
                     borderRadius: '12px',
-                    padding: '20px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px'
-                  }}
-                >
-                  <FiCreditCard style={{ fontSize: '2rem', color: paymentGateway === 'stripe' ? '#1e3a8a' : '#64748b' }} />
-                  <div>
-                    <strong style={{ display: 'block', color: '#1f2937', fontSize: '0.95rem' }}>Pago con Tarjeta</strong>
-                    <small style={{ color: '#6b7280', fontSize: '0.8rem' }}>Visa, MasterCard, Amex</small>
+                    padding: '24px',
+                    marginBottom: '24px',
+                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
+                  }}>
+                    <h4 style={{ margin: '0 0 12px', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b' }}>
+                      Pago seguro con Stripe
+                    </h4>
+                    <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: '1.5', marginBottom: '16px' }}>
+                      SerÃ¡ redirigido a Stripe Checkout para pagar la tarifa de preinscripciÃ³n. El sistema no almacena los datos de su tarjeta. Stripe procesarÃ¡ el pago de forma segura.
+                    </p>
+                    <div style={{
+                      fontSize: '0.85rem',
+                      color: '#991b1b',
+                      backgroundColor: '#fee2e2',
+                      border: '1px solid #fca5a5',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      textAlign: 'center',
+                      fontWeight: 'bold'
+                    }}>
+                      âš ï¸ MODO PRUEBA - No se realizarÃ¡ ningÃºn cobro real.
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <button
+                      onClick={async () => {
+                        setLoading(true);
+                        setError('');
+                        try {
+                          let res;
+                          if (postulanteId) {
+                            console.log('Iniciando Stripe checkout para preinscripciÃ³n temporal existente:', postulanteId);
+                            res = await preinscripcionStripeCheckout({ preinscripcion_temporal_id: postulanteId });
+                          } else {
+                            console.log('Creando preinscripciÃ³n temporal e iniciando Stripe checkout');
+                            const formData = new FormData();
+                            formData.append('nombres', form.nombres);
+                            formData.append('apellidos', form.apellidos);
+                            formData.append('ci', form.ci);
+                            if (form.genero) {
+                              formData.append('genero', form.genero);
+                              formData.append('sexo', form.genero);
+                            }
+                            if (form.fecha_nacimiento) formData.append('fecha_nacimiento', form.fecha_nacimiento);
+                            if (form.celular) formData.append('telefono', form.celular);
+                            if (form.segundo_celular) formData.append('segundo_telefono', form.segundo_celular);
+                            formData.append('correo_electronico', form.email);
+                            if (form.direccion) formData.append('direccion', form.direccion);
+                            if (form.unidad_educativa) formData.append('colegio_procedencia', form.unidad_educativa);
+                            if (form.provincia) formData.append('ciudad', form.provincia);
+
+                            formData.append('carrera', form.primera_opcion_carrera);
+                            formData.append('primera_opcion_carrera', form.primera_opcion_carrera);
+                            formData.append('segunda_opcion_carrera', form.segunda_opcion_carrera);
+                            formData.append('preferencia_turno', form.preferencia_turno);
+                            formData.append('titulo_bachiller', 1);
+
+                            if (imagenCi) formData.append('imagen_ci', imagenCi);
+                            if (imagenTituloBachiller) formData.append('imagen_titulo_bachiller', imagenTituloBachiller);
+                            if (foto) formData.append('fotografia', foto);
+
+                            res = await preinscripcionStripeCheckout(formData);
+                          }
+
+                          const url = res.data?.checkout_url;
+
+                          if (!url) {
+                            throw new Error('No se recibiÃ³ checkout_url de Stripe.');
+                          }
+
+                          if (!url.startsWith('https://checkout.stripe.com/')) {
+                            throw new Error('La URL recibida no es una URL vÃ¡lida de Stripe Checkout.');
+                          }
+
+                          window.location.href = url;
+                        } catch (err) {
+                          console.error('Stripe checkout error:', err.response?.data || err);
+                          const errMsg = err.response?.data?.message || err.message || 'No se pudo iniciar el pago con Stripe.';
+                          setError(errMsg);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      disabled={loading}
+                      style={{
+                        width: '100%',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        padding: '14px 20px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        backgroundColor: '#1e3a8a',
+                        color: '#ffffff',
+                        fontSize: '1rem',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {loading ? <FiLoader className="spin" /> : <><FiCheck /> Pagar inscripciÃ³n</>}
+                    </button>
+
+                    <button
+                      onClick={handleOpenCancelModal}
+                      disabled={loading}
+                      style={{
+                        width: '100%',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        padding: '10px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid #cbd5e1',
+                        backgroundColor: '#ffffff',
+                        color: '#475569',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancelar
+                    </button>
                   </div>
                 </div>
-
-                {/* PayPal selector card */}
-                <div
-                  onClick={() => {
-                    setPaymentGateway('paypal')
-                  }}
-                  style={{
-                    border: `2px solid ${paymentGateway === 'paypal' ? '#1e3a8a' : '#cbd5e1'}`,
-                    backgroundColor: paymentGateway === 'paypal' ? '#eff6ff' : '#ffffff',
-                    borderRadius: '12px',
-                    padding: '20px',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px'
-                  }}
-                >
-                  {/* PayPal text mock / icon */}
-                  <span style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#003087', fontFamily: 'sans-serif', fontStyle: 'italic' }}>
-                    Pay<span style={{ color: '#0079C1' }}>Pal</span>
-                  </span>
-                  <div>
-                    <strong style={{ display: 'block', color: '#1f2937', fontSize: '0.95rem' }}>PayPal Checkout</strong>
-                    <small style={{ color: '#6b7280', fontSize: '0.8rem' }}>Cuenta PayPal o Saldo</small>
-                  </div>
-                </div>
-
               </div>
-
-              {/* Action views based on selected gateway */}
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '24px' }}>
-                {paymentGateway === 'stripe' ? (
-                  <div>
-                    {/* Simulated Credit Card Form */}
-                    <div style={{
-                      backgroundColor: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      padding: '24px',
-                      marginBottom: '24px',
-                      maxWidth: '550px',
-                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
-                    }}>
-                      <h4 style={{ margin: '0 0 16px', fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                        💳 Tarjeta de Crédito / Débito (Simulación)
-                      </h4>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
-                        <div className="form-group">
-                          <label className="form-label" style={{ fontWeight: 600 }}>Nombre del Titular *</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="Nombre impreso en la tarjeta"
-                            value={tarjetaForm.titular}
-                            onChange={e => setTarjetaForm({ ...tarjetaForm, titular: e.target.value })}
-                            required
-                          />
-                        </div>
-
-                        <div className="form-group">
-                          <label className="form-label" style={{ fontWeight: 600 }}>Número de Tarjeta *</label>
-                          <input
-                            type="text"
-                            className="form-input"
-                            placeholder="4557 8812 3344 5566"
-                            value={tarjetaForm.numeroTarjeta}
-                            onChange={e => setTarjetaForm({ ...tarjetaForm, numeroTarjeta: e.target.value })}
-                            required
-                          />
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                          <div className="form-group">
-                            <label className="form-label" style={{ fontWeight: 600 }}>Vencimiento *</label>
-                            <input
-                              type="text"
-                              className="form-input"
-                              placeholder="MM/AA"
-                              value={tarjetaForm.fechaVencimiento}
-                              onChange={e => setTarjetaForm({ ...tarjetaForm, fechaVencimiento: e.target.value })}
-                              required
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label className="form-label" style={{ fontWeight: 600 }}>CVC / CVV *</label>
-                            <input
-                              type="password"
-                              className="form-input"
-                              placeholder="123"
-                              maxLength={4}
-                              value={tarjetaForm.cvv}
-                              onChange={e => setTarjetaForm({ ...tarjetaForm, cvv: e.target.value })}
-                              required
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{
-                        marginTop: '16px',
-                        fontSize: '0.8rem',
-                        color: '#64748b',
-                        backgroundColor: '#f1f5f9',
-                        padding: '10px',
-                        borderRadius: '6px',
-                        textAlign: 'left'
-                      }}>
-                        🔒 <strong>Entorno Seguro Académico:</strong> Esta transacción es simulada. Ningún dato de pago real será procesado o guardado.
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <button
-                        onClick={handleTarjetaPaySimulated}
-                        disabled={loading}
-                        style={{
-                          width: '100%',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                          padding: '14px 20px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          backgroundColor: '#1e3a8a',
-                          color: '#ffffff',
-                          fontSize: '1rem',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {loading ? <FiLoader className="spin" /> : <><FiCheck /> Simular Pago Exitoso (350.00 BOB)</>}
-                      </button>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        <button
-                          onClick={handleTarjetaFailSimulated}
-                          disabled={loading}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            padding: '10px 16px',
-                            borderRadius: '8px',
-                            border: '1px solid #fca5a5',
-                            backgroundColor: '#fee2e2',
-                            color: '#991b1b',
-                            fontSize: '0.9rem',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Simular Fallo
-                        </button>
-                        <button
-                          onClick={handleTarjetaCancelSimulated}
-                          disabled={loading}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            padding: '10px 16px',
-                            borderRadius: '8px',
-                            border: '1px solid #cbd5e1',
-                            backgroundColor: '#ffffff',
-                            color: '#475569',
-                            fontSize: '0.9rem',
-                            fontWeight: '600',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Cancelar Pago
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    {/* Simulated PayPal Form */}
-                    <div style={{
-                      backgroundColor: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '12px',
-                      padding: '24px',
-                      marginBottom: '24px',
-                      maxWidth: '550px',
-                      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '8px' }}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#003087', fontFamily: 'sans-serif', fontStyle: 'italic' }}>
-                          Pay<span style={{ color: '#0079C1' }}>Pal</span>
-                        </span>
-                        <span style={{ fontSize: '0.95rem', color: '#475569', fontWeight: 600 }}>(Simulación Académica)</span>
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label" style={{ fontWeight: 600 }}>Correo Electrónico de PayPal *</label>
-                        <input
-                          type="email"
-                          className="form-input"
-                          placeholder="ejemplo@paypal.com"
-                          value={correoPaypal}
-                          onChange={e => setCorreoPaypal(e.target.value)}
-                          required
-                        />
-                      </div>
-
-                      <div style={{
-                        marginTop: '16px',
-                        fontSize: '0.8rem',
-                        color: '#64748b',
-                        backgroundColor: '#f1f5f9',
-                        padding: '10px',
-                        borderRadius: '6px',
-                        textAlign: 'left'
-                      }}>
-                        ℹ️ Ingrese un correo simulado para validar el formato. No se requiere contraseña ni fondos reales.
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <button
-                        onClick={handlePaypalPaySimulated}
-                        disabled={loading}
-                        style={{
-                          width: '100%',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                          padding: '14px 20px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          backgroundColor: '#0070ba',
-                          color: '#ffffff',
-                          fontSize: '1rem',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {loading ? <FiLoader className="spin" /> : <><FiCheck /> Confirmar pago PayPal (350.00 BOB)</>}
-                      </button>
-
-                      <button
-                        onClick={handlePaypalCancelSimulated}
-                        disabled={loading}
-                        style={{
-                          width: '100%',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                          padding: '10px 16px',
-                          borderRadius: '8px',
-                          border: '1px solid #cbd5e1',
-                          backgroundColor: '#ffffff',
-                          color: '#475569',
-                          fontSize: '0.9rem',
-                          fontWeight: '600',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Cancelar Pago
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-
             </div>
           </div>
         )}
 
       </div>
+
+      {showCancelModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: '#ffffff',
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: '450px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            color: '#1e293b',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: '24px',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '50%',
+                backgroundColor: '#fee2e2',
+                color: '#dc2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem',
+                margin: '0 auto 16px'
+              }}>
+                âš ï¸
+              </div>
+              <h3 style={{ margin: '0 0 8px', fontSize: '1.25rem', fontWeight: '700', color: '#0f172a' }}>
+                Â¿Deseas cancelar tu preinscripciÃ³n?
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b', lineHeight: '1.5' }}>
+                Si cancelas, todos tus datos y documentos registrados serÃ¡n eliminados permanentemente del sistema.
+              </p>
+            </div>
+            <div style={{
+              padding: '16px 24px',
+              backgroundColor: '#f8fafc',
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center',
+              borderTop: '1px solid #f1f5f9'
+            }}>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={handleCloseCancelModal}
+                disabled={canceling}
+                style={{ minWidth: '100px' }}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={handleConfirmCancel}
+                disabled={canceling}
+                style={{
+                  minWidth: '100px',
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                {canceling ? 'Cancelando...' : 'SÃ­'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

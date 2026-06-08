@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react'
 import Layout from '@/layouts/Layout'
 import Loading from '@/shared/components/Loading'
@@ -9,9 +10,17 @@ import {
 } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 
+import React, { useState, useEffect } from 'react'
+import Layout from '@/layouts/Layout'
+import Loading from '@/shared/components/Loading'
+import { getDashboard } from '../services/autoridadService'
+import { FiUsers, FiGrid, FiBook, FiClock, FiLayers, FiCheckSquare } from 'react-icons/fi'
+
+
 export default function DashboardAutoridad() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
 
@@ -110,122 +119,176 @@ export default function DashboardAutoridad() {
             <div className="stat-card-info">
               <h3>{s.value ?? 0}</h3>
               <p>{s.label}</p>
-            </div>
-          </div>
-        ))}
-      </div>
 
-      {/* Two-column tables */}
-      <div className="chart-grid" style={{ marginTop: 24 }}>
-        {/* Postulantes por Carrera */}
-        <div className="chart-card">
-          <div className="chart-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span><FiBarChart2 style={{ marginRight: 6 }} />Postulantes por Carrera</span>
-            <Link to="/autoridad/estadisticas" style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>Ver estadísticas</Link>
-          </div>
-          <div className="table-container">
-            <table className="table" style={{ fontSize: '0.85rem' }}>
-              <thead>
-                <tr>
-                  <th>Carrera</th>
-                  <th style={{ textAlign: 'right' }}>Total Postulantes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {postulantesPorCarrera.map((c, idx) => (
-                  <tr key={idx}>
-                    <td><strong>{c.carrera || 'Sin especificar'}</strong></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <span className="badge badge-info" style={{ textTransform: 'none' }}>{c.total}</span>
-                    </td>
-                  </tr>
-                ))}
-                {postulantesPorCarrera.length === 0 && (
-                  <tr>
-                    <td colSpan={2} style={{ textAlign: 'center', padding: 20, color: 'var(--gray-400)' }}>
-                      No hay datos de postulantes por carrera.
-                    </td>
-                  </tr>
+              const [error, setError] = useState(null)
+
+  useEffect(() => {
+                getDashboard()
+                  .then(r => setData(r.data))
+                  .catch(e => setError(e.message || 'Error al cargar indicadores.'))
+                  .finally(() => setLoading(false))
+              }, [])
+
+              if (loading) return <Layout><Loading /></Layout>
+
+              const stats = [
+              {label: 'Total Postulantes Inscritos', value: data?.total_inscritos, icon: <FiUsers />, color: 'var(--primary)' },
+              {label: 'Total Grupos Habilitados', value: data?.total_grupos, icon: <FiGrid />, color: 'var(--success)' },
+              {label: 'Total Docentes Activos', value: data?.total_docentes, icon: <FiBook />, color: 'var(--info)' },
+              {label: 'Total Horarios Registrados', value: data?.total_horarios, icon: <FiClock />, color: 'var(--warning)' },
+              {label: 'Carreras con Grupos Activos', value: data?.total_carreras, icon: <FiLayers />, color: 'var(--accent)' },
+              {label: 'Estudiantes Asignados a Grupos', value: data?.total_asignados, icon: <FiCheckSquare />, color: '#8b5cf6' },
+              ]
+
+              return (
+              <Layout>
+                <div className="page-header">
+                  <h1>Dashboard Académico</h1>
+                </div>
+
+                {error && (
+                  <div style={{ padding: 16, color: '#991b1b', background: '#fee2e2', borderRadius: 'var(--radius)', marginBottom: 20 }}>
+                    {error}
+                  </div>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
 
-        {/* Grupos Recientes */}
-        <div className="chart-card">
-          <div className="chart-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span><FiGrid style={{ marginRight: 6 }} />Grupos Habilitados Recientes</span>
-            <Link to="/autoridad/grupos" style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>Ver todos</Link>
-          </div>
-          <div className="table-container">
-            <table className="table" style={{ fontSize: '0.85rem' }}>
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Carrera</th>
-                  <th>Turno</th>
-                  <th>Aula</th>
-                  <th>Ocupación</th>
-                </tr>
-              </thead>
-              <tbody>
-                {gruposRecientes.map(g => (
-                  <tr key={g.id}>
-                    <td><strong>{g.codigo}</strong></td>
-                    <td>{g.carrera}</td>
-                    <td style={{ textTransform: 'capitalize' }}>{g.turno}</td>
-                    <td>{g.aula}</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontWeight: 600 }}>{g.ocupacion} / {g.cupo_maximo}</span>
-                        <div style={{
-                          width: 48, height: 6,
-                          background: 'var(--gray-200)', borderRadius: 3, overflow: 'hidden'
-                        }}>
-                          <div style={{
-                            width: `${Math.min(100, g.cupo_maximo > 0 ? (g.ocupacion / g.cupo_maximo) * 100 : 0)}%`,
-                            height: '100%',
-                            background: g.ocupacion >= g.cupo_maximo ? 'var(--danger)' : g.ocupacion >= g.cupo_maximo * 0.8 ? 'var(--warning)' : 'var(--success)'
-                          }} />
-                        </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+                  {stats.map((s, idx) => (
+                    <div key={idx} className="card" style={{ padding: '24px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                      <div style={{
+                        width: 54, height: 54, borderRadius: 'var(--radius)',
+                        background: 'var(--gray-50)', color: s.color,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '1.6rem', border: `1.5px solid ${s.color}22`
+                      }}>
+                        {s.icon}
                       </div>
-                    </td>
-                  </tr>
-                ))}
-                {gruposRecientes.length === 0 && (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: 20, color: 'var(--gray-400)' }}>
-                      No hay grupos habilitados.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+                      <div>
+                        <div style={{ fontSize: '1.9rem', fontWeight: 800, color: 'var(--gray-900)', lineHeight: 1 }}>
+                          {s.value ?? 0}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', marginTop: 4, fontWeight: 500 }}>
+                          {s.label}
+                        </div>
 
-      {/* Quick Access */}
-      <div className="card" style={{ marginTop: 24 }}>
-        <div className="card-header">
-          <span className="card-title">Consultas Rápidas</span>
-        </div>
-        <div style={{ padding: '0 20px 20px 20px', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <Link to="/autoridad/grupos" className="btn btn-outline btn-sm">Grupos Habilitados</Link>
-          <Link to="/autoridad/docentes" className="btn btn-outline btn-sm">Docentes Asignados</Link>
-          <Link to="/autoridad/horarios" className="btn btn-outline btn-sm">Horarios</Link>
-          <Link to="/autoridad/estadisticas" className="btn btn-outline btn-sm">Estadísticas Generales</Link>
-        </div>
-      </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-      {/* CSS for spin animation */}
-      <style>{`
+
+                {/* Two-column tables */}
+                <div className="chart-grid" style={{ marginTop: 24 }}>
+                  {/* Postulantes por Carrera */}
+                  <div className="chart-card">
+                    <div className="chart-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span><FiBarChart2 style={{ marginRight: 6 }} />Postulantes por Carrera</span>
+                      <Link to="/autoridad/estadisticas" style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>Ver estadísticas</Link>
+                    </div>
+                    <div className="table-container">
+                      <table className="table" style={{ fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr>
+                            <th>Carrera</th>
+                            <th style={{ textAlign: 'right' }}>Total Postulantes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {postulantesPorCarrera.map((c, idx) => (
+                            <tr key={idx}>
+                              <td><strong>{c.carrera || 'Sin especificar'}</strong></td>
+                              <td style={{ textAlign: 'right' }}>
+                                <span className="badge badge-info" style={{ textTransform: 'none' }}>{c.total}</span>
+                              </td>
+                            </tr>
+                          ))}
+                          {postulantesPorCarrera.length === 0 && (
+                            <tr>
+                              <td colSpan={2} style={{ textAlign: 'center', padding: 20, color: 'var(--gray-400)' }}>
+                                No hay datos de postulantes por carrera.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Grupos Recientes */}
+                  <div className="chart-card">
+                    <div className="chart-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span><FiGrid style={{ marginRight: 6 }} />Grupos Habilitados Recientes</span>
+                      <Link to="/autoridad/grupos" style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>Ver todos</Link>
+                    </div>
+                    <div className="table-container">
+                      <table className="table" style={{ fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr>
+                            <th>Código</th>
+                            <th>Carrera</th>
+                            <th>Turno</th>
+                            <th>Aula</th>
+                            <th>Ocupación</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gruposRecientes.map(g => (
+                            <tr key={g.id}>
+                              <td><strong>{g.codigo}</strong></td>
+                              <td>{g.carrera}</td>
+                              <td style={{ textTransform: 'capitalize' }}>{g.turno}</td>
+                              <td>{g.aula}</td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ fontWeight: 600 }}>{g.ocupacion} / {g.cupo_maximo}</span>
+                                  <div style={{
+                                    width: 48, height: 6,
+                                    background: 'var(--gray-200)', borderRadius: 3, overflow: 'hidden'
+                                  }}>
+                                    <div style={{
+                                      width: `${Math.min(100, g.cupo_maximo > 0 ? (g.ocupacion / g.cupo_maximo) * 100 : 0)}%`,
+                                      height: '100%',
+                                      background: g.ocupacion >= g.cupo_maximo ? 'var(--danger)' : g.ocupacion >= g.cupo_maximo * 0.8 ? 'var(--warning)' : 'var(--success)'
+                                    }} />
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {gruposRecientes.length === 0 && (
+                            <tr>
+                              <td colSpan={5} style={{ textAlign: 'center', padding: 20, color: 'var(--gray-400)' }}>
+                                No hay grupos habilitados.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Access */}
+                <div className="card" style={{ marginTop: 24 }}>
+                  <div className="card-header">
+                    <span className="card-title">Consultas Rápidas</span>
+                  </div>
+                  <div style={{ padding: '0 20px 20px 20px', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    <Link to="/autoridad/grupos" className="btn btn-outline btn-sm">Grupos Habilitados</Link>
+                    <Link to="/autoridad/docentes" className="btn btn-outline btn-sm">Docentes Asignados</Link>
+                    <Link to="/autoridad/horarios" className="btn btn-outline btn-sm">Horarios</Link>
+                    <Link to="/autoridad/estadisticas" className="btn btn-outline btn-sm">Estadísticas Generales</Link>
+                  </div>
+                </div>
+
+                {/* CSS for spin animation */}
+                <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
       `}</style>
-    </Layout>
-  )
+
+              </Layout>
+              )
 }

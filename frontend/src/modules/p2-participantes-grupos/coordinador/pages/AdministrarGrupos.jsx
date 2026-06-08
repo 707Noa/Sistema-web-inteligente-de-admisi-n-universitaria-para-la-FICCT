@@ -13,24 +13,24 @@ const TURNOS = ['mañana', 'tarde', 'noche']
 const TURNO_LABELS = { mañana: 'Mañana (08:00-12:00)', tarde: 'Tarde (12:00-16:00)', noche: 'Noche (16:00-20:00)' }
 const MATERIAS_ORDEN = ['Computación', 'Física', 'Inglés', 'Matemáticas']
 const TURNO_HORAS = {
-  mañana: [['08:00','09:00'],['09:00','10:00'],['10:00','11:00'],['11:00','12:00']],
-  tarde:  [['12:00','13:00'],['13:00','14:00'],['14:00','15:00'],['15:00','16:00']],
-  noche:  [['16:00','17:00'],['17:00','18:00'],['18:00','19:00'],['19:00','20:00']],
+  mañana: [['08:00', '09:00'], ['09:00', '10:00'], ['10:00', '11:00'], ['11:00', '12:00']],
+  tarde: [['12:00', '13:00'], ['13:00', '14:00'], ['14:00', '15:00'], ['15:00', '16:00']],
+  noche: [['16:00', '17:00'], ['17:00', '18:00'], ['18:00', '19:00'], ['19:00', '20:00']],
 }
 
 export default function AdministrarGrupos() {
-  const [grupos, setGrupos]         = useState([])
-  const [loading, setLoading]       = useState(true)
+  const [grupos, setGrupos] = useState([])
+  const [loading, setLoading] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState('')
-  const [filtroTurno, setFiltroTurno]   = useState('')
+  const [filtroTurno, setFiltroTurno] = useState('')
 
   // Modales: null | 'ver' | 'generar' | 'resultGenerar' | 'asignar' | 'resultAsignar' | 'confirmarEliminar'
-  const [modal, setModal]         = useState(null)
-  const [detalle, setDetalle]     = useState(null)
+  const [modal, setModal] = useState(null)
+  const [detalle, setDetalle] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
   // Estados de operaciones
-  const [generando, setGenerando]   = useState(false)
+  const [generando, setGenerando] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [resultGenerar, setResultGenerar] = useState(null)
 
@@ -59,12 +59,12 @@ export default function AdministrarGrupos() {
 
   // ── Ver detalle ──
   const openVer = async (g) => {
-    try { const r = await getGrupo(g.id); setDetalle(r.data); setModal('ver') } catch {}
+    try { const r = await getGrupo(g.id); setDetalle(r.data); setModal('ver') } catch { }
   }
 
   // ── Toggle estado por clic en badge ──
   const handleToggle = async (g) => {
-    try { await toggleEstadoGrupo(g.id); fetchGrupos() } catch {}
+    try { await toggleEstadoGrupo(g.id); fetchGrupos() } catch { }
   }
 
   // ── Generar grupos automáticamente ──
@@ -141,7 +141,7 @@ export default function AdministrarGrupos() {
           display: 'flex', gap: 8, alignItems: 'center',
           padding: '10px 16px', borderRadius: 'var(--radius)', marginBottom: 16, fontSize: '0.875rem',
           background: msg.type === 'success' ? 'var(--success-light)' : 'var(--danger-light)',
-          color:      msg.type === 'success' ? '#065f46' : '#991b1b',
+          color: msg.type === 'success' ? '#065f46' : '#991b1b',
         }}>
           {msg.type === 'success' ? <FiCheckCircle /> : <FiAlertCircle />}
           <span style={{ flex: 1 }}>{msg.text}</span>
@@ -235,12 +235,12 @@ export default function AdministrarGrupos() {
             <div className="modal-body">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
                 {[
-                  ['Turno',    detalle.turno],
-                  ['Aula',     detalle.aula || '-'],
-                  ['Cupo',     70],
-                  ['Ocupación',`${detalle.ocupacion} / 70`],
-                  ['Estado',   detalle.estado],
-                  ['Días',     (detalle.dias || []).length],
+                  ['Turno', detalle.turno],
+                  ['Aula', detalle.aula || '-'],
+                  ['Cupo', 70],
+                  ['Ocupación', `${detalle.ocupacion} / 70`],
+                  ['Estado', detalle.estado],
+                  ['Días', (detalle.dias || []).length],
                 ].map(([l, v]) => (
                   <div key={l} style={{ textAlign: 'center', padding: 10, background: 'var(--gray-50)', borderRadius: 'var(--radius)' }}>
                     <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', textTransform: 'capitalize' }}>{v}</div>
@@ -248,7 +248,6 @@ export default function AdministrarGrupos() {
                   </div>
                 ))}
               </div>
-
               <p style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: 12 }}>
                 <strong>Días:</strong> {(detalle.dias || []).join(', ') || '-'}
               </p>
@@ -277,6 +276,7 @@ export default function AdministrarGrupos() {
                   </tbody>
                 </table>
               </div>
+
             </div>
             <div className="modal-footer">
               <button className="btn btn-outline" onClick={close}>Cerrar</button>
@@ -356,8 +356,8 @@ export default function AdministrarGrupos() {
                 <>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                     {[
-                      ['Inscritos contados',  resultGenerar.total_inscritos,  'var(--primary)'],
-                      ['Grupos generados',    resultGenerar.grupos_generados, 'var(--success)'],
+                      ['Inscritos contados', resultGenerar.total_inscritos, 'var(--primary)'],
+                      ['Grupos generados', resultGenerar.grupos_generados, 'var(--success)'],
                     ].map(([l, v, c]) => (
                       <div key={l} style={{ textAlign: 'center', padding: 14, background: 'var(--gray-50)', borderRadius: 'var(--radius)' }}>
                         <div style={{ fontSize: '2rem', fontWeight: 800, color: c }}>{v}</div>

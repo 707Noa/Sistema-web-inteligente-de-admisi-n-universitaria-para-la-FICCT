@@ -39,6 +39,8 @@ class PreinscripcionRequest extends FormRequest
             'otros' => 'nullable|string',
             'imagen_ci' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
             'imagen_titulo_bachiller' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'fotografia' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'preferencia_turno' => 'required|string|in:manana,tarde,noche',
         ];
     }
 
@@ -64,6 +66,12 @@ class PreinscripcionRequest extends FormRequest
             'imagen_titulo_bachiller.image' => 'El archivo del título debe ser una imagen.',
             'imagen_titulo_bachiller.mimes' => 'El título debe estar en formato JPG, JPEG, PNG o WEBP.',
             'imagen_titulo_bachiller.max' => 'La imagen del título no debe superar los 5 MB.',
+            'fotografia.required' => 'La fotografía del postulante es obligatoria.',
+            'fotografia.file' => 'El archivo de la fotografía no es válido.',
+            'fotografia.mimes' => 'La fotografía debe estar en formato JPG, JPEG, PNG o WEBP.',
+            'fotografia.max' => 'La fotografía no debe superar los 5 MB.',
+            'preferencia_turno.required' => 'La preferencia de turno es obligatoria.',
+            'preferencia_turno.in' => 'El turno seleccionado no es válido.',
         ];
     }
 }
