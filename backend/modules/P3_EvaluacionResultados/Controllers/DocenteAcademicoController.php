@@ -7,6 +7,9 @@ use App\Models\Asistencia;
 use App\Models\DocenteGrupoAsignacion;
 use App\Models\Examen;
 use App\Models\Grupo;
+use App\Models\Aviso;
+use App\Models\Tarea;
+use App\Models\Tema;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -289,6 +292,98 @@ class DocenteAcademicoController extends Controller
         ]);
     }
 
+    // ── Guardar calificaciones masivas (varios estudiantes) ───────────────────
+
+    public function guardarCalificacionesMasivas(Request $request): JsonResponse
+    {
+        $request->validate([
+            'grupo_id' => 'required|exists:grupos,id',
+            'calificaciones' => 'required|array',
+            'calificaciones.*.postulante_id' => 'required|exists:postulantes,id',
+            'calificaciones.*.nota_1' => 'nullable|numeric|min:0|max:100',
+            'calificaciones.*.nota_2' => 'nullable|numeric|min:0|max:100',
+            'calificaciones.*.nota_3' => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        $userId = $request->user()->id;
+        $grupoId = $request->grupo_id;
+
+        $asignacion = DocenteGrupoAsignacion::where('docente_user_id', $userId)
+            ->where('grupo_id', $grupoId)
+            ->where('estado', 'activo')
+            ->first();
+
+        if (!$asignacion) {
+            return response()->json(['message' => 'No tienes asignado este grupo.'], 403);
+        }
+
+        $materiaId = $asignacion->materia_id;
+        $grupoPostulanteIds = DB::table('grupo_postulante')
+            ->where('grupo_id', $grupoId)
+            ->pluck('postulante_id')
+            ->toArray();
+
+        DB::beginTransaction();
+        try {
+            $count = 0;
+            foreach ($request->calificaciones as $item) {
+                $pid = $item['postulante_id'];
+                if (!in_array($pid, $grupoPostulanteIds)) {
+                    throw new \Exception("El estudiante con ID {$pid} no pertenece al grupo.");
+                }
+
+                $examen = Examen::firstOrNew([
+                    'postulante_id' => $pid,
+                    'materia_id'    => $materiaId,
+                ]);
+
+                // Validaciones adicionales por si acaso
+                foreach (['nota_1', 'nota_2', 'nota_3'] as $notaField) {
+                    if (isset($item[$notaField]) && $item[$notaField] !== null && $item[$notaField] !== '') {
+                        $val = $item[$notaField];
+                        if (!is_numeric($val) || floatval($val) < 0 || floatval($val) > 100) {
+                            throw new \Exception("Las notas deben ser valores numéricos entre 0 y 100.");
+                        }
+                    }
+                }
+
+                $examen->nota_1 = isset($item['nota_1']) && $item['nota_1'] !== '' && $item['nota_1'] !== null ? floatval($item['nota_1']) : null;
+                $examen->nota_2 = isset($item['nota_2']) && $item['nota_2'] !== '' && $item['nota_2'] !== null ? floatval($item['nota_2']) : null;
+                $examen->nota_3 = isset($item['nota_3']) && $item['nota_3'] !== '' && $item['nota_3'] !== null ? floatval($item['nota_3']) : null;
+
+                if ($examen->nota_1 !== null && $examen->nota_2 !== null && $examen->nota_3 !== null) {
+                    $examen->promedio = round(($examen->nota_1 + $examen->nota_2 + $examen->nota_3) / 3, 2);
+                    $examen->estado = $examen->promedio >= 60 ? 'aprobado' : 'reprobado';
+                } else {
+                    $examen->promedio = null;
+                    $examen->estado = 'pendiente';
+                }
+
+                $examen->save();
+                $count++;
+            }
+
+            DB::commit();
+
+            AuditoriaService::registrar(
+                $userId,
+                'Registró calificaciones masivas',
+                'Calificaciones',
+                $request,
+                "Grupo ID: {$grupoId} | Materia ID: {$materiaId} | Registros actualizados: {$count}"
+            );
+
+            return response()->json([
+                'message' => "Calificaciones guardadas correctamente. Se actualizaron {$count} registros.",
+                'count' => $count
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al guardar las notas: ' . $e->getMessage()], 422);
+        }
+    }
+
     // ── Mis Grupos completo (para la vista fusionada) ────────────────────────
 
     public function misGruposCompleto(Request $request): JsonResponse
@@ -297,7 +392,7 @@ class DocenteAcademicoController extends Controller
         $user   = $request->user()->load('especialidadDocente.materia');
 
         // Todas las asignaciones activas del docente
-        $asignaciones = DocenteGrupoAsignacion::with(['grupo.postulantes'])
+        $asignaciones = DocenteGrupoAsignacion::with(['grupo.postulantes', 'materia'])
             ->where('docente_user_id', $userId)
             ->where('estado', 'activo')
             ->orderBy('hora_inicio')
@@ -311,6 +406,8 @@ class DocenteAcademicoController extends Controller
                 $gruposMap[$gid] = [
                     'id'          => $a->grupo->id,
                     'codigo'      => $a->grupo->codigo,
+                    'materia_id'  => $a->materia_id,
+                    'materia'     => $a->materia?->nombre,
                     'turno'       => $a->turno,
                     'aula'        => $a->grupo->aula,
                     'hora_inicio' => substr($a->hora_inicio, 0, 5),
@@ -360,6 +457,539 @@ class DocenteAcademicoController extends Controller
             'grupos'          => array_values($gruposMap),
             'horario_semanal' => array_values($slots),
         ]);
+    }
+
+    // ── CRUD de Temas ─────────────────────────────────────────────────────────
+
+    public function crearTema(Request $request): JsonResponse
+    {
+        $request->validate([
+            'materia_id' => 'required|exists:materias,id',
+            'titulo' => 'required|string|max:191',
+            'numero' => 'required|integer',
+            'descripcion' => 'nullable|string',
+        ]);
+
+        $userId = $request->user()->id;
+        $assigned = DocenteGrupoAsignacion::where('docente_user_id', $userId)
+            ->where('materia_id', $request->materia_id)
+            ->where('estado', 'activo')
+            ->exists();
+
+        if (!$assigned) {
+            return response()->json(['message' => 'No tienes asignada esta materia.'], 403);
+        }
+
+        $tema = Tema::create([
+            'materia_id' => $request->materia_id,
+            'titulo' => $request->titulo,
+            'numero' => $request->numero,
+            'descripcion' => $request->descripcion,
+        ]);
+
+        AuditoriaService::registrar($userId, 'Creó tema de materia', 'Temas', $request, "Materia ID: {$request->materia_id} | Tema: {$tema->titulo}");
+
+        return response()->json($tema, 201);
+    }
+
+    public function actualizarTema(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'titulo' => 'required|string|max:191',
+            'numero' => 'required|integer',
+            'descripcion' => 'nullable|string',
+        ]);
+
+        $tema = Tema::findOrFail($id);
+        $userId = $request->user()->id;
+        
+        $assigned = DocenteGrupoAsignacion::where('docente_user_id', $userId)
+            ->where('materia_id', $tema->materia_id)
+            ->where('estado', 'activo')
+            ->exists();
+
+        if (!$assigned) {
+            return response()->json(['message' => 'No tienes asignada esta materia.'], 403);
+        }
+
+        $tema->update($request->only(['titulo', 'numero', 'descripcion']));
+
+        AuditoriaService::registrar($userId, 'Actualizó tema de materia', 'Temas', $request, "Tema ID: {$id} | Título: {$tema->titulo}");
+
+        return response()->json($tema);
+    }
+
+    public function eliminarTema(Request $request, int $id): JsonResponse
+    {
+        $tema = Tema::findOrFail($id);
+        $userId = $request->user()->id;
+
+        $assigned = DocenteGrupoAsignacion::where('docente_user_id', $userId)
+            ->where('materia_id', $tema->materia_id)
+            ->where('estado', 'activo')
+            ->exists();
+
+        if (!$assigned) {
+            return response()->json(['message' => 'No tienes asignada esta materia.'], 403);
+        }
+
+        $tema->delete();
+
+        AuditoriaService::registrar($userId, 'Eliminó tema de materia', 'Temas', $request, "Tema ID: {$id}");
+
+        return response()->json(['message' => 'Tema eliminado correctamente.']);
+    }
+
+    // ── CRUD de Avisos ────────────────────────────────────────────────────────
+
+    public function getAvisos(Request $request, int $grupoId, int $materiaId): JsonResponse
+    {
+        $userId = $request->user()->id;
+        $assigned = DocenteGrupoAsignacion::where('docente_user_id', $userId)
+            ->where('grupo_id', $grupoId)
+            ->where('materia_id', $materiaId)
+            ->where('estado', 'activo')
+            ->exists();
+
+        if (!$assigned) {
+            return response()->json(['message' => 'No tienes asignado este grupo/materia.'], 403);
+        }
+
+        $avisos = Aviso::where('grupo_id', $grupoId)
+            ->where('materia_id', $materiaId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($avisos);
+    }
+
+    public function crearAviso(Request $request): JsonResponse
+    {
+        $request->validate([
+            'grupo_id'   => 'required|exists:grupos,id',
+            'materia_id' => 'required|exists:materias,id',
+            'titulo'     => 'required|string|max:191',
+            'contenido'  => 'required|string',
+        ]);
+
+        $userId = $request->user()->id;
+        $assigned = DocenteGrupoAsignacion::where('docente_user_id', $userId)
+            ->where('grupo_id', $request->grupo_id)
+            ->where('materia_id', $request->materia_id)
+            ->where('estado', 'activo')
+            ->exists();
+
+        if (!$assigned) {
+            return response()->json(['message' => 'No tienes asignado este grupo/materia.'], 403);
+        }
+
+        $aviso = Aviso::create([
+            'docente_user_id' => $userId,
+            'grupo_id'        => $request->grupo_id,
+            'materia_id'      => $request->materia_id,
+            'titulo'          => $request->titulo,
+            'contenido'       => $request->contenido,
+        ]);
+
+        AuditoriaService::registrar($userId, 'Creó aviso', 'Avisos', $request, "Grupo ID: {$request->grupo_id} | Título: {$aviso->titulo}");
+
+        return response()->json($aviso, 201);
+    }
+
+    public function actualizarAviso(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'titulo'    => 'required|string|max:191',
+            'contenido' => 'required|string',
+        ]);
+
+        $aviso = Aviso::findOrFail($id);
+        $userId = $request->user()->id;
+
+        if ($aviso->docente_user_id !== $userId) {
+            return response()->json(['message' => 'No puedes editar un aviso de otro docente.'], 403);
+        }
+
+        $aviso->update($request->only(['titulo', 'contenido']));
+
+        AuditoriaService::registrar($userId, 'Actualizó aviso', 'Avisos', $request, "Aviso ID: {$id} | Título: {$aviso->titulo}");
+
+        return response()->json($aviso);
+    }
+
+    public function eliminarAviso(Request $request, int $id): JsonResponse
+    {
+        $aviso = Aviso::findOrFail($id);
+        $userId = $request->user()->id;
+
+        if ($aviso->docente_user_id !== $userId) {
+            return response()->json(['message' => 'No puedes eliminar un aviso de otro docente.'], 403);
+        }
+
+        $aviso->delete();
+
+        AuditoriaService::registrar($userId, 'Eliminó aviso', 'Avisos', $request, "Aviso ID: {$id}");
+
+        return response()->json(['message' => 'Aviso eliminado correctamente.']);
+    }
+
+    // ── CRUD de Tareas ────────────────────────────────────────────────────────
+
+    public function getTareas(Request $request, int $grupoId, int $materiaId): JsonResponse
+    {
+        $userId = $request->user()->id;
+        $assigned = DocenteGrupoAsignacion::where('docente_user_id', $userId)
+            ->where('grupo_id', $grupoId)
+            ->where('materia_id', $materiaId)
+            ->where('estado', 'activo')
+            ->exists();
+
+        if (!$assigned) {
+            return response()->json(['message' => 'No tienes asignado este grupo/materia.'], 403);
+        }
+
+        $tareas = Tarea::where('grupo_id', $grupoId)
+            ->where('materia_id', $materiaId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return response()->json($tareas);
+    }
+
+    public function crearTarea(Request $request): JsonResponse
+    {
+        $request->validate([
+            'grupo_id'          => 'required|exists:grupos,id',
+            'materia_id'        => 'required|exists:materias,id',
+            'gestion'           => 'required|string|max:50',
+            'titulo'            => 'required|string|max:191',
+            'descripcion'       => 'required|string',
+            'fecha_publicacion' => 'required|date',
+            'fecha_limite'      => 'required|date|after_or_equal:fecha_publicacion',
+            'estado'            => 'required|in:activa,inactiva',
+            'archivo'           => 'nullable|file|max:5120', // Max 5MB
+        ]);
+
+        $userId = $request->user()->id;
+        $assigned = DocenteGrupoAsignacion::where('docente_user_id', $userId)
+            ->where('grupo_id', $request->grupo_id)
+            ->where('materia_id', $request->materia_id)
+            ->where('estado', 'activo')
+            ->exists();
+
+        if (!$assigned) {
+            return response()->json(['message' => 'No tienes asignado este grupo/materia.'], 403);
+        }
+
+        $archivoPath = null;
+        if ($request->hasFile('archivo')) {
+            $archivoPath = $request->file('archivo')->store('tareas/archivos', 'public');
+        }
+
+        $tarea = Tarea::create([
+            'docente_user_id'   => $userId,
+            'grupo_id'          => $request->grupo_id,
+            'materia_id'        => $request->materia_id,
+            'gestion'           => $request->gestion,
+            'titulo'            => $request->titulo,
+            'descripcion'       => $request->descripcion,
+            'fecha_publicacion' => $request->fecha_publicacion,
+            'fecha_limite'      => $request->fecha_limite,
+            'estado'            => $request->estado,
+            'archivo_path'      => $archivoPath,
+        ]);
+
+        AuditoriaService::registrar($userId, 'Creó tarea', 'Tareas', $request, "Grupo ID: {$request->grupo_id} | Título: {$tarea->titulo}");
+
+        return response()->json($tarea, 201);
+    }
+
+    public function actualizarTarea(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'titulo'            => 'required|string|max:191',
+            'descripcion'       => 'required|string',
+            'fecha_publicacion' => 'required|date',
+            'fecha_limite'      => 'required|date|after_or_equal:fecha_publicacion',
+            'estado'            => 'required|in:activa,inactiva',
+            'archivo'           => 'nullable|file|max:5120',
+        ]);
+
+        $tarea = Tarea::findOrFail($id);
+        $userId = $request->user()->id;
+
+        if ($tarea->docente_user_id !== $userId) {
+            return response()->json(['message' => 'No puedes editar una tarea de otro docente.'], 403);
+        }
+
+        $data = $request->only(['titulo', 'descripcion', 'fecha_publicacion', 'fecha_limite', 'estado']);
+
+        if ($request->hasFile('archivo')) {
+            if ($tarea->archivo_path) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($tarea->archivo_path);
+            }
+            $data['archivo_path'] = $request->file('archivo')->store('tareas/archivos', 'public');
+        }
+
+        $tarea->update($data);
+
+        AuditoriaService::registrar($userId, 'Actualizó tarea', 'Tareas', $request, "Tarea ID: {$id} | Título: {$tarea->titulo}");
+
+        return response()->json($tarea);
+    }
+
+    public function eliminarTarea(Request $request, int $id): JsonResponse
+    {
+        $tarea = Tarea::findOrFail($id);
+        $userId = $request->user()->id;
+
+        if ($tarea->docente_user_id !== $userId) {
+            return response()->json(['message' => 'No puedes eliminar una tarea de otro docente.'], 403);
+        }
+
+        if ($tarea->archivo_path) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($tarea->archivo_path);
+        }
+
+        $tarea->delete();
+
+        AuditoriaService::registrar($userId, 'Eliminó tarea', 'Tareas', $request, "Tarea ID: {$id}");
+
+        return response()->json(['message' => 'Tarea eliminada correctamente.']);
+    }
+
+    // ── Importación de Calificaciones por CSV ──────────────────────────────────
+
+    public function previsualizarCalificacionesCsv(Request $request): JsonResponse
+    {
+        $request->validate([
+            'grupo_id' => 'required|exists:grupos,id',
+            'file'     => 'required|file|mimes:csv,txt'
+        ]);
+
+        $userId = $request->user()->id;
+        $grupoId = $request->grupo_id;
+
+        $asignacion = DocenteGrupoAsignacion::where('docente_user_id', $userId)
+            ->where('grupo_id', $grupoId)
+            ->where('estado', 'activo')
+            ->first();
+
+        if (!$asignacion) {
+            return response()->json(['message' => 'No tienes asignado este grupo.'], 403);
+        }
+
+        $materiaId = $asignacion->materia_id;
+        $grupo = Grupo::with('postulantes')->findOrFail($grupoId);
+        $grupoEstudiantes = $grupo->postulantes;
+        $grupoCis = $grupoEstudiantes->pluck('ci')->toArray();
+        $estudiantesMap = $grupoEstudiantes->keyBy('ci');
+
+        $path = $request->file('file')->getRealPath();
+        $file = fopen($path, 'r');
+
+        // Detectar separador
+        $firstLine = fgets($file);
+        rewind($file);
+        $separator = ',';
+        if (strpos($firstLine, ';') !== false && strpos($firstLine, ',') === false) {
+            $separator = ';';
+        }
+
+        $headers = fgetcsv($file, 0, $separator);
+        if (!$headers) {
+            fclose($file);
+            return response()->json(['message' => 'Archivo CSV vacío o inválido.'], 422);
+        }
+
+        // Normalizar cabeceras
+        $headers = array_map(function($h) {
+            $h = preg_replace('/[\x{FEFF}]/u', '', $h); // Quitar BOM
+            return strtolower(trim($h));
+        }, $headers);
+
+        $allowedHeaders = ['ci', 'examen_1', 'examen_2', 'examen_3', 'estudiante'];
+        foreach ($headers as $h) {
+            if (!in_array($h, $allowedHeaders)) {
+                fclose($file);
+                return response()->json(['message' => 'El archivo CSV contiene columnas no permitidas.'], 422);
+            }
+        }
+
+        $ciIdx = array_search('ci', $headers);
+        $e1Idx = array_search('examen_1', $headers);
+        $e2Idx = array_search('examen_2', $headers);
+        $e3Idx = array_search('examen_3', $headers);
+
+        if ($ciIdx === false || $e1Idx === false || $e2Idx === false || $e3Idx === false) {
+            fclose($file);
+            return response()->json(['message' => 'Las columnas ci, examen_1, examen_2 y examen_3 son obligatorias.'], 422);
+        }
+
+        $totalRows = 0;
+        $validRows = 0;
+        $invalidRows = 0;
+        $errors = [];
+        $updates = [];
+
+        while (($row = fgetcsv($file, 0, $separator)) !== false) {
+            if (empty($row) || count($row) < 4) continue;
+            $totalRows++;
+
+            $ci = trim($row[$ciIdx]);
+            $n1 = trim($row[$e1Idx]);
+            $n2 = trim($row[$e2Idx]);
+            $n3 = trim($row[$e3Idx]);
+
+            $rowError = null;
+
+            if (!in_array($ci, $grupoCis)) {
+                $existsGeneral = \App\Models\Postulante::where('ci', $ci)->exists();
+                if ($existsGeneral) {
+                    $rowError = "El CI {$ci} no pertenece al grupo {$grupo->codigo}.";
+                } else {
+                    $rowError = "El CI {$ci} no existe.";
+                }
+            } else {
+                foreach ([1 => $n1, 2 => $n2, 3 => $n3] as $idx => $n) {
+                    if ($n !== '') {
+                        if (!is_numeric($n) || floatval($n) < 0 || floatval($n) > 100) {
+                            $rowError = "La nota de examen_{$idx} debe estar entre 0 y 100.";
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if ($rowError) {
+                $invalidRows++;
+                $errors[] = [
+                    'row' => $totalRows + 1,
+                    'error' => $rowError
+                ];
+            } else {
+                $validRows++;
+                $postulante = $estudiantesMap[$ci];
+                
+                $examen = Examen::where('postulante_id', $postulante->id)
+                    ->where('materia_id', $materiaId)
+                    ->first();
+
+                $n1Val = $n1 !== '' ? floatval($n1) : null;
+                $n2Val = $n2 !== '' ? floatval($n2) : null;
+                $n3Val = $n3 !== '' ? floatval($n3) : null;
+
+                $promedio = null;
+                $estado = 'Pendiente';
+                if ($n1Val !== null && $n2Val !== null && $n3Val !== null) {
+                    $promedio = round(($n1Val + $n2Val + $n3Val) / 3, 2);
+                    $estado = $promedio >= 60 ? 'APROBADO' : 'REPROBADO';
+                }
+
+                $updates[] = [
+                    'postulante_id' => $postulante->id,
+                    'nombre' => trim($postulante->nombres . ' ' . $postulante->apellidos),
+                    'ci' => $ci,
+                    'nota_1' => $n1Val,
+                    'nota_2' => $n2Val,
+                    'nota_3' => $n3Val,
+                    'promedio' => $promedio,
+                    'estado_nota' => $estado,
+                    'nota_1_old' => $examen?->nota_1,
+                    'nota_2_old' => $examen?->nota_2,
+                    'nota_3_old' => $examen?->nota_3,
+                    'sobreescribir' => ($examen !== null),
+                ];
+            }
+        }
+
+        fclose($file);
+
+        return response()->json([
+            'total_rows' => $totalRows,
+            'valid_rows' => $validRows,
+            'invalid_rows' => $invalidRows,
+            'errors' => $errors,
+            'updates' => $updates,
+        ]);
+    }
+
+    public function importarCalificacionesCsv(Request $request): JsonResponse
+    {
+        $request->validate([
+            'grupo_id' => 'required|exists:grupos,id',
+            'updates' => 'required|array',
+            'updates.*.postulante_id' => 'required|exists:postulantes,id',
+            'updates.*.nota_1' => 'nullable|numeric|min:0|max:100',
+            'updates.*.nota_2' => 'nullable|numeric|min:0|max:100',
+            'updates.*.nota_3' => 'nullable|numeric|min:0|max:100',
+        ]);
+
+        $userId = $request->user()->id;
+        $grupoId = $request->grupo_id;
+
+        $asignacion = DocenteGrupoAsignacion::where('docente_user_id', $userId)
+            ->where('grupo_id', $grupoId)
+            ->where('estado', 'activo')
+            ->first();
+
+        if (!$asignacion) {
+            return response()->json(['message' => 'No tienes asignado este grupo.'], 403);
+        }
+
+        $materiaId = $asignacion->materia_id;
+        $grupo = Grupo::findOrFail($grupoId);
+        $grupoPostulanteIds = DB::table('grupo_postulante')
+            ->where('grupo_id', $grupoId)
+            ->pluck('postulante_id')
+            ->toArray();
+
+        DB::beginTransaction();
+        try {
+            $count = 0;
+            foreach ($request->updates as $item) {
+                $pid = $item['postulante_id'];
+                if (!in_array($pid, $grupoPostulanteIds)) {
+                    throw new \Exception("El estudiante con ID {$pid} no pertenece al grupo.");
+                }
+
+                $examen = Examen::firstOrNew([
+                    'postulante_id' => $pid,
+                    'materia_id'    => $materiaId,
+                ]);
+
+                $examen->nota_1 = isset($item['nota_1']) && $item['nota_1'] !== '' ? floatval($item['nota_1']) : null;
+                $examen->nota_2 = isset($item['nota_2']) && $item['nota_2'] !== '' ? floatval($item['nota_2']) : null;
+                $examen->nota_3 = isset($item['nota_3']) && $item['nota_3'] !== '' ? floatval($item['nota_3']) : null;
+
+                if ($examen->nota_1 !== null && $examen->nota_2 !== null && $examen->nota_3 !== null) {
+                    $examen->promedio = round(($examen->nota_1 + $examen->nota_2 + $examen->nota_3) / 3, 2);
+                    $examen->estado = $examen->promedio >= 60 ? 'aprobado' : 'reprobado';
+                } else {
+                    $examen->promedio = null;
+                    $examen->estado = 'pendiente';
+                }
+
+                $examen->save();
+                $count++;
+            }
+
+            DB::commit();
+
+            AuditoriaService::registrar(
+                $userId,
+                'Importó calificaciones por CSV',
+                'Calificaciones',
+                $request,
+                "Grupo ID: {$grupoId} | Materia ID: {$materiaId} | Registros actualizados: {$count}"
+            );
+
+            return response()->json(['message' => "Notas importadas correctamente. Se actualizaron {$count} registros."]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Error al guardar las notas: ' . $e->getMessage()], 422);
+        }
     }
 
 }

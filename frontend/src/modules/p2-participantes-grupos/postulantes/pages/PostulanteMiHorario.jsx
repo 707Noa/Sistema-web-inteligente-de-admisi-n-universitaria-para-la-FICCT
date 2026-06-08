@@ -25,6 +25,13 @@ const TURNO_ESTILO = {
   noche:  { bg: '#ede7f6', text: '#4527a0' },
 }
 
+const capitalizeFirstLetter = (str) => {
+  if (!str) return ''
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+}
+
+const formatHour = (timeStr) => (timeStr || '').substring(0, 5)
+
 // ── Componente principal ──────────────────────────────────────────────────────
 
 export default function PostulanteMiHorario() {
@@ -43,21 +50,32 @@ export default function PostulanteMiHorario() {
 
   if (loading) return <Layout><Loading /></Layout>
 
-  const grupo   = data?.grupo           || null
-  const slots   = data?.horario_semanal || []
-  const docentes = data?.docentes       || {}
+  const grupo = data?.grupo || null
 
-  // Mapa de color por nombre de materia
-  const materiaNombres = [...new Set(
-    slots.flatMap(s => DIAS_SEMANA.map(d => s[d]?.materia).filter(Boolean))
-  )]
-  const colorMap = {}
-  materiaNombres.forEach((m, i) => {
-    colorMap[m] = MATERIA_COLORES[i % MATERIA_COLORES.length]
-  })
+  const getHoursForTurno = (turno) => {
+    const t = (turno || '').toLowerCase()
+    if (t === 'mañana' || t === 'manana') {
+      return ['08:00', '09:00', '10:00', '11:00']
+    } else if (t === 'tarde') {
+      return ['13:00', '14:00', '15:00']
+    } else if (t === 'noche') {
+      return ['16:00', '17:00', '18:00', '19:00']
+    }
+    return []
+  }
 
-  const hasSabado = slots.some(s => s.sabado !== null)
-  const dias = hasSabado ? [...DIAS_SEMANA, 'sabado'] : DIAS_SEMANA
+  const getCellDataForPostulante = (dia, hora) => {
+    const asig = (data?.asignaciones || []).find(a => 
+      (a.dia || '').toLowerCase() === dia.toLowerCase() && 
+      (a.hora_inicio || '').substring(0, 5) === hora
+    )
+    if (!asig) return null
+    return {
+      materia: asig.materia,
+      docente: asig.docente || 'Por asignar',
+      aula: grupo?.aula || '-'
+    }
+  }
 
   const turnoKey = (grupo?.turno || '').toLowerCase()
   const ts = TURNO_ESTILO[turnoKey] || { bg: '#f0f4f8', text: '#555' }
@@ -74,8 +92,8 @@ export default function PostulanteMiHorario() {
       </div>
 
       {!grupo ? (
-        <div style={{ textAlign: 'center', padding: 60, color: 'var(--gray-400)', fontSize: '0.95rem' }}>
-          No tienes un grupo asignado. Contacta con tu coordinador académico.
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--gray-500)', fontSize: '0.95rem' }}>
+          Aún no tienes grupo asignado.
         </div>
       ) : (
         <>
@@ -101,114 +119,111 @@ export default function PostulanteMiHorario() {
             <MetaItem label="Aula" value={grupo.aula || '—'} />
           </div>
 
-          {slots.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)', fontSize: '0.9rem' }}>
-              El horario de tu grupo aún no está disponible.
+          {/* ── Grid Horario Calendario ── */}
+          {!data.asignaciones || data.asignaciones.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--gray-500)', fontSize: '0.9rem' }}>
+              El horario aún no fue generado.
             </div>
           ) : (
-            <>
-              {/* ── Tabla de horario semanal ── */}
-              <div style={{
-                overflowX: 'auto',
-                borderRadius: 10,
-                border: '1px solid #bbdefb',
-                boxShadow: '0 2px 8px rgba(21,101,192,0.07)',
-                marginBottom: 20,
-              }}>
-                <table style={{
-                  width: '100%', borderCollapse: 'collapse',
-                  fontSize: '0.875rem', minWidth: 480,
-                }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* Cuadrícula visual */}
+              <div className="card" style={{ padding: '20px', borderRadius: 10, border: '1px solid #bbdefb', boxShadow: '0 2px 8px rgba(21,101,192,0.07)', overflowX: 'auto' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1565c0', marginBottom: 14 }}>
+                  Horario detallado — {grupo.codigo} {(grupo.turno || '').toLowerCase()}
+                </h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'center', minWidth: '600px' }}>
                   <thead>
-                    <tr style={{ background: '#1565c0', color: '#fff' }}>
-                      <th style={{ ...thBase, width: 130, background: '#0d47a1' }}>Hora</th>
-                      {dias.map(d => (
-                        <th key={d} style={thBase}>{DIAS_ETIQUETA[d]}</th>
-                      ))}
+                    <tr style={{ background: '#1565c0', color: 'white' }}>
+                      <th style={{ padding: '10px', border: '1px solid #bbdefb', width: '100px', fontWeight: 600 }}>Hora</th>
+                      <th style={{ padding: '10px', border: '1px solid #bbdefb', fontWeight: 600 }}>Lunes</th>
+                      <th style={{ padding: '10px', border: '1px solid #bbdefb', fontWeight: 600 }}>Martes</th>
+                      <th style={{ padding: '10px', border: '1px solid #bbdefb', fontWeight: 600 }}>Miércoles</th>
+                      <th style={{ padding: '10px', border: '1px solid #bbdefb', fontWeight: 600 }}>Jueves</th>
+                      <th style={{ padding: '10px', border: '1px solid #bbdefb', fontWeight: 600 }}>Viernes</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {slots.map((slot, ri) => (
-                      <tr key={ri} style={{ background: ri % 2 === 0 ? '#fff' : '#f5f9ff' }}>
-                        {/* Columna de hora */}
-                        <td style={{
-                          ...tdBase,
-                          fontWeight: 600, color: '#1565c0',
-                          background: ri % 2 === 0 ? '#e8f1fb' : '#dbeafe',
-                          borderRight: '2px solid #c7d9f0',
-                          whiteSpace: 'nowrap', fontSize: '0.82rem',
-                        }}>
-                          {slot.hora_inicio} – {slot.hora_fin}
-                        </td>
-
-                        {/* Columnas de días */}
-                        {dias.map(d => {
-                          const celda = slot[d]
-                          if (!celda) {
+                    {getHoursForTurno(grupo.turno).map(h => {
+                      const nextHourNum = parseInt(h.split(':')[0], 10) + 1
+                      const nextHour = `${nextHourNum < 10 ? '0' : ''}${nextHourNum}:00`
+                      return (
+                        <tr key={h} style={{ borderBottom: '1px solid #bbdefb' }}>
+                          <td style={{ padding: '10px', fontWeight: 'bold', border: '1px solid #bbdefb', background: '#f5f9ff', fontSize: '0.78rem' }}>
+                            {h} - {nextHour}
+                          </td>
+                          {['lunes', 'martes', 'miercoles', 'jueves', 'viernes'].map(dia => {
+                            const cell = getCellDataForPostulante(dia, h)
                             return (
-                              <td key={d} style={{ ...tdBase, color: '#d0d7e2', fontSize: '0.78rem' }}>
-                                —
+                              <td key={dia} style={{ padding: '6px', border: '1px solid #bbdefb', verticalAlign: 'middle', height: '75px', width: '18%' }}>
+                                {cell ? (
+                                  <div style={{
+                                    background: '#e3f2fd',
+                                    border: '1px solid #90caf9',
+                                    borderRadius: '8px',
+                                    padding: '6px',
+                                    height: '100%',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    justifyContent: 'center',
+                                    fontSize: '0.75rem',
+                                    color: '#0d47a1',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+                                  }}
+                                  title={`Docente: ${cell.docente}\nAula: ${cell.aula}`}
+                                  >
+                                    <strong style={{ color: '#1565c0', fontSize: '0.78rem', marginBottom: '2px', display: 'block' }}>
+                                      {cell.materia}
+                                    </strong>
+                                    <span style={{ display: 'block', fontSize: '0.7rem', color: '#1e88e5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      Docente: {cell.docente}
+                                    </span>
+                                    <span style={{ display: 'block', fontSize: '0.7rem', color: '#1e88e5' }}>
+                                      Aula: {cell.aula}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span style={{ color: '#90caf9', opacity: 0.5, fontSize: '0.8rem' }}>—</span>
+                                )}
                               </td>
                             )
-                          }
-                          const color = colorMap[celda.materia] || '#1565c0'
-                          return (
-                            <td key={d} style={tdBase}>
-                              <span style={{
-                                fontWeight: 700, color,
-                                fontSize: '0.875rem', display: 'block',
-                              }}>
-                                {celda.materia}
-                              </span>
-                              {celda.aula && (
-                                <span style={{
-                                  fontSize: '0.72rem', color: '#6b7280',
-                                  display: 'block', marginTop: 2,
-                                }}>
-                                  Aula {celda.aula}
-                                </span>
-                              )}
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    ))}
+                          })}
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
 
-              {/* ── Docentes por materia ── */}
-              {Object.keys(docentes).length > 0 && (
-                <div className="card" style={{ padding: '16px 22px' }}>
-                  <h3 style={{
-                    fontSize: '0.85rem', fontWeight: 700,
-                    color: '#1565c0', marginBottom: 14,
-                    textTransform: 'uppercase', letterSpacing: '0.3px',
-                  }}>
-                    Docentes
-                  </h3>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                    gap: 12,
-                  }}>
-                    {Object.entries(docentes).map(([materia, docente]) => {
-                      const color = colorMap[materia] || '#1565c0'
-                      return (
-                        <div key={materia} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          <span style={{ fontSize: '0.78rem', fontWeight: 700, color }}>
-                            {materia}
-                          </span>
-                          <span style={{ fontSize: '0.85rem', color: 'var(--gray-700)' }}>
-                            {docente}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
+              {/* Resumen Detallado al Final */}
+              <div className="card" style={{ padding: '20px', borderRadius: 10, border: '1px solid #e0e0e0', background: '#fafafa' }}>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--gray-800)', marginBottom: 14, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                  Resumen Detallado del Horario
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {(data.asignaciones || []).map((a, idx) => {
+                    const diaFormatted = capitalizeFirstLetter(a.dia);
+                    const horaInicioFormatted = formatHour(a.hora_inicio);
+                    const horaFinFormatted = formatHour(a.hora_fin);
+                    return (
+                      <div key={idx} style={{
+                        padding: '12px 16px',
+                        background: 'white',
+                        border: '1px solid #e0e0e0',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        color: 'var(--gray-700)',
+                        lineHeight: 1.6,
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+                      }}>
+                        Materia: <strong>{a.materia}</strong> | Grupo: <strong>{grupo.codigo}</strong> | Docente: <strong>{a.docente || 'Por asignar'}</strong> | Aula: <strong>{grupo.aula || 'Aula asignada'}</strong> | Horario: <strong>{diaFormatted} {horaInicioFormatted} - {horaFinFormatted}</strong>
+                      </div>
+                    )
+                  })}
                 </div>
-              )}
-            </>
+              </div>
+
+            </div>
           )}
         </>
       )}

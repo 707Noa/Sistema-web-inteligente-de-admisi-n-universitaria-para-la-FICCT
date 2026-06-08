@@ -95,6 +95,40 @@ export default function ProcesarAsignacion() {
   const [selDocModal, setSelDocModal]     = useState({})    // materia_id → docente_id
   const [guardandoMat, setGuardandoMat]   = useState({})    // materia_id → bool
 
+  // Tab horarios
+  const [modalHorario, setModalHorario] = useState(null)
+  const [detalleHorario, setDetalleHorario] = useState(null)
+  const [loadingHorario, setLoadingHorario] = useState(false)
+
+  const getCellDataForGroup = (dia, hora) => {
+    if (!detalleHorario) return null
+    const entry = (detalleHorario.horarios || []).find(h => 
+      (h.dia || '').toLowerCase() === dia.toLowerCase() && 
+      (h.hora_inicio || '').substring(0, 5) === hora
+    )
+    if (!entry) return null
+    const asig = (detalleHorario.asignaciones || []).find(a => 
+      String(a.materia_nombre).toLowerCase() === String(entry.materia_nombre).toLowerCase()
+    )
+    return {
+      materia: entry.materia_nombre,
+      docente: asig?.docente_name || 'Por asignar',
+      aula: detalleHorario.aula || '-'
+    }
+  }
+
+  const getHoursForTurno = (turno) => {
+    const t = (turno || '').toLowerCase()
+    if (t === 'mañana' || t === 'manana') {
+      return ['08:00', '09:00', '10:00', '11:00']
+    } else if (t === 'tarde') {
+      return ['13:00', '14:00', '15:00']
+    } else if (t === 'noche') {
+      return ['16:00', '17:00', '18:00', '19:00']
+    }
+    return []
+  }
+
   // Notificación
   const [msg, setMsg] = useState(null)
 
@@ -189,8 +223,19 @@ export default function ProcesarAsignacion() {
         hora_inicio: h.hora_inicio,
         hora_fin:    h.hora_fin,
       })
-      setDispDocModal(p => ({ ...p, [key]: r.data.docentes||[] }))
-    } catch { setDispDocModal(p => ({ ...p, [key]: [] })) }
+      setDispDocModal(p => ({
+        ...p,
+        [key]: {
+          docentes: r.data.docentes || [],
+          message: r.data.message || ''
+        }
+      }))
+    } catch {
+      setDispDocModal(p => ({
+        ...p,
+        [key]: { docentes: [], message: '' }
+      }))
+    }
   }
 
   // ── Asignar docente manual desde el modal ──
@@ -214,6 +259,20 @@ export default function ProcesarAsignacion() {
     } catch (e) {
       showMsg('error', e.response?.data?.message || 'Error al asignar.')
     } finally { setGuardandoMat(p => ({ ...p, [key]: false })) }
+  }
+
+  const abrirHorarioGrupo = async (g) => {
+    setModalHorario(g)
+    setLoadingHorario(true)
+    setDetalleHorario(null)
+    try {
+      const r = await getGrupo(g.id)
+      setDetalleHorario(r.data)
+    } catch {
+      setDetalleHorario(null)
+    } finally {
+      setLoadingHorario(false)
+    }
   }
 
   // ── Estilos base ──
@@ -278,7 +337,7 @@ export default function ProcesarAsignacion() {
 
       {/* ── Tabs ── */}
       <div style={{ display:'flex', gap:2, borderBottom:'2px solid var(--gray-200)', marginBottom:18 }}>
-        {[['postulantes','Postulantes'],['docentes','Docentes']].map(([k,l]) => (
+        {[['postulantes','Postulantes'],['docentes','Docentes'],['horarios','Horario']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} style={{
             padding:'9px 22px', border:'none', background:'none', cursor:'pointer',
             fontWeight:600, fontSize:'0.86rem', marginBottom:'-2px',
@@ -380,6 +439,38 @@ export default function ProcesarAsignacion() {
 
 
       {/* ════════════════════════════════════════
+          TAB: HORARIOS
+      ════════════════════════════════════════ */}
+      {tab === 'horarios' && (
+        <>
+          {/* Barra de acción */}
+          <div style={{ ...card, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <span style={{ fontWeight:600, color:'var(--gray-700)', fontSize:'0.9rem' }}>Horarios por Grupo</span>
+            <span style={{ fontSize:'0.8rem', color:'var(--gray-400)' }}>Seleccione un grupo para visualizar su horario detallado y docente asignado</span>
+          </div>
+
+          {/* Tarjetas de grupos */}
+          {grupos.length === 0 ? (
+            <div style={{ ...card, textAlign:'center', color:'var(--gray-400)', padding:28 }}>
+              No hay grupos activos. Genere grupos desde Gestión de Grupos.
+            </div>
+          ) : (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(175px,1fr))', gap:10 }}>
+              {grupos.map(g => (
+                <GrupoCard
+                  key={g.id}
+                  g={g}
+                  actionLabel="Ver Horario"
+                  onAction={abrirHorarioGrupo}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+
+      {/* ════════════════════════════════════════
           Modal — Estudiantes del grupo
       ════════════════════════════════════════ */}
       {modalEstudiantes && (
@@ -408,7 +499,7 @@ export default function ProcesarAsignacion() {
                     <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
                       <thead style={{ position:'sticky', top:0, background:'#fff', zIndex:1 }}>
                         <tr style={{ borderBottom:'2px solid var(--gray-200)' }}>
-                          {['#','Nombre','CI','Registro','Carrera'].map(h => (
+                          {['#','Nombre','CI','Registro','1ra Carrera','2da Carrera'].map(h => (
                             <th key={h} style={{ padding:'8px 10px', textAlign:'left', fontWeight:700, color:'var(--gray-500)', fontSize:'0.73rem', textTransform:'uppercase' }}>{h}</th>
                           ))}
                         </tr>
@@ -419,8 +510,9 @@ export default function ProcesarAsignacion() {
                             <td style={{ padding:'8px 10px', color:'var(--gray-400)' }}>{i+1}</td>
                             <td style={{ padding:'8px 10px', fontWeight:500 }}>{p.nombres} {p.apellidos}</td>
                             <td style={{ padding:'8px 10px', fontFamily:'monospace' }}>{p.ci}</td>
-                            <td style={{ padding:'8px 10px', fontFamily:'monospace', fontSize:'0.77rem', color:'var(--gray-500)' }}>{p.codigo_usuario||'-'}</td>
-                            <td style={{ padding:'8px 10px', color:'var(--gray-600)', maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={p.carrera}>{p.carrera||'-'}</td>
+                            <td style={{ padding:'8px 10px', fontFamily:'monospace', fontSize:'0.77rem', color:'var(--gray-500)' }}>{p.codigo_usuario||p.registro||'-'}</td>
+                            <td style={{ padding:'8px 10px', color:'var(--gray-600)', maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={p.primera_carrera || p.carrera_postulada}>{p.primera_carrera || p.carrera_postulada || '—'}</td>
+                            <td style={{ padding:'8px 10px', color:'var(--gray-600)', maxWidth:140, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={p.segunda_carrera}>{p.segunda_carrera || '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -462,7 +554,7 @@ export default function ProcesarAsignacion() {
                   {materiasDoc.map(h => {
                     const key      = h.materia_id
                     const expanded = expandedMat === key
-                    const docentes = dispDocModal[key]
+                    const dataMat  = dispDocModal[key]
 
                     return (
                       <div key={key} style={{ borderBottom:'1px solid var(--gray-100)', padding:'10px 0' }}>
@@ -508,10 +600,12 @@ export default function ProcesarAsignacion() {
                         {/* Dropdown de asignación (si está expandido) */}
                         {expanded && (
                           <div style={{ marginTop:8, display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
-                            {!docentes ? (
+                            {!dataMat ? (
                               <span style={{ fontSize:'0.78rem', color:'var(--gray-400)' }}>Cargando...</span>
-                            ) : docentes.length === 0 ? (
-                              <span style={{ fontSize:'0.78rem', color:'var(--gray-400)' }}>Sin docentes disponibles para esta materia.</span>
+                            ) : dataMat.docentes.length === 0 ? (
+                              <span style={{ fontSize:'0.78rem', color:'var(--danger, #ef4444)', fontWeight: 550 }}>
+                                {dataMat.message || "No hay docentes disponibles para esta materia en este horario."}
+                              </span>
                             ) : (
                               <>
                                 <select
@@ -521,7 +615,7 @@ export default function ProcesarAsignacion() {
                                   onChange={e => setSelDocModal(p => ({...p,[key]:e.target.value}))}
                                 >
                                   <option value="">Seleccionar docente...</option>
-                                  {docentes.map(d => (
+                                  {dataMat.docentes.map(d => (
                                     <option key={d.id} value={d.id}>{d.name} (CI: {d.ci})</option>
                                   ))}
                                 </select>
@@ -552,6 +646,110 @@ export default function ProcesarAsignacion() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-outline" onClick={() => setModalDocentes(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════
+          Modal — Horario del grupo
+      ════════════════════════════════════════ */}
+      {modalHorario && (
+        <div className="modal-overlay" onClick={() => setModalHorario(null)}>
+          <div className="modal" style={{ maxWidth: 800, width: '90%' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">
+                Horario detallado — {modalHorario.codigo} {(modalHorario.turno || '').toLowerCase()}
+              </span>
+              <button className="modal-close" onClick={() => setModalHorario(null)}><FiX /></button>
+            </div>
+            <div className="modal-body" style={{ padding: '12px 20px' }}>
+              {loadingHorario ? (
+                <p style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 20 }}>Cargando...</p>
+              ) : !detalleHorario ? (
+                <p style={{ textAlign: 'center', color: 'var(--gray-400)', padding: 20 }}>Error al cargar detalles.</p>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 16, display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--gray-600)' }}>
+                      <strong>Grupo:</strong> {detalleHorario.codigo}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--gray-600)' }}>
+                      <strong>Turno:</strong> {detalleHorario.turno}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--gray-600)' }}>
+                      <strong>Aula:</strong> {detalleHorario.aula || '-'}
+                    </p>
+                  </div>
+                  
+                  <div style={{ overflowX: 'auto', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', background: 'white' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', textAlign: 'center' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--primary)', color: 'white' }}>
+                          <th style={{ padding: '10px', border: '1px solid var(--gray-200)', width: '100px', fontWeight: 600 }}>Hora</th>
+                          <th style={{ padding: '10px', border: '1px solid var(--gray-200)', fontWeight: 600 }}>Lunes</th>
+                          <th style={{ padding: '10px', border: '1px solid var(--gray-200)', fontWeight: 600 }}>Martes</th>
+                          <th style={{ padding: '10px', border: '1px solid var(--gray-200)', fontWeight: 600 }}>Miércoles</th>
+                          <th style={{ padding: '10px', border: '1px solid var(--gray-200)', fontWeight: 600 }}>Jueves</th>
+                          <th style={{ padding: '10px', border: '1px solid var(--gray-200)', fontWeight: 600 }}>Viernes</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getHoursForTurno(detalleHorario.turno).map(h => {
+                          const nextHourNum = parseInt(h.split(':')[0], 10) + 1
+                          const nextHour = `${nextHourNum < 10 ? '0' : ''}${nextHourNum}:00`
+                          return (
+                            <tr key={h} style={{ borderBottom: '1px solid var(--gray-200)' }}>
+                              <td style={{ padding: '10px', fontWeight: 'bold', border: '1px solid var(--gray-200)', background: 'var(--gray-50)', fontSize: '0.78rem' }}>
+                                {h} - {nextHour}
+                              </td>
+                              {['lunes', 'martes', 'miercoles', 'jueves', 'viernes'].map(dia => {
+                                const cell = getCellDataForGroup(dia, h)
+                                return (
+                                  <td key={dia} style={{ padding: '6px', border: '1px solid var(--gray-200)', verticalAlign: 'middle', height: '75px', width: '18%' }}>
+                                    {cell ? (
+                                      <div style={{
+                                        background: 'var(--primary-light, #eff6ff)',
+                                        border: '1px solid var(--primary-border, #bfdbfe)',
+                                        borderRadius: 'var(--radius)',
+                                        padding: '6px',
+                                        height: '100%',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        justifyContent: 'center',
+                                        fontSize: '0.75rem',
+                                        color: 'var(--gray-800)',
+                                        boxShadow: 'var(--shadow-sm)'
+                                      }}
+                                      title={`Docente: ${cell.docente}\nAula: ${cell.aula}`}
+                                      >
+                                        <strong style={{ color: 'var(--primary)', fontSize: '0.78rem', marginBottom: '2px', display: 'block' }}>
+                                          {cell.materia}
+                                        </strong>
+                                        <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--gray-600)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                          Docente: {cell.docente}
+                                        </span>
+                                        <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--gray-600)' }}>
+                                          Aula: {cell.aula}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span style={{ color: 'var(--gray-300)', fontSize: '0.8rem' }}>—</span>
+                                    )}
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setModalHorario(null)}>Cerrar</button>
             </div>
           </div>
         </div>

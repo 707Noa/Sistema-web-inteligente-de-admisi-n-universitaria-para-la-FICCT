@@ -75,7 +75,7 @@ class DocenteController extends Controller
                 'role_id'              => $roleDocente->id,
                 'estado'               => 'activo',
                 'codigo'               => $codigo,
-                'must_change_password' => false,
+                'must_change_password' => true,
             ]);
 
             $docente = Docente::create([

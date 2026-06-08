@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import Layout from '@/layouts/Layout'
+import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
 import StatusBadge from '@/shared/components/StatusBadge'
 import Loading from '@/shared/components/Loading'
 import {
@@ -61,6 +62,7 @@ function RequisitoCampo({ label, value, onChange }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function Usuarios() {
+  const { user: loggedInUser } = useAuth()
   const [users, setUsers]         = useState([])
   const [roles, setRoles]         = useState([])
   const [loading, setLoading]     = useState(true)
@@ -182,8 +184,9 @@ export default function Usuarios() {
         tiene_maestria:       reqData.tiene_maestria,
         tiene_diplomado:      reqData.tiene_diplomado,
       })
-      setReqData(r.data)
-      setReqSuccess(true)
+      closeReq()
+      fetchData()
+      alert('Requisitos guardados correctamente.')
     } catch (err) {
       setReqError(err.response?.data?.message || 'Error al guardar los requisitos.')
     } finally {
@@ -200,6 +203,10 @@ export default function Usuarios() {
 
   /* ── Modal eliminar ── */
   const openDelete = (u) => {
+    if (loggedInUser && loggedInUser.id === u.id) {
+      alert('No puedes eliminar tu propia cuenta de usuario.')
+      return
+    }
     setDeleteTarget(u); setDeleteError('')
   }
   const closeDelete = () => {

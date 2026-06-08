@@ -15,6 +15,8 @@ class DatabaseSeeder extends Seeder
             MateriaSeeder::class,
             DocenteSeeder::class,
             AcademicoSeeder::class,
+            TemaSeeder::class,
+            PostulanteSeeder::class,
         ]);
     }
 }

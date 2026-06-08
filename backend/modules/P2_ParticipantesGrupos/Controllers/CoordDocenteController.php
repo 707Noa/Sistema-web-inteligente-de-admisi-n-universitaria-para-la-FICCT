@@ -190,7 +190,12 @@ class CoordDocenteController extends Controller
 
     public function dashboard(Request $request): JsonResponse
     {
-        $totalInscritos = Postulante::where('estado_tramite', 'INSCRITO')->count();
+        // ── Conteos principales ──
+        $totalInscritos = Postulante::count();
+        $totalPreinscritos = Postulante::where('estado_tramite', 'PREINSCRITO')->count();
+        $totalConCuenta = Postulante::whereNotNull('user_id')->count();
+        $totalAsignadosGrupo = \DB::table('grupo_postulante')->distinct('postulante_id')->count('postulante_id');
+
         $totalGrupos = Grupo::where('estado', 'activo')->count();
         
         $totalDocentes = User::whereHas('role', fn($q) => $q->where('name', 'docente'))
@@ -205,42 +210,79 @@ class CoordDocenteController extends Controller
 
         $totalHorarios = GrupoHorario::count();
 
-        // Grupos recientes
+        // Grupos sin aula
+        $gruposSinAula = Grupo::where('estado', 'activo')
+            ->where(function($q) {
+                $q->whereNull('aula')->orWhere('aula', '');
+            })
+            ->count();
+
+        // Aulas asignadas (únicas)
+        $aulasAsignadas = Grupo::where('estado', 'activo')
+            ->whereNotNull('aula')
+            ->where('aula', '!=', '')
+            ->distinct('aula')
+            ->count('aula');
+
+        // Notas pendientes (exámenes sin todas las notas)
+        $notasPendientes = \App\Models\Examen::where(function($q) {
+            $q->whereNull('nota_1')->orWhereNull('nota_2')->orWhereNull('nota_3');
+        })->count();
+
+        // Resultados de admisión
+        $totalAprobados = \App\Models\Examen::where('estado', 'aprobado')
+            ->distinct('postulante_id')->count('postulante_id');
+        $totalReprobados = \App\Models\Examen::where('estado', 'reprobado')
+            ->distinct('postulante_id')->count('postulante_id');
+        $totalAdmitidos = \App\Models\AdmisionResultado::where('estado_admision', 'admitido')->count();
+        $aprobadosSinCupo = \App\Models\AdmisionResultado::where('estado_admision', 'aprobado_sin_cupo')->count();
+
+        // Cupos configurados
+        $cuposConfigurados = \App\Models\CupoCarrera::where('estado', 'activo')
+            ->sum('cupo_maximo');
+
+        // Postulantes sin grupo
+        $postulantesSinGrupo = Postulante::whereDoesntHave('grupos')->count();
+
+        // ── Grupos recientes ──
         $gruposRecientes = Grupo::with(['carrera'])
             ->where('estado', 'activo')
             ->orderBy('id', 'desc')
-            ->take(5)
+            ->take(10)
             ->get()
             ->map(fn($g) => [
                 'id' => $g->id,
                 'codigo' => $g->codigo ?? $g->nombre_grupo,
                 'turno' => $g->turno,
-                'cupo_maximo' => $g->cupo_maximo ?? 70,
+                'cupo_maximo' => $g->cupo_maximo ?? $g->capacidad_maxima ?? 70,
                 'carrera_nombre' => $g->carrera?->nombre ?? 'Sin carrera',
                 'ocupacion' => $g->ocupacion(),
+                'aula' => $g->aula ?? 'Sin asignar',
+                'estado' => $g->estado,
             ]);
 
-        // Docentes con más carga asignada (unique groups)
+        // ── Docentes con más carga ──
         $docentesCarga = User::whereHas('role', fn($q) => $q->where('name', 'docente'))
             ->where('estado', 'activo')
             ->get()
             ->map(function($u) {
-                $uniqueGroupsCount = DocenteGrupoAsignacion::where('docente_user_id', $u->id)
-                    ->where('estado', 'activo')
-                    ->distinct('grupo_id')
-                    ->count('grupo_id');
+                $asignaciones = DocenteGrupoAsignacion::where('docente_user_id', $u->id)
+                    ->where('estado', 'activo');
+                $uniqueGroupsCount = (clone $asignaciones)->distinct('grupo_id')->count('grupo_id');
+                $materiasCount = (clone $asignaciones)->distinct('materia_id')->count('materia_id');
                 return [
                     'id' => $u->id,
                     'name' => $u->name,
                     'email' => $u->email,
                     'carga_grupos' => $uniqueGroupsCount,
+                    'materias' => $materiasCount,
                 ];
             })
             ->sortByDesc('carga_grupos')
-            ->take(5)
+            ->take(10)
             ->values();
 
-        // Alertas académicas
+        // ── Alertas académicas ──
         $alertas = [];
 
         // 1. Grupos sin docente
@@ -255,7 +297,21 @@ class CoordDocenteController extends Controller
             ];
         }
 
-        // 2. Docentes con 4 o más grupos
+        // 2. Grupos sin aula
+        $gruposSinAulaList = Grupo::where('estado', 'activo')
+            ->where(function($q) {
+                $q->whereNull('aula')->orWhere('aula', '');
+            })
+            ->get();
+        foreach ($gruposSinAulaList as $g) {
+            $alertas[] = [
+                'tipo' => 'grupo_sin_aula',
+                'mensaje' => "El grupo " . ($g->codigo ?? $g->nombre_grupo) . " no tiene aula asignada.",
+                'target_id' => $g->id,
+            ];
+        }
+
+        // 3. Docentes con 4 o más grupos
         $docentesCon4Grupos = User::whereHas('role', fn($q) => $q->where('name', 'docente'))
             ->where('estado', 'activo')
             ->get()
@@ -273,28 +329,70 @@ class CoordDocenteController extends Controller
             ];
         }
 
-        // 3. Grupos llenos o cerca de 70 (cupo >= 65 estudiantes)
+        // 4. Grupos llenos o cerca del límite (>= 90% de capacidad)
         $gruposLlenos = Grupo::where('estado', 'activo')
             ->get()
             ->filter(function($g) {
-                return $g->ocupacion() >= 65;
+                $cupo = $g->cupo_maximo ?? $g->capacidad_maxima ?? 70;
+                return $cupo > 0 && $g->ocupacion() >= ($cupo * 0.9);
             });
         foreach ($gruposLlenos as $g) {
+            $cupo = $g->cupo_maximo ?? $g->capacidad_maxima ?? 70;
             $alertas[] = [
                 'tipo' => 'grupo_lleno',
-                'mensaje' => "El grupo " . ($g->codigo ?? $g->nombre_grupo) . " está cerca del límite de 70 estudiantes (" . $g->ocupacion() . "/70).",
+                'mensaje' => "El grupo " . ($g->codigo ?? $g->nombre_grupo) . " está cerca del límite de capacidad (" . $g->ocupacion() . "/{$cupo}).",
                 'target_id' => $g->id,
+            ];
+        }
+
+        // 5. Postulantes sin grupo
+        if ($postulantesSinGrupo > 0) {
+            $alertas[] = [
+                'tipo' => 'postulantes_sin_grupo',
+                'mensaje' => "{$postulantesSinGrupo} postulante(s) no tienen grupo asignado.",
+                'target_id' => null,
+            ];
+        }
+
+        // 6. Notas pendientes
+        if ($notasPendientes > 0) {
+            $alertas[] = [
+                'tipo' => 'notas_pendientes',
+                'mensaje' => "Hay {$notasPendientes} examen(es) con calificaciones pendientes.",
+                'target_id' => null,
+            ];
+        }
+
+        // 7. Cupos no configurados
+        $carrerasConCupo = \App\Models\CupoCarrera::where('estado', 'activo')->count();
+        if ($carrerasConCupo === 0) {
+            $alertas[] = [
+                'tipo' => 'cupos_no_configurados',
+                'mensaje' => "No se han configurado cupos por carrera para esta gestión.",
+                'target_id' => null,
             ];
         }
 
         return response()->json([
             'resumen' => [
                 'total_inscritos' => $totalInscritos,
+                'postulantes_preinscritos' => $totalPreinscritos,
+                'postulantes_con_cuenta' => $totalConCuenta,
+                'postulantes_asignados' => $totalAsignadosGrupo,
                 'total_grupos_habilitados' => $totalGrupos,
                 'total_docentes_activos' => $totalDocentes,
                 'total_asignaciones_academicas' => $totalAsignaciones,
                 'grupos_sin_docente' => $gruposSinDocente,
                 'horarios_registrados' => $totalHorarios,
+                'grupos_sin_aula' => $gruposSinAula,
+                'aulas_asignadas' => $aulasAsignadas,
+                'notas_pendientes' => $notasPendientes,
+                'aprobados' => $totalAprobados,
+                'reprobados' => $totalReprobados,
+                'admitidos' => $totalAdmitidos,
+                'aprobados_sin_cupo' => $aprobadosSinCupo,
+                'cupos_configurados' => $cuposConfigurados,
+                'postulantes_sin_grupo' => $postulantesSinGrupo,
             ],
             'grupos_recientes' => $gruposRecientes,
             'docentes_carga' => $docentesCarga,

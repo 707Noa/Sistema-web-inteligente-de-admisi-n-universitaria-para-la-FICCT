@@ -48,10 +48,8 @@ class UsuarioController extends Controller
         $ci       = $request->ci;
         $roleName = Role::find($request->role_id)?->name;
 
-        // Docentes: contraseña = "2026" + CI invertido (igual al registro); otros roles: contraseña = CI
-        $password = ($roleName === 'docente')
-            ? Hash::make('2026' . strrev($ci))
-            : Hash::make($ci);
+        // Todos los roles: contraseña inicial = CI (texto plano para hasheo automático)
+        $password = $ci;
 
         $user = User::create([
             'name'                 => $request->name,
@@ -61,7 +59,7 @@ class UsuarioController extends Controller
             'role_id'              => $request->role_id,
             'estado'               => $request->input('estado', 'activo'),
             'codigo'               => '2026' . strrev($ci), // registro = 2026 + CI invertido
-            'must_change_password' => false,
+            'must_change_password' => true,
         ]);
 
         AuditoriaService::registrar(
@@ -116,60 +114,83 @@ class UsuarioController extends Controller
                 return response()->json(['message' => 'Postulante no encontrado'], 404);
             }
 
-            if ($postulante->user_id) {
-                $user = User::find($postulante->user_id);
-                if ($user) {
-                    $user->update(['estado' => 'inactivo']);
-                }
-                $postulante->update(['estado_tramite' => 'INACTIVO']);
-                
-                AuditoriaService::registrar(
-                    $request->user()->id,
-                    'Desactivó un usuario (postulante)',
-                    'Usuarios',
-                    $request,
-                    "Postulante: {$postulante->nombres} {$postulante->apellidos}"
-                );
-                return response()->json(['message' => 'Cuenta de postulante desactivada (estado INACTIVO).']);
-            } else {
-                $name = trim($postulante->nombres . ' ' . $postulante->apellidos);
-                $postulante->delete();
-                
-                AuditoriaService::registrar(
-                    $request->user()->id,
-                    'Eliminó postulante preinscrito',
-                    'Usuarios',
-                    $request,
-                    "Postulante: {$name}"
-                );
-                return response()->json(['message' => 'Postulante preinscrito eliminado.']);
+            $name = trim($postulante->nombres . ' ' . $postulante->apellidos);
+
+            try {
+                \DB::transaction(function () use ($postulante) {
+                    if ($postulante->user_id) {
+                        $user = User::find($postulante->user_id);
+                        if ($user) {
+                            if ($user->hasRole('administrador')) {
+                                throw new \Exception('No se permite eliminar un administrador.');
+                            }
+                            $user->delete();
+                        }
+                    }
+                    $postulante->grupos()->detach();
+                    $postulante->examenes()->delete();
+                    $postulante->delete();
+                });
+            } catch (\Exception $e) {
+                return response()->json(['message' => $e->getMessage()], 400);
             }
+
+            AuditoriaService::registrar(
+                $request->user()->id,
+                'Eliminó postulante',
+                'Usuarios',
+                $request,
+                "Postulante: {$name}"
+            );
+
+            return response()->json(['message' => 'Postulante y su usuario asociado eliminados totalmente.']);
         } else {
             $user = User::find($id);
             if (!$user) {
                 return response()->json(['message' => 'Usuario no encontrado'], 404);
             }
 
-            $name = $user->name;
-            
-            $postulante = \App\Models\Postulante::where('user_id', $user->id)
-                ->orWhere('ci', $user->ci)
-                ->first();
-            if ($postulante) {
-                $postulante->update(['estado_tramite' => 'INACTIVO']);
+            if ($request->user() && $request->user()->id === $user->id) {
+                return response()->json(['message' => 'No se permite eliminar al usuario autenticado actual.'], 400);
             }
-            
-            $user->update(['estado' => 'inactivo']);
+
+            if ($user->hasRole('administrador')) {
+                return response()->json(['message' => 'No se permite eliminar usuarios con el rol de Administrador.'], 400);
+            }
+
+            $name = $user->name;
+
+            \DB::transaction(function () use ($user) {
+                $postulante = \App\Models\Postulante::where('user_id', $user->id)
+                    ->orWhere('ci', $user->ci)
+                    ->first();
+                if ($postulante) {
+                    $postulante->grupos()->detach();
+                    $postulante->examenes()->delete();
+                    $postulante->delete();
+                }
+
+                $docente = \App\Models\Docente::where('user_id', $user->id)
+                    ->orWhere('ci', $user->ci)
+                    ->first();
+                if ($docente) {
+                    \DB::table('docente_especialidades')->where('user_id', $user->id)->delete();
+                    \DB::table('docente_grupo_asignaciones')->where('docente_user_id', $user->id)->delete();
+                    $docente->delete();
+                }
+
+                $user->delete();
+            });
 
             AuditoriaService::registrar(
                 $request->user()->id,
-                'Desactivó un usuario',
+                'Eliminó un usuario',
                 'Usuarios',
                 $request,
                 "Usuario: {$name}"
             );
 
-            return response()->json(['message' => 'Usuario desactivado (estado INACTIVO).']);
+            return response()->json(['message' => 'Usuario eliminado correctamente.']);
         }
     }
 
@@ -200,7 +221,7 @@ class UsuarioController extends Controller
         ]);
 
         $user = User::findOrFail($id);
-        $user->update(['password' => Hash::make($request->password)]);
+        $user->update(['password' => $request->password]);
 
         AuditoriaService::registrar($request->user()->id, 'Cambió contraseña de usuario', 'Usuarios', $request, "Usuario: {$user->name}");
 

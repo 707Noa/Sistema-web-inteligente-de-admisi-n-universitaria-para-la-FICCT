@@ -35,6 +35,7 @@ export function AuthProvider({ children }) {
   }
 
   const login = async (credentials) => {
+    sessionStorage.removeItem('temp_hide_password_modal')
     const res = await api.post('/auth/login', credentials)
     const { user: userData, token: newToken, redirect } = res.data
     setUser(userData)
@@ -45,6 +46,7 @@ export function AuthProvider({ children }) {
   }
 
   const logout = async () => {
+    sessionStorage.removeItem('temp_hide_password_modal')
     const activeToken = localStorage.getItem('token')
     if (activeToken && activeToken !== 'undefined' && activeToken !== 'null') {
       try {

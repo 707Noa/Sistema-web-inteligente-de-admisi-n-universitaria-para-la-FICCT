@@ -15,7 +15,7 @@ Route::middleware('auth:sanctum')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::middleware('role:coordinador,administrador')->prefix('coordinador')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'index']);
+        // Dashboard route is handled by P2's CoordDocenteController::dashboard
         Route::get('/reporte/horarios',     [CoordReporteController::class, 'horarios']);
         Route::get('/reporte/horarios/csv', [CoordReporteController::class, 'exportarCsv']);
         Route::get('/admision/exportar-csv', [AdmisionReporteController::class, 'exportarCsv']);
@@ -37,7 +37,7 @@ Route::middleware('auth:sanctum')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::middleware('role:autoridad')->prefix('autoridad')->group(function () {
-        Route::get('/dashboard', [DashboardController::class, 'index']);
+        // Dashboard route is handled by P2's AutoridadPortalController::dashboard
         Route::get('/reportes/postulantes', [ReporteController::class, 'postulantes']);
         Route::get('/reportes/aprobados', [ReporteController::class, 'aprobados']);
         Route::get('/reportes/reprobados', [ReporteController::class, 'reprobados']);

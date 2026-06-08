@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react'
 import Layout from '@/layouts/Layout'
 import Loading from '@/shared/components/Loading'
 import { getPostulantePerfil } from '../services/postulanteService'
+import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
+import { changePassword } from '@/modules/p1-seguridad-administracion/auth/services/authService'
+import { FiAlertCircle } from 'react-icons/fi'
 
 const TRAMITE_ESTILO = {
   PREINSCRITO:    { bg: '#fff3e0', text: '#e65100', label: 'Preinscrito' },
@@ -10,9 +13,16 @@ const TRAMITE_ESTILO = {
 }
 
 export default function PostulanteMiPerfil() {
+  const { user, checkAuth } = useAuth()
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(false)
+
+  // Password change state
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [formPass, setFormPass] = useState({ new_password: '', new_password_confirmation: '' })
+  const [passError, setPassError] = useState('')
+  const [passSaving, setPassSaving] = useState(false)
 
   useEffect(() => {
     getPostulantePerfil()
@@ -40,6 +50,32 @@ export default function PostulanteMiPerfil() {
   const segundaCarrera = data.carrera && data.carrera !== data.carrera_postulada
     ? data.carrera
     : null
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault()
+    setPassError('')
+    if (formPass.new_password.length < 8) {
+      setPassError('La contraseña debe tener al menos 8 caracteres.')
+      return
+    }
+    if (formPass.new_password !== formPass.new_password_confirmation) {
+      setPassError('Las contraseñas de confirmación no coinciden.')
+      return
+    }
+
+    setPassSaving(true)
+    try {
+      await changePassword(formPass)
+      alert('Contraseña actualizada correctamente.')
+      setShowPasswordModal(false)
+      setFormPass({ new_password: '', new_password_confirmation: '' })
+      await checkAuth()
+    } catch (err) {
+      setPassError(err.response?.data?.message || 'Error al cambiar la contraseña.')
+    } finally {
+      setPassSaving(false)
+    }
+  }
 
   return (
     <Layout>
@@ -78,7 +114,120 @@ export default function PostulanteMiPerfil() {
             </span>
           </div>
         </div>
+
+        {/* Botón obligatorio si must_change_password es true */}
+        {user?.must_change_password && (
+          <div style={{ marginTop: '32px', display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--gray-100)', paddingTop: '20px' }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowPasswordModal(true)}
+              style={{
+                backgroundColor: '#f59e0b',
+                borderColor: '#f59e0b',
+                color: '#fff',
+                fontWeight: 'bold',
+                padding: '10px 24px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 2px 4px rgba(245, 158, 11, 0.2)'
+              }}
+            >
+              ⚠️ Actualizar datos (Obligatorio)
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Modal Cambio de Contraseña */}
+      {showPasswordModal && (
+        <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
+          <div className="modal" style={{ maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">Actualizar datos de acceso</span>
+              <button className="modal-close" onClick={() => setShowPasswordModal(false)}>×</button>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit}>
+              <div className="modal-body">
+                <div style={{
+                  background: 'var(--warning-light, #fffbeb)',
+                  border: '1px solid #fef3c7',
+                  color: '#b45309',
+                  padding: '14px',
+                  borderRadius: 'var(--radius)',
+                  fontSize: '0.85rem',
+                  lineHeight: 1.5,
+                  marginBottom: '16px'
+                }}>
+                  <strong>Por seguridad, debes actualizar tus datos de acceso.</strong>
+                  <br />
+                  A partir de ahora, tu usuario será tu número de registro:
+                  <div style={{ fontWeight: 'bold', margin: '6px 0', fontFamily: 'monospace', fontSize: '1rem', color: '#78350f' }}>
+                    Usuario: {data?.codigo_usuario || '—'}
+                  </div>
+                  Luego cambia tu contraseña inicial.
+                </div>
+
+                <p style={{ fontSize: '0.82rem', color: 'var(--gray-600)', marginBottom: '8px', fontWeight: 600 }}>
+                  Requisitos para la nueva contraseña:
+                </p>
+                <ul style={{ fontSize: '0.78rem', color: 'var(--gray-500)', paddingLeft: '20px', margin: '0 0 16px', lineHeight: 1.5 }}>
+                  <li>Mínimo 8 caracteres de longitud</li>
+                  <li>Al menos una letra minúscula</li>
+                  <li>Al menos una letra mayúscula</li>
+                  <li>Al menos un carácter especial (ej: @, $, !, %, *, #, -, _)</li>
+                </ul>
+
+                {passError && (
+                  <div style={{
+                    display: 'flex', gap: 8, alignItems: 'center',
+                    background: 'var(--danger-light)', color: '#991b1b',
+                    padding: '10px 14px', borderRadius: 'var(--radius)',
+                    marginBottom: 16, fontSize: '0.875rem',
+                  }}>
+                    <FiAlertCircle style={{ flexShrink: 0 }} /> {passError}
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label className="form-label">Nueva contraseña</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    placeholder="Mínimo 8 caracteres"
+                    value={formPass.new_password}
+                    onChange={e => setFormPass({ ...formPass, new_password: e.target.value })}
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginTop: '12px' }}>
+                  <label className="form-label">Confirmar nueva contraseña</label>
+                  <input
+                    type="password"
+                    className="form-input"
+                    placeholder="Repita la nueva contraseña"
+                    value={formPass.new_password_confirmation}
+                    onChange={e => setFormPass({ ...formPass, new_password_confirmation: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="modal-footer">
+                <button type="button" className="btn btn-outline" onClick={() => setShowPasswordModal(false)}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={passSaving} style={{ backgroundColor: '#f59e0b', borderColor: '#f59e0b', color: '#fff' }}>
+                  {passSaving ? 'Guardando...' : 'Actualizar contraseña'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </Layout>
   )
 }

@@ -15,21 +15,23 @@ class AcademicoSeeder extends Seeder
         if ($roleCoordinador) {
             $ci = '20000001';
             $email = 'coordinador@sistema.com';
+            $password = Hash::make($ci);
 
-            DB::table('users')->updateOrInsert(
-                ['email' => $email],
-                [
-                    'role_id'              => $roleCoordinador->id,
-                    'name'                 => 'Coordinador Académico',
-                    'ci'                   => $ci,
-                    'password'             => Hash::make($ci),
-                    'estado'               => 'activo',
-                    'codigo'               => 'COORD001',
+            $existing = DB::table('users')->where('email', $email)->orWhere('ci', $ci)->first();
+            if (!$existing) {
+                DB::table('users')->insert([
+                    'role_id' => $roleCoordinador->id,
+                    'name' => 'Coordinador Académico',
+                    'email' => $email,
+                    'ci' => $ci,
+                    'password' => $password,
+                    'estado' => 'activo',
+                    'codigo' => 'COORD001',
                     'must_change_password' => true,
-                    'created_at'           => now(),
-                    'updated_at'           => now(),
-                ]
-            );
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
 
         // 2. Autoridad
@@ -37,21 +39,23 @@ class AcademicoSeeder extends Seeder
         if ($roleAutoridad) {
             $ci = '30000001';
             $email = 'autoridad@sistema.com';
+            $password = Hash::make($ci);
 
-            DB::table('users')->updateOrInsert(
-                ['email' => $email],
-                [
-                    'role_id'              => $roleAutoridad->id,
-                    'name'                 => 'Autoridad Académica',
-                    'ci'                   => $ci,
-                    'password'             => Hash::make($ci),
-                    'estado'               => 'activo',
-                    'codigo'               => 'AUTOR001',
+            $existing = DB::table('users')->where('email', $email)->orWhere('ci', $ci)->first();
+            if (!$existing) {
+                DB::table('users')->insert([
+                    'role_id' => $roleAutoridad->id,
+                    'name' => 'Autoridad Académica',
+                    'email' => $email,
+                    'ci' => $ci,
+                    'password' => $password,
+                    'estado' => 'activo',
+                    'codigo' => 'AUTOR001',
                     'must_change_password' => true,
-                    'created_at'           => now(),
-                    'updated_at'           => now(),
-                ]
-            );
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ export const deletePostulante = (id) => api.delete(`${p}/postulantes/${id}`)
 export const getPostulantePerfil        = ()       => api.get('/postulante/perfil')
 export const getPostulanteHorario       = ()       => api.get('/postulante/horario')
 export const getPostulanteCalificaciones = ()      => api.get('/postulante/calificaciones')
+export const getMateriaTemas             = (id)     => api.get(`/materias/${id}/temas`)
 
 // Gestión de preinscripciones (admin) — solo muestra PREINSCRITO e INSCRITO
 export const getPreinscripciones = (params) => api.get('/admin/preinscripciones', { params })

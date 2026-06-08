@@ -484,8 +484,8 @@ export default function Postulantes() {
                     )}
                   </td>
                   <td><StatusBadge status={p.estado_tramite} /></td>
-                  <td style={{ whiteSpace:'nowrap', fontSize:'0.82rem', color:'var(--gray-500)' }}>
-                    {formatFecha(p.created_at)}
+                  <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem', color: p.user_id ? 'var(--primary)' : 'var(--gray-500)', fontWeight: p.user_id ? 'bold' : 'normal' }}>
+                    {p.user_id ? p.codigo_usuario : 'Sin cuenta creada'}
                   </td>
                   <td>
                     <div className="table-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>

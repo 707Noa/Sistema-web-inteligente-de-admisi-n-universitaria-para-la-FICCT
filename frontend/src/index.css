@@ -1729,3 +1729,109 @@ img { max-width: 100%; display: block; }
   background: rgba(255,255,255,0.08);
 }
 
+/* ===== MANDATORY PASSWORD CHANGE MODAL ===== */
+.mandatory-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+  animation: fadeIn 0.3s ease;
+}
+
+.mandatory-modal-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 520px;
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid var(--gray-200);
+}
+
+.mandatory-modal-header {
+  background: var(--primary-gradient);
+  color: white;
+  padding: 24px;
+  text-align: center;
+  position: relative;
+}
+
+.mandatory-modal-header h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.mandatory-modal-header p {
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.mandatory-modal-body {
+  padding: 28px;
+}
+
+.info-alert-box {
+  background: var(--info-light);
+  border-left: 4px solid var(--info);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 24px;
+  font-size: 0.85rem;
+  color: var(--gray-800);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.info-alert-title {
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.password-requirements {
+  margin-top: 16px;
+  background: var(--gray-50);
+  border-radius: var(--radius);
+  padding: 16px;
+  border: 1px solid var(--gray-200);
+}
+
+.requirements-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--gray-600);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.requirement-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  margin-bottom: 6px;
+  transition: var(--transition);
+}
+
+.requirement-item.met {
+  color: var(--success);
+}
+
+.requirement-item.unmet {
+  color: var(--danger);
+}
+
+.requirement-icon {
+  display: inline-flex;
+  font-size: 0.9rem;
+}
+

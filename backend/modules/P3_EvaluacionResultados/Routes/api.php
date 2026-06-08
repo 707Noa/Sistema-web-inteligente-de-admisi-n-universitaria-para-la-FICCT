@@ -70,6 +70,26 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // Calificaciones
         Route::post('/calificaciones', [DocenteAcademicoController::class, 'guardarCalificacion']);
+        Route::post('/calificaciones/masivo', [DocenteAcademicoController::class, 'guardarCalificacionesMasivas']);
+        Route::post('/calificaciones/previsualizar-csv', [DocenteAcademicoController::class, 'previsualizarCalificacionesCsv']);
+        Route::post('/calificaciones/importar-csv', [DocenteAcademicoController::class, 'importarCalificacionesCsv']);
+
+        // Temas
+        Route::post('/temas', [DocenteAcademicoController::class, 'crearTema']);
+        Route::put('/temas/{id}', [DocenteAcademicoController::class, 'actualizarTema']);
+        Route::delete('/temas/{id}', [DocenteAcademicoController::class, 'eliminarTema']);
+
+        // Avisos
+        Route::get('/grupos/{grupoId}/materias/{materiaId}/avisos', [DocenteAcademicoController::class, 'getAvisos']);
+        Route::post('/avisos', [DocenteAcademicoController::class, 'crearAviso']);
+        Route::put('/avisos/{id}', [DocenteAcademicoController::class, 'actualizarAviso']);
+        Route::delete('/avisos/{id}', [DocenteAcademicoController::class, 'eliminarAviso']);
+
+        // Tareas
+        Route::get('/grupos/{grupoId}/materias/{materiaId}/tareas', [DocenteAcademicoController::class, 'getTareas']);
+        Route::post('/tareas', [DocenteAcademicoController::class, 'crearTarea']);
+        Route::put('/tareas/{id}', [DocenteAcademicoController::class, 'actualizarTarea']);
+        Route::delete('/tareas/{id}', [DocenteAcademicoController::class, 'eliminarTarea']);
 
     });
 });

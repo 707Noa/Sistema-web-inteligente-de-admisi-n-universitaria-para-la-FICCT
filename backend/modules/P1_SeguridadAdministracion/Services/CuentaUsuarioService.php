@@ -138,12 +138,12 @@ class CuentaUsuarioService
         // 4. Generar Registro único de 6 dígitos o bajo la regla del año de ingreso
         $registroCode = $this->generarRegistroUnico($ci, $anioIngreso);
 
-        // 5. Crear el registro de Usuario (Contraseña inicial = CI, hasheada)
+        // 5. Crear el registro de Usuario (Contraseña inicial = CI, texto plano para hasheo automático)
         $user = User::create([
             'name' => trim($nombres . ' ' . $apellidos),
             'email' => $email,
             'ci' => $ci,
-            'password' => Hash::make($ci),
+            'password' => $ci,
             'role_id' => $role->id,
             'estado' => 'activo',
             'codigo' => $registroCode,

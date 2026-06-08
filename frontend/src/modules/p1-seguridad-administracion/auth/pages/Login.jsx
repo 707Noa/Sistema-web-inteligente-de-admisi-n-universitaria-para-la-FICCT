@@ -64,11 +64,11 @@ export default function Login() {
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label">CI / Código / Correo electrónico</label>
+                <label className="form-label">Usuario / Registro / Correo inicial</label>
                 <input
                   className="form-input"
                   type="text"
-                  placeholder="Ingresa tu CI, código o correo"
+                  placeholder="Ingresa tu registro, CI o correo"
                   value={form.login}
                   onChange={(e) => setForm({ ...form, login: e.target.value })}
                   autoFocus

@@ -33,16 +33,19 @@ class AutoridadPortalController extends Controller
     public function dashboard(Request $request): JsonResponse
     {
         $totalInscritos = Postulante::count();
-        $totalGrupos = Grupo::where('estado', 'activo')->count(); 
+        $totalGrupos = Grupo::where('estado', 'activo')->count();
+        
         $totalDocentes = DocenteGrupoAsignacion::where('estado', 'activo')
             ->distinct('docente_user_id')
             ->count('docente_user_id');
 
-        $totalHorarios = GrupoHorario::count(); 
+        $totalHorarios = GrupoHorario::count();
+        
         $totalCarrerasConGrupo = Grupo::where('estado', 'activo')
             ->whereNotNull('carrera_id')
             ->distinct('carrera_id')
             ->count('carrera_id');
+
         $totalEstudiantesAsignados = DB::table('grupo_postulante')
             ->join('grupos', 'grupo_postulante.grupo_id', '=', 'grupos.id')
             ->where('grupos.estado', 'activo')

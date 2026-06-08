@@ -1,5 +1,4 @@
-
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Layout from '@/layouts/Layout'
 import Loading from '@/shared/components/Loading'
 import { getDashboard } from '../services/autoridadService'
@@ -9,7 +8,6 @@ import {
   FiBarChart2, FiList
 } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
-
 
 export default function DashboardAutoridad() {
   const [data, setData] = useState(null)
@@ -92,6 +90,7 @@ export default function DashboardAutoridad() {
         </button>
       </div>
 
+      {/* Error banner with stale data */}
       {error && data && (
         <div style={{
           background: '#fef2f2', border: '1px solid #fca5a5',
@@ -103,6 +102,7 @@ export default function DashboardAutoridad() {
         </div>
       )}
 
+      {/* Stat Cards Grid */}
       <div className="stat-grid">
         {stats.map((s, idx) => (
           <div key={idx} className="stat-card" style={{ animationDelay: `${idx * 0.04}s` }}>
@@ -115,7 +115,9 @@ export default function DashboardAutoridad() {
         ))}
       </div>
 
+      {/* Two-column tables */}
       <div className="chart-grid" style={{ marginTop: 24 }}>
+        {/* Postulantes por Carrera */}
         <div className="chart-card">
           <div className="chart-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span><FiBarChart2 style={{ marginRight: 6 }} />Postulantes por Carrera</span>
@@ -150,6 +152,7 @@ export default function DashboardAutoridad() {
           </div>
         </div>
 
+        {/* Grupos Recientes */}
         <div className="chart-card">
           <div className="chart-card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span><FiGrid style={{ marginRight: 6 }} />Grupos Habilitados Recientes</span>
@@ -203,6 +206,7 @@ export default function DashboardAutoridad() {
         </div>
       </div>
 
+      {/* Quick Access */}
       <div className="card" style={{ marginTop: 24 }}>
         <div className="card-header">
           <span className="card-title">Consultas Rápidas</span>
@@ -215,13 +219,13 @@ export default function DashboardAutoridad() {
         </div>
       </div>
 
+      {/* CSS for spin animation */}
       <style>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
       `}</style>
-
     </Layout>
   )
 }

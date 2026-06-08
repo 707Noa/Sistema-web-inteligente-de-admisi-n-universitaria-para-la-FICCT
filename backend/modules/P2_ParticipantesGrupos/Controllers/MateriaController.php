@@ -70,4 +70,14 @@ class MateriaController extends Controller
     {
         return response()->json(Materia::where('estado', 'activo')->orderBy('nombre')->get());
     }
+
+    public function getTemas(int $materiaId): JsonResponse
+    {
+        $materia = Materia::findOrFail($materiaId);
+        $temas = \App\Models\Tema::where('materia_id', $materiaId)->orderBy('numero', 'asc')->get();
+        return response()->json([
+            'materia' => $materia,
+            'temas' => $temas
+        ]);
+    }
 }

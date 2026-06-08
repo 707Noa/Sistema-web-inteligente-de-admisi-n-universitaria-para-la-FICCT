@@ -13,7 +13,7 @@ export default function ChangePassword() {
 
   const redirectPath = {
     postulante:    '/postulante/inicio',
-    docente:       '/docente/inicio',
+    docente:       '/docente/grupos',
     coordinador:   '/coordinador/dashboard',
     autoridad:     '/autoridad/dashboard',
     administrador: '/admin/dashboard',
