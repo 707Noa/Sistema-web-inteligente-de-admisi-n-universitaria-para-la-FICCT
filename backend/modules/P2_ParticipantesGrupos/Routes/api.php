@@ -10,7 +10,9 @@ use Modules\P2_ParticipantesGrupos\Controllers\MateriaController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordDocenteController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordGrupoController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordAsignacionController;
+
 use Modules\P4_ReportesMonitoreoAuditoria\Controllers\CoordReporteController;
+
 use Modules\P2_ParticipantesGrupos\Controllers\DocentePortalController;
 use Modules\P2_ParticipantesGrupos\Controllers\AutoridadPortalController;
 use Illuminate\Support\Facades\Route;
@@ -41,12 +43,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/preinscripciones', [PreinscripcionAdminController::class, 'index']);
         Route::get('/preinscripciones/exportar-csv', [PreinscripcionAdminController::class, 'exportarCsv']);
         Route::get('/postulantes/{id}/documento/{type}', [PreinscripcionAdminController::class, 'descargarDocumento']);
+
     });
 
     // Solo administrador - Creación de cuentas y inscripción masiva
     Route::middleware('role:administrador')->group(function () {
         Route::post('/preinscripciones/generar-cuentas', [PreinscripcionAdminController::class, 'generarCuentasMasivo']);
         Route::post('/preinscripciones/{postulante}/generar-cuenta', [PreinscripcionAdminController::class, 'generarCuenta']);
+
     });
 
     Route::get('/materias-all', [MateriaController::class, 'all']);
@@ -150,7 +154,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/docentes-asignados',  [AutoridadPortalController::class, 'docentesAsignados']);
         Route::get('/horarios',            [AutoridadPortalController::class, 'horarios']);
         Route::get('/estadisticas',        [AutoridadPortalController::class, 'estadisticas']);
+
     });
+
+
 
     /*
     |----------------------------------------------------------------------

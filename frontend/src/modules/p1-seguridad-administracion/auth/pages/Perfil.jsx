@@ -15,10 +15,10 @@ import {
 
 const ROL_LABELS = {
   administrador: 'Administrador',
-  docente:       'Docente',
-  coordinador:   'Coordinador Académico',
-  autoridad:     'Autoridad Académica',
-  postulante:    'Postulante',
+  docente: 'Docente',
+  coordinador: 'Coordinador Académico',
+  autoridad: 'Autoridad Académica',
+  postulante: 'Postulante',
 }
 
 export default function Perfil() {
@@ -39,18 +39,18 @@ export default function Perfil() {
     // Cargar materias de la DB para resolver IDs reales
     api.get('/materias-all')
       .then(r => setMateriasDb(r.data || []))
-      .catch(() => {})
+      .catch(() => { })
 
     if (user && user.role === 'postulante') {
       setLoadingProfile(true)
       getPostulantePerfil()
         .then(r => setProfileData(r.data))
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoadingProfile(false))
 
       getPostulanteCalificaciones()
         .then(r => setCalificaciones(r.data))
-        .catch(() => {})
+        .catch(() => { })
     }
   }, [user])
 
@@ -92,7 +92,7 @@ export default function Perfil() {
   const userInitial = user?.name ? user.name[0].toUpperCase() : 'U'
 
   if (user.role === 'postulante') {
-    const allAsignaciones = profileData?.grupos?.flatMap(g => 
+    const allAsignaciones = profileData?.grupos?.flatMap(g =>
       (g.asignaciones || []).map(a => ({
         ...a,
         grupo_codigo: g.codigo || g.nombre_grupo,
@@ -103,7 +103,7 @@ export default function Perfil() {
     ) || []
 
     const findMateriaInfo = (nameRegex) => {
-      return allAsignaciones.find(a => 
+      return allAsignaciones.find(a =>
         new RegExp(nameRegex, 'i').test(a.materia?.nombre || '')
       )
     }
@@ -145,7 +145,7 @@ export default function Perfil() {
 
     const handleSelectMateria = (mCUP, info) => {
       // Buscar ID de materia en la DB por nombre
-      const dbMat = materiasDb.find(dm => 
+      const dbMat = materiasDb.find(dm =>
         new RegExp(mCUP.regex, 'i').test(dm.nombre)
       )
       setSelectedMateria({
@@ -160,7 +160,7 @@ export default function Perfil() {
     }
 
     // Filtrar calificación de la materia seleccionada
-    const califMateria = calificaciones?.materias?.find(c => 
+    const califMateria = calificaciones?.materias?.find(c =>
       new RegExp(selectedMateria?.nombre, 'i').test(c.materia)
     )
 
@@ -169,7 +169,7 @@ export default function Perfil() {
         {selectedMateria ? (
           // ── Vista Interna del Curso ──
           <div style={{ maxWidth: '1000px', margin: '0 auto', animation: 'fadeIn 0.3s ease' }}>
-            
+
             {/* Botón Volver */}
             <button
               className="btn btn-outline btn-sm"
@@ -240,7 +240,7 @@ export default function Perfil() {
 
             {/* Contenido de la Pestaña Activa */}
             <div className="tab-content" style={{ minHeight: '300px' }}>
-              
+
               {/* 1. CURSO */}
               {activeTab === 'curso' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -258,7 +258,7 @@ export default function Perfil() {
                   {/* Temas / Mosaicos */}
                   <div>
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '16px' }}>Temas y Unidades del Curso</h3>
-                    
+
                     {loadingTemas ? (
                       <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-400)' }}>
                         Cargando contenidos del curso...
@@ -402,7 +402,7 @@ export default function Perfil() {
         ) : (
           // ── Panel General (Dashboard Principal del Postulante) ──
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-            
+
             {/* Bienvenida */}
             <div className="card" style={{
               padding: '28px 32px',
@@ -439,7 +439,7 @@ export default function Perfil() {
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 750, margin: 0 }}>Mis Asignaturas Preuniversitarias</h3>
                 {loadingProfile && <span style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>Cargando asignaciones...</span>}
               </div>
-              
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px' }}>
                 {materiasCUP.map(m => {
                   const info = findMateriaInfo(m.regex)
