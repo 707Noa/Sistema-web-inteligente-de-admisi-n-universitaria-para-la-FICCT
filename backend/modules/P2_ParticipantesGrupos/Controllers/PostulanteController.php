@@ -3,7 +3,6 @@
 namespace Modules\P2_ParticipantesGrupos\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\DocenteGrupoAsignacion;
 use App\Models\Postulante;
 use Modules\P4_ReportesMonitoreoAuditoria\Services\AuditoriaService;
 use Illuminate\Http\JsonResponse;
@@ -11,94 +10,28 @@ use Illuminate\Http\Request;
 
 class PostulanteController extends Controller
 {
-    /**
-     * Genera el código de registro: "2026" + CI al revés.
-     */
-    private function generarRegistro(string $ci): string
-    {
-        return '2026' . strrev(trim($ci));
-    }
-
-    /**
-     * Aplica el filtro de búsqueda a un query builder.
-     */
-    private function applySearch($query, ?string $search)
-    {
-        if (!$search) return $query;
-        return $query->where(function ($q) use ($search) {
-            $q->where('nombres', 'ilike', "%{$search}%")
-              ->orWhere('apellidos', 'ilike', "%{$search}%")
-              ->orWhere('ci', 'ilike', "%{$search}%")
-              ->orWhere('email', 'ilike', "%{$search}%")
-              ->orWhere('carrera', 'ilike', "%{$search}%")
-              ->orWhere('carrera_postulada', 'ilike', "%{$search}%");
-        });
-    }
-
-    /**
-     * Normaliza strings vacíos a null para campos nullable.
-     */
-    private function nullifyEmpty(array $data, array $fields): array
-    {
-        foreach ($fields as $field) {
-            if (isset($data[$field]) && $data[$field] === '') {
-                $data[$field] = null;
-            }
-        }
-        return $data;
-    }
-
     public function index(Request $request): JsonResponse
     {
-         $search = $request->input('search');
-         $filtroEstado = $request->input('estado_tramite');
-         $filtroCarrera = $request->input('carrera');
+        $query = Postulante::with(['user', 'grupos', 'examenes.materia'])
+            ->whereIn('estado_tramite', ['PREINSCRITO', 'INSCRITO']);
 
-         $query = Postulante::with(['user', 'grupos', 'examenes.materia'])
-        ->whereIn('estado_tramite', ['PREINSCRITO', 'INSCRITO']);
-
-        // ── Conteos para filtros ──────────────────────────────────────────────
-        // Estado: cuenta con search + carrera (sin filtro de estado)
-        $qEstado = $this->applySearch(Postulante::query(), $search);
-        if ($filtroCarrera) {
-            $qEstado->where(function ($q) use ($filtroCarrera) {
-                $q->where('carrera', $filtroCarrera)
-                  ->orWhere('carrera_postulada', $filtroCarrera);
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('nombres', 'ilike', "%{$s}%")
+                  ->orWhere('apellidos', 'ilike', "%{$s}%")
+                  ->orWhere('ci', 'ilike', "%{$s}%")
+                  ->orWhere('email', 'ilike', "%{$s}%")
+                  ->orWhere('carrera_postulada', 'ilike', "%{$s}%")
+                  ->orWhere('carrera', 'ilike', "%{$s}%");
             });
         }
-        $conteoEstado = $qEstado
-            ->whereNotNull('estado_tramite')
-            ->groupBy('estado_tramite')
-            ->selectRaw('estado_tramite, count(*) as total')
-            ->pluck('total', 'estado_tramite');
 
-
-        // Carrera: cuenta con search + estado (sin filtro de carrera)
-        $qCarrera = $this->applySearch(Postulante::query(), $search);
-        if ($filtroEstado) {
-            $qCarrera->where('estado_tramite', $filtroEstado);
-        }
-        $conteoCarrera = $qCarrera
-            ->selectRaw("COALESCE(NULLIF(carrera,''), carrera_postulada) as nombre_carrera, count(*) as total")
-            ->whereRaw("COALESCE(NULLIF(carrera,''), carrera_postulada) IS NOT NULL")
-            ->groupByRaw("COALESCE(NULLIF(carrera,''), carrera_postulada)")
-            ->pluck('total', 'nombre_carrera');
-
-        // ── Query principal ─
-        $query = $this->applySearch(
-            Postulante::with(['user', 'grupos', 'examenes.materia'])
-            ->whereIn('estado_tramite', ['PREINSCRITO', 'INSCRITO']),
-            $search
-            );
-
-        if ($filtroEstado) {
-            $query->where('estado_tramite', $filtroEstado);
-        }
-
-        if ($filtroCarrera) {
-            $query->where(function ($q) use ($filtroCarrera) {
-            $q->where('carrera', $filtroCarrera)
-            ->orWhere('carrera_postulada', $filtroCarrera);
+        if ($request->filled('carrera')) {
+            $c = $request->carrera;
+            $query->where(function ($q) use ($c) {
+                $q->where('carrera', 'ilike', "%{$c}%")
+                  ->orWhere('carrera_postulada', 'ilike', "%{$c}%");
             });
         }
 
@@ -137,57 +70,22 @@ class PostulanteController extends Controller
             return $p;
         });
 
-        $result = $postulantes->toArray();
-        $result['conteos'] = [
-            'estado_tramite' => $conteoEstado,
-            'carrera'        => $conteoCarrera,
-        ];
-
-        return response()->json($result);
+        return response()->json($postulantes);
     }
 
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'nombres'             => 'required|string|max:191',
-            'apellidos'           => 'required|string|max:191',
-            'ci'                  => 'required|string|max:20|unique:postulantes,ci',
-            'email'               => 'nullable|email|max:191|unique:postulantes,email',
-            'celular'             => 'nullable|string|max:20|unique:postulantes,celular',
-            'genero'              => 'nullable|in:masculino,femenino,otro',
-            'fecha_nacimiento'    => 'nullable|date',
-            'carrera'             => 'nullable|string|max:191',
-            'carrera_postulada'   => 'nullable|string|max:191',
-            'colegio_procedencia' => 'nullable|string|max:191',
-            'ciudad'              => 'nullable|string|max:100',
-            'estado_tramite'      => 'nullable|in:PENDIENTE_PAGO,PREINSCRITO,INSCRITO',
-            'direccion'           => 'nullable|string|max:500',
-            'preferencia_turno'   => 'nullable|string|in:manana,tarde,noche',
-        ], [
-            'ci.unique'      => 'El CI ya está registrado.',
-            'email.unique'   => 'El correo electrónico ya está registrado.',
-            'celular.unique' => 'El teléfono ya está registrado.',
+            'nombres' => 'required|string|max:191',
+            'apellidos' => 'required|string|max:191',
+            'ci' => 'required|string|unique:postulantes,ci',
+            'email' => 'nullable|email',
+            'genero' => 'nullable|in:masculino,femenino,otro',
+            'fecha_nacimiento' => 'nullable|date',
         ]);
 
-        $data = $request->only([
-            'nombres', 'apellidos', 'ci', 'email', 'celular', 'genero',
-            'fecha_nacimiento', 'carrera', 'carrera_postulada',
-            'colegio_procedencia', 'ciudad', 'estado_tramite', 'direccion',
-            'preferencia_turno',
-        ]);
-
-        $data = $this->nullifyEmpty($data, ['email', 'celular', 'fecha_nacimiento', 'carrera', 'carrera_postulada', 'colegio_procedencia', 'ciudad', 'direccion']);
-
-        // Generar registro automáticamente
-        $data['codigo_usuario'] = $this->generarRegistro($data['ci']);
-        $data['estado_tramite'] = $data['estado_tramite'] ?? 'PREINSCRITO';
-        $data['estado']         = 'pendiente';
-        $data['pago_estado']    = 'PAGADO';
-
-        // Sincronizar carrera_postulada
-        if (empty($data['carrera_postulada']) && !empty($data['carrera'])) {
-            $data['carrera_postulada'] = $data['carrera'];
-        }
+        $data = $request->all();
+        $data['codigo_qr'] = 'POST-' . uniqid();
 
         $postulante = Postulante::create($data);
 
@@ -196,7 +94,7 @@ class PostulanteController extends Controller
             'Registró un postulante',
             'Postulantes',
             $request,
-            "Postulante: {$postulante->nombres} {$postulante->apellidos} | Registro: {$postulante->codigo_usuario}"
+            "Postulante: {$postulante->nombres} {$postulante->apellidos}"
         );
 
         return response()->json($postulante, 201);
@@ -214,53 +112,16 @@ class PostulanteController extends Controller
         $postulante = Postulante::findOrFail($id);
 
         $request->validate([
-            'nombres'              => 'required|string|max:191',
-            'apellidos'            => 'required|string|max:191',
-            'ci'                   => "required|string|max:20|unique:postulantes,ci,{$id}",
-            'email'                => "nullable|email|max:191|unique:postulantes,email,{$id}",
-            'celular'              => "nullable|string|max:20|unique:postulantes,celular,{$id}",
-            'genero'               => 'nullable|in:masculino,femenino,otro',
-            'fecha_nacimiento'     => 'nullable|date',
-            'carrera'              => 'nullable|string|max:191',
-            'carrera_postulada'    => 'nullable|string|max:191',
-            'colegio_procedencia'  => 'nullable|string|max:191',
-            'ciudad'               => 'nullable|string|max:100',
-            'estado_tramite'       => 'nullable|in:PENDIENTE_PAGO,PREINSCRITO,INSCRITO',
-            'direccion'            => 'nullable|string|max:500',
+            'nombres' => 'required|string|max:191',
+            'apellidos' => 'required|string|max:191',
+            'ci' => "required|string|unique:postulantes,ci,{$id}",
             'requisitos_completos' => 'nullable|boolean',
-            'preferencia_turno'    => 'nullable|string|in:manana,tarde,noche',
-        ], [
-            'ci.unique'      => 'El CI ya está registrado.',
-            'email.unique'   => 'El correo electrónico ya está registrado.',
-            'celular.unique' => 'El teléfono ya está registrado.',
         ]);
 
-        $data = $request->only([
-            'nombres', 'apellidos', 'ci', 'email', 'celular', 'genero',
-            'fecha_nacimiento', 'carrera', 'carrera_postulada',
-            'colegio_procedencia', 'ciudad', 'estado_tramite', 'direccion',
-            'requisitos_completos', 'preferencia_turno',
-        ]);
-
-    $data = $this->nullifyEmpty($data, [
-        'email', 'celular', 'fecha_nacimiento', 'carrera',
-        'carrera_postulada', 'colegio_procedencia', 'ciudad', 'direccion'
-    ]);
-
-    if (!$request->user() || !$request->user()->hasRole('coordinador')) {
-        unset($data['requisitos_completos']);
-    }
-
-    // Recalcular registro si el CI cambió
-    if (!empty($data['ci']) && $data['ci'] !== $postulante->ci) {
-        $data['codigo_usuario'] = $this->generarRegistro($data['ci']);
-    }
-
-    // Sincronizar carrera_postulada
-    if (empty($data['carrera_postulada']) && !empty($data['carrera'])) {
-        $data['carrera_postulada'] = $data['carrera'];
-    }
-
+        $data = $request->all();
+        if (!$request->user() || !$request->user()->hasRole('coordinador')) {
+            unset($data['requisitos_completos']);
+        }
 
         $postulante->update($data);
 
@@ -269,7 +130,7 @@ class PostulanteController extends Controller
             'Editó un postulante',
             'Postulantes',
             $request,
-            "Postulante: {$postulante->nombres} {$postulante->apellidos} | Registro: {$postulante->codigo_usuario}"
+            "Postulante: {$postulante->nombres} {$postulante->apellidos}"
         );
 
         return response()->json($postulante);
@@ -300,13 +161,7 @@ class PostulanteController extends Controller
 
         $postulante->delete();
 
-        AuditoriaService::registrar(
-            $request->user()->id,
-            'Eliminó un postulante',
-            'Postulantes',
-            $request,
-            "Postulante: {$name}"
-        );
+        AuditoriaService::registrar($request->user()->id, 'Eliminó un postulante', 'Postulantes', $request, "Postulante: {$name}");
 
         return response()->json(['message' => 'Postulante eliminado correctamente.']);
     }
@@ -319,78 +174,6 @@ class PostulanteController extends Controller
             ->firstOrFail();
 
         return response()->json($postulante);
-    }
-
-    // ── Mi Horario (para el postulante autenticado) ──────────────────────────
-
-    public function horarioPostulante(Request $request): JsonResponse
-    {
-        $user       = $request->user();
-        $postulante = Postulante::where('user_id', $user->id)
-            ->with(['grupos'])
-            ->firstOrFail();
-
-        if ($postulante->grupos->isEmpty()) {
-            return response()->json([
-                'grupo'           => null,
-                'horario_semanal' => [],
-                'docentes'        => [],
-            ]);
-        }
-
-        $grupo = $postulante->grupos->first();
-
-        $asignaciones = DocenteGrupoAsignacion::with(['materia', 'docente'])
-            ->where('grupo_id', $grupo->id)
-            ->where('estado', 'activo')
-            ->orderBy('hora_inicio')
-            ->get();
-
-        $slots       = [];
-        $docentesMap = [];
-
-        foreach ($asignaciones as $a) {
-            $inicio = substr($a->hora_inicio, 0, 5);
-            $fin    = substr($a->hora_fin, 0, 5);
-            $key    = $inicio . '|' . $fin;
-
-            if (!isset($slots[$key])) {
-                $slots[$key] = [
-                    'hora_inicio' => $inicio,
-                    'hora_fin'    => $fin,
-                    'lunes'       => null,
-                    'martes'      => null,
-                    'miercoles'   => null,
-                    'jueves'      => null,
-                    'viernes'     => null,
-                    'sabado'      => null,
-                ];
-            }
-
-            $slots[$key][$a->dia] = [
-                'materia' => $a->materia?->nombre,
-                'aula'    => $grupo->aula,
-            ];
-
-            $matNombre = $a->materia?->nombre;
-            if ($matNombre && !isset($docentesMap[$matNombre])) {
-                $docentesMap[$matNombre] = $a->docente?->name ?? 'Por asignar';
-            }
-        }
-
-        ksort($slots);
-
-        return response()->json([
-            'grupo' => [
-                'id'         => $grupo->id,
-                'codigo'     => $grupo->codigo,
-                'turno'      => $grupo->turno,
-                'aula'       => $grupo->aula,
-                'cupo_maximo'=> $grupo->cupo_maximo,
-            ],
-            'horario_semanal' => array_values($slots),
-            'docentes'        => $docentesMap,
-        ]);
     }
 
     public function uploadFoto(Request $request, int $id): JsonResponse

@@ -20,24 +20,17 @@ class AuthController extends Controller
             'perfil' => 'required|string|in:postulante,docente,coordinador,autoridad,administrador',
         ]);
 
-        // Buscar usuario por email, CI o código de usuario (insensible a mayúsculas/minúsculas y recortando espacios)
-        $login = trim($request->login);
-        $user = User::where(function ($query) use ($login) {
-            $query->where('ci', 'ilike', $login)
-                  ->orWhere('codigo', 'ilike', $login)
-                  ->orWhere('email', 'ilike', $login)
-                  ->orWhereHas('postulante', function ($q) use ($login) {
-                      $q->where('codigo_usuario', 'ilike', $login)
-                        ->orWhere('ci', 'ilike', $login);
-                  });
-        })->first();
+        // Buscar usuario por email, CI o código de usuario
+        $user = User::where('email', $request->login)
+                    ->orWhere('ci', $request->login)
+                    ->orWhere('codigo', $request->login)
+                    ->first();
 
         if (!$user) {
             \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Usuario no encontrado.");
             $debugResponse = config('app.debug') ? ['debug_reason' => 'Usuario no encontrado.'] : [];
             return response()->json(array_merge([
                 'message' => 'Credenciales incorrectas.',
-
             ], $debugResponse), 401);
         }
 
@@ -52,9 +45,7 @@ class AuthController extends Controller
             \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Contraseña incorrecta.");
             $debugResponse = config('app.debug') ? ['debug_reason' => 'Contraseña incorrecta.'] : [];
             return response()->json(array_merge([
-
                 'message' => 'Credenciales incorrectas.',
-
             ], $debugResponse), 401);
         }
 
@@ -66,36 +57,8 @@ class AuthController extends Controller
             ], $debugResponse), 403);
         }
 
-
-        // Reglas de acceso dual
-        $roleName = $user->role->name ?? '';
-        if (!$user->must_change_password) {
-            if (strtolower($user->email ?? '') === strtolower($login)) {
-                return response()->json([
-                    'message' => 'Acceso denegado. El usuario ya actualizó sus datos de acceso. Use su código de registro.',
-                ], 401);
-            }
-            if (strtolower($roleName) === 'postulante') {
-                $codigo = $user->codigo ?? '';
-                if (strtolower($codigo) !== strtolower($login)) {
-                    return response()->json([
-                        'message' => 'Acceso denegado. Para ingresar debe utilizar su código de registro.',
-                    ], 401);
-                }
-            } else {
-                $codigo = $user->codigo ?? '';
-                $ci = $user->ci ?? '';
-                if (strtolower($codigo) !== strtolower($login) && strtolower($ci) !== strtolower($login)) {
-                    return response()->json([
-                        'message' => 'Acceso denegado. Debe iniciar sesión con su código de usuario o CI.',
-                    ], 401);
-                }
-            }
-        }
-
         // Verificar que el rol coincida con el perfil seleccionado (comparación flexible e insensible a mayúsculas/minúsculas)
         $roleName = $user->role->name ?? '';
-
         if (strtolower($roleName) !== strtolower($request->perfil)) {
             AuditoriaService::registrar(
                 $user->id,
@@ -174,23 +137,11 @@ class AuthController extends Controller
     public function changePassword(Request $request): JsonResponse
     {
         $request->validate([
-            'new_password' => [
-                'required',
-                'string',
-                'min:8',
-                'confirmed',
-                'regex:/[a-z]/',
-                'regex:/[A-Z]/',
-                'regex:/[!@#$%^&*(),.?":{}|<>_+\\-=\\[\\]]/',
-            ],
-        ], [
-            'new_password.min' => 'La contraseña debe tener al menos 8 caracteres.',
-            'new_password.regex' => 'La contraseña debe contener al menos una minúscula, una mayúscula y un carácter especial.',
-            'new_password.confirmed' => 'Las contraseñas de confirmación no coinciden.',
+            'new_password' => 'required|string|min:6|confirmed',
         ]);
 
         $user = $request->user();
-        $user->password = Hash::make($request->new_password);
+        $user->password = $request->new_password; // cast 'hashed' lo hashea automáticamente
         $user->must_change_password = false;
         $user->save();
 
@@ -206,18 +157,12 @@ class AuthController extends Controller
 
     private function getRedirectPath(string $role): string
     {
-        return match(strtolower($role)) {
-            'administrador' => '/admin/dashboard',
-            'coordinador'   => '/coordinador/dashboard',
-
-            'docente'       => '/docente/grupos',
-            'postulante'    => '/perfil',
-
-            'docente'       => '/docente/perfil',
-            'postulante'    => '/postulante/perfil',
-
-            'autoridad'     => '/autoridad/dashboard',
-            default         => '/perfil',
-        };
+        if ($role === 'administrador') {
+            return '/admin/dashboard';
+        }
+        if ($role === 'coordinador') {
+            return '/coordinador/dashboard';
+        }
+        return '/perfil';
     }
 }

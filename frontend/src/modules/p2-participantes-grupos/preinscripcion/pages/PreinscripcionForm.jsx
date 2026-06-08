@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { getCarrerasDisponibles } from '@/modules/p4-reportes-monitoreo-auditoria/reportes/services/reporteService'
 import {
@@ -29,13 +29,13 @@ import {
 export default function PreinscripcionForm() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-
+  
   // Stepper state (1: Datos, 2: Documentos, 3: Pago)
   const [step, setStep] = useState(1)
-
+  
   // Postulante ID retrieved after completing Step 2
   const [postulanteId, setPostulanteId] = useState(null)
-
+  
   const [carreras, setCarreras] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -54,7 +54,7 @@ export default function PreinscripcionForm() {
   // File uploads state
   const [imagenCi, setImagenCi] = useState(null)
   const [imagenCiPreview, setImagenCiPreview] = useState(null)
-
+  
   const [imagenTituloBachiller, setImagenTituloBachiller] = useState(null)
   const [imagenTituloBachillerPreview, setImagenTituloBachillerPreview] = useState(null)
 
@@ -91,7 +91,7 @@ export default function PreinscripcionForm() {
       if (isCanceled) {
         setError('El proceso de pago fue cancelado. Por favor intente nuevamente.')
       } else if (isPending) {
-        setError('Su pago sigue en verificaciÃ³n o pendiente. Por favor intente realizar el pago nuevamente.')
+        setError('Su pago sigue en verificación o pendiente. Por favor intente realizar el pago nuevamente.')
       }
     }
   }, [searchParams])
@@ -111,7 +111,7 @@ export default function PreinscripcionForm() {
       }
     } else if (optionName === 'segunda_opcion_carrera') {
       if (carreraNombre === form.primera_opcion_carrera) {
-        setError('La segunda opciÃ³n debe ser diferente a la primera.')
+        setError('La segunda opción debe ser diferente a la primera.')
       } else {
         setForm(prev => ({ ...prev, segunda_opcion_carrera: carreraNombre }))
       }
@@ -126,21 +126,17 @@ export default function PreinscripcionForm() {
     if (!form.nombres || !form.apellidos || !form.ci || !form.email || !form.preferencia_turno) {
       setError('Por favor complete todos los campos obligatorios (*).'); return
     }
-    const emailRegexStep1 = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegexStep1.test(form.email)) {
-      setError('El formato del correo electrÃ³nico no es vÃ¡lido.'); return
-    }
     if (!form.primera_opcion_carrera) {
-      setError('Seleccione su primera opciÃ³n de carrera.'); return
+      setError('Seleccione su primera opción de carrera.'); return
     }
     if (!form.segunda_opcion_carrera) {
-      setError('Seleccione su segunda opciÃ³n de carrera.'); return
+      setError('Seleccione su segunda opción de carrera.'); return
     }
     if (form.primera_opcion_carrera === form.segunda_opcion_carrera) {
-      setError('La segunda opciÃ³n de carrera debe ser diferente a la primera.'); return
+      setError('La segunda opción de carrera debe ser diferente a la primera.'); return
     }
     if (!form.declaracion_jurada) {
-      setError('Debe aceptar la declaraciÃ³n jurada.'); return
+      setError('Debe aceptar la declaración jurada.'); return
     }
 
     setStep(2)
@@ -160,7 +156,7 @@ export default function PreinscripcionForm() {
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setError('La imagen del CI supera el lÃ­mite de 5 MB.')
+      setError('La imagen del CI supera el límite de 5 MB.')
       return
     }
 
@@ -176,12 +172,12 @@ export default function PreinscripcionForm() {
     const ext = file.name.split('.').pop().toLowerCase()
     const allowedExts = ['jpg', 'jpeg', 'png', 'webp']
     if (!allowedExts.includes(ext)) {
-      setError('El tÃ­tulo debe estar en formato JPG, JPEG, PNG o WEBP.')
+      setError('El título debe estar en formato JPG, JPEG, PNG o WEBP.')
       return
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setError('La imagen del TÃ­tulo de Bachiller supera el lÃ­mite de 5 MB.')
+      setError('La imagen del Título de Bachiller supera el límite de 5 MB.')
       return
     }
 
@@ -197,12 +193,12 @@ export default function PreinscripcionForm() {
     const ext = file.name.split('.').pop().toLowerCase()
     const allowedExts = ['jpg', 'jpeg', 'png', 'webp']
     if (!allowedExts.includes(ext)) {
-      setError('La fotografÃ­a debe estar en formato JPG, JPEG, PNG o WEBP.')
+      setError('La fotografía debe estar en formato JPG, JPEG, PNG o WEBP.')
       return
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setError('La fotografÃ­a supera el lÃ­mite de 5 MB.')
+      setError('La fotografía supera el límite de 5 MB.')
       return
     }
 
@@ -211,7 +207,7 @@ export default function PreinscripcionForm() {
   }
 
   // Submit Step 2 (Multipart Form Upload & Save Postulante)
-  const handleRegisterAndGoToPayment = async (e) => {
+  const handleRegisterAndGoToPayment = (e) => {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -222,73 +218,16 @@ export default function PreinscripcionForm() {
     }
 
     if (!imagenTituloBachiller) {
-      setError('La imagen del TÃ­tulo de Bachiller es obligatoria.')
+      setError('La imagen del Título de Bachiller es obligatoria.')
       return
     }
 
     if (!foto) {
-      setError('La fotografÃ­a del postulante es obligatoria.')
+      setError('La fotografía del postulante es obligatoria.')
       return
     }
 
-    setLoading(true)
-    try {
-      const formData = new FormData()
-      formData.append('nombres', form.nombres)
-      formData.append('apellidos', form.apellidos)
-      formData.append('ci', form.ci)
-      formData.append('sexo', form.genero)
-      formData.append('fecha_nacimiento', form.fecha_nacimiento)
-      formData.append('telefono', form.celular)
-      formData.append('segundo_telefono', form.segundo_celular)
-      formData.append('correo_electronico', form.email)
-      formData.append('direccion', form.direccion)
-      formData.append('colegio_procedencia', form.unidad_educativa)
-      formData.append('ciudad', form.provincia)
-      formData.append('carrera', form.primera_opcion_carrera)
-      formData.append('primera_opcion_carrera', form.primera_opcion_carrera)
-      formData.append('segunda_opcion_carrera', form.segunda_opcion_carrera)
-      formData.append('preferencia_turno', form.preferencia_turno)
-      formData.append('titulo_bachiller', '1') // default flag
-      formData.append('otros', `Primera opciÃ³n: ${form.primera_opcion_carrera}, Segunda opciÃ³n: ${form.segunda_opcion_carrera}. Tipo: ${form.tipo_colegio || ''}, Turno: ${form.turno || ''}, Egreso: ${form.anio_egreso || ''}`)
-
-      // Append files
-      formData.append('imagen_ci', imagenCi)
-      formData.append('imagen_titulo_bachiller', imagenTituloBachiller)
-      formData.append('fotografia', foto)
-
-      const res = await registrarPreinscripcion(formData)
-      setPostulanteId(res.data.data.id)
-      setSuccess('Documentos y datos registrados correctamente.')
-
-      setTimeout(() => {
-        setSuccess('')
-        setStep(3)
-      }, 1500)
-    } catch (err) {
-      console.log('Error del backend:', err.response?.data)
-      const errs = err.response?.data?.errors || {}
-
-      // Errores de datos duplicados: volver al Step 1 para que el usuario los corrija
-      const dataDuplicateFields = {
-        ci: 'El CI ya estÃ¡ registrado.',
-        correo_electronico: 'El correo electrÃ³nico ya estÃ¡ registrado.',
-        telefono: 'El telÃ©fono ya estÃ¡ registrado.',
-      }
-      const duplicateMessages = Object.entries(dataDuplicateFields)
-        .filter(([field]) => errs[field])
-        .map(([, msg]) => msg)
-
-      if (duplicateMessages.length > 0) {
-        setError(duplicateMessages.join(' '))
-        // Volver al Step 1 para que corrija los datos duplicados
-        setStep(1)
-      } else {
-        setError(err.response?.data?.message || 'Error al guardar sus datos y documentos.')
-      }
-    } finally {
-      setLoading(false)
-    }
+    setStep(3)
   }
 
   // Step 3 Payment Handler: Simulated Card Payment (PAGADO)
@@ -298,13 +237,13 @@ export default function PreinscripcionForm() {
     setSuccess('')
 
     if (!tarjetaForm.numeroTarjeta) {
-      setError('El nÃºmero de tarjeta es obligatorio.'); return
+      setError('El número de tarjeta es obligatorio.'); return
     }
     if (!tarjetaForm.fechaVencimiento) {
       setError('La fecha de vencimiento es obligatoria.'); return
     }
     if (!tarjetaForm.cvv) {
-      setError('El cÃ³digo de seguridad (CVV) es obligatorio.'); return
+      setError('El código de seguridad (CVV) es obligatorio.'); return
     }
     if (!tarjetaForm.titular) {
       setError('El nombre del titular es obligatorio.'); return
@@ -313,12 +252,12 @@ export default function PreinscripcionForm() {
     setLoading(true)
     try {
       const res = await simularPagoPostulante(postulanteId, 'PAGADO', 'TARJETA')
-      setSuccess('Â¡Pago simulado con tarjeta exitoso!')
+      setSuccess('¡Pago simulado con tarjeta exitoso!')
       setTimeout(() => {
         navigate(`/preinscripcion/pago-confirmado?gateway=stripe&session_id=${res.data.data.pago_referencia}&postulante_id=${postulanteId}`)
       }, 1500)
     } catch (err) {
-      setError('Error al procesar la simulaciÃ³n de pago con tarjeta.')
+      setError('Error al procesar la simulación de pago con tarjeta.')
     } finally {
       setLoading(false)
     }
@@ -336,7 +275,7 @@ export default function PreinscripcionForm() {
         navigate(`/preinscripcion?cancelado=true&id=${postulanteId}`)
       }, 1500)
     } catch (err) {
-      setError('Error al registrar la cancelaciÃ³n de pago.')
+      setError('Error al registrar la cancelación de pago.')
     } finally {
       setLoading(false)
     }
@@ -368,18 +307,18 @@ export default function PreinscripcionForm() {
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(correoPaypal)) {
-      setError('Ingrese un formato de correo electrÃ³nico vÃ¡lido.'); return
+      setError('Ingrese un formato de correo electrónico válido.'); return
     }
 
     setLoading(true)
     try {
       const res = await simularPagoPostulante(postulanteId, 'PAGADO', 'PAYPAL')
-      setSuccess('Â¡Pago simulado con PayPal aprobado con Ã©xito!')
+      setSuccess('¡Pago simulado con PayPal aprobado con éxito!')
       setTimeout(() => {
         navigate(`/preinscripcion/pago-confirmado?gateway=paypal&order_id=${res.data.data.pago_referencia}&postulante_id=${postulanteId}`)
       }, 1500)
     } catch (err) {
-      setError('Error al procesar la simulaciÃ³n de pago de PayPal.')
+      setError('Error al procesar la simulación de pago de PayPal.')
     } finally {
       setLoading(false)
     }
@@ -397,7 +336,7 @@ export default function PreinscripcionForm() {
         navigate(`/preinscripcion?cancelado=true&id=${postulanteId}`)
       }, 1500)
     } catch (err) {
-      setError('Error al registrar la cancelaciÃ³n de pago.')
+      setError('Error al registrar la cancelación de pago.')
     } finally {
       setLoading(false)
     }
@@ -416,7 +355,7 @@ export default function PreinscripcionForm() {
     const token = searchParams.get('token') || searchParams.get('cancel_token') || localStorage.getItem('cancel_token')
 
     if (!id) {
-      setError('No se pudo encontrar el identificador de la preinscripciÃ³n para cancelar.')
+      setError('No se pudo encontrar el identificador de la preinscripción para cancelar.')
       return
     }
 
@@ -425,13 +364,13 @@ export default function PreinscripcionForm() {
     setSuccess('')
     try {
       const res = await cancelarPreinscripcion(id, token)
-      setSuccess(res.data.message || 'PreinscripciÃ³n cancelada correctamente.')
+      setSuccess(res.data.message || 'Preinscripción cancelada correctamente.')
       setShowCancelModal(false)
       setTimeout(() => {
         window.location.href = '/preinscripcion'
       }, 1500)
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al cancelar la preinscripciÃ³n.')
+      setError(err.response?.data?.message || 'Error al cancelar la preinscripción.')
       setShowCancelModal(false)
     } finally {
       setCanceling(false)
@@ -446,8 +385,8 @@ export default function PreinscripcionForm() {
             <FiArrowLeft /> Volver al portal
           </a>
         </div>
-        <h1>ðŸ“‹ Formulario de PreinscripciÃ³n</h1>
-        <p>Cursos Preuniversitarios â€” GestiÃ³n 2026</p>
+        <h1>📋 Formulario de Preinscripción</h1>
+        <p>Cursos Preuniversitarios — Gestión 2026</p>
       </div>
 
       {/* stepper progress indicators */}
@@ -518,7 +457,7 @@ export default function PreinscripcionForm() {
             boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
             transition: 'all 0.3s ease'
           }}>
-            3
+            '3'
           </div>
           <span style={{ fontSize: '0.8rem', fontWeight: 600, color: step >= 3 ? '#1e3a8a' : '#64748b' }}>Pasarela de Pago</span>
         </div>
@@ -527,7 +466,7 @@ export default function PreinscripcionForm() {
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '0 20px' }}>
         {error && (
           <div className="login-alert" style={{ marginBottom: 20, textAlign: 'left', borderRadius: '8px' }}>
-            âš ï¸ {error}
+            ⚠️ {error}
           </div>
         )}
         {success && (
@@ -548,7 +487,7 @@ export default function PreinscripcionForm() {
       </div>
 
       <div style={{ maxWidth: '850px', margin: '0 auto' }}>
-
+        
         {/* STEP 1: PERSONAL & ACADEMIC DATA */}
         {step === 1 && (
           <form className="preinscripcion-form" onSubmit={handleNextToStep2}>
@@ -558,21 +497,21 @@ export default function PreinscripcionForm() {
                 <div className="form-group"><label className="form-label">Nombres *</label><input className="form-input" name="nombres" value={form.nombres} onChange={handleChange} required /></div>
                 <div className="form-group"><label className="form-label">Apellidos *</label><input className="form-input" name="apellidos" value={form.apellidos} onChange={handleChange} required /></div>
                 <div className="form-group"><label className="form-label">CI *</label><input className="form-input" name="ci" value={form.ci} onChange={handleChange} required /></div>
-                <div className="form-group"><label className="form-label">GÃ©nero</label>
+                <div className="form-group"><label className="form-label">Género</label>
                   <select className="form-select" name="genero" value={form.genero} onChange={handleChange}>
                     <option value="">Seleccionar</option><option value="masculino">Masculino</option><option value="femenino">Femenino</option><option value="otro">Otro</option>
                   </select>
                 </div>
                 <div className="form-group"><label className="form-label">Fecha de nacimiento</label><input className="form-input" name="fecha_nacimiento" type="date" value={form.fecha_nacimiento} onChange={handleChange} /></div>
-                <div className="form-group"><label className="form-label">TelÃ©fono</label><input className="form-input" name="celular" value={form.celular} onChange={handleChange} /></div>
-                <div className="form-group"><label className="form-label">Segundo telÃ©fono</label><input className="form-input" name="segundo_celular" value={form.segundo_celular} onChange={handleChange} /></div>
-                <div className="form-group"><label className="form-label">Correo electrÃ³nico *</label><input className="form-input" name="email" type="email" value={form.email} onChange={handleChange} required /></div>
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label">DirecciÃ³n</label><input className="form-input" name="direccion" value={form.direccion} onChange={handleChange} /></div>
+                <div className="form-group"><label className="form-label">Teléfono</label><input className="form-input" name="celular" value={form.celular} onChange={handleChange} /></div>
+                <div className="form-group"><label className="form-label">Segundo teléfono</label><input className="form-input" name="segundo_celular" value={form.segundo_celular} onChange={handleChange} /></div>
+                <div className="form-group"><label className="form-label">Correo electrónico *</label><input className="form-input" name="email" type="email" value={form.email} onChange={handleChange} required /></div>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}><label className="form-label">Dirección</label><input className="form-input" name="direccion" value={form.direccion} onChange={handleChange} /></div>
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label className="form-label">Â¿En quÃ© turno prefiere pasar clases? *</label>
+                  <label className="form-label">¿En qué turno prefiere pasar clases? *</label>
                   <select className="form-select" name="preferencia_turno" value={form.preferencia_turno} onChange={handleChange} required>
                     <option value="">Seleccionar turno</option>
-                    <option value="manana">MaÃ±ana: 07:00 a 11:00</option>
+                    <option value="manana">Mañana: 07:00 a 11:00</option>
                     <option value="tarde">Tarde: 13:00 a 17:00</option>
                     <option value="noche">Noche: 18:00 a 22:00</option>
                   </select>
@@ -591,11 +530,11 @@ export default function PreinscripcionForm() {
                 </div>
                 <div className="form-group"><label className="form-label">Turno</label>
                   <select className="form-select" name="turno" value={form.turno} onChange={handleChange}>
-                    <option value="">Seleccionar</option><option value="maÃ±ana">MaÃ±ana</option><option value="tarde">Tarde</option><option value="noche">Noche</option>
+                    <option value="">Seleccionar</option><option value="mañana">Mañana</option><option value="tarde">Tarde</option><option value="noche">Noche</option>
                   </select>
                 </div>
                 <div className="form-group"><label className="form-label">Provincia</label><input className="form-input" name="provincia" value={form.provincia} onChange={handleChange} /></div>
-                <div className="form-group"><label className="form-label">AÃ±o de egreso</label><input className="form-input" name="anio_egreso" value={form.anio_egreso} onChange={handleChange} placeholder="2026" /></div>
+                <div className="form-group"><label className="form-label">Año de egreso</label><input className="form-input" name="anio_egreso" value={form.anio_egreso} onChange={handleChange} placeholder="2026" /></div>
               </div>
             </div>
 
@@ -628,27 +567,27 @@ export default function PreinscripcionForm() {
                 }
               `}</style>
               <div className="preinscripcion-section-title"><FiCheckSquare /> 3. Carrera(s) a Postular *</div>
-
+              
               <div className="carreras-options-layout">
                 <div className="opcion-columna">
-                  <h3 style={{ fontSize: '1.05rem', color: 'var(--gray-700)', marginBottom: '12px', fontWeight: '700' }}>Primera opciÃ³n</h3>
+                  <h3 style={{ fontSize: '1.05rem', color: 'var(--gray-700)', marginBottom: '12px', fontWeight: '700' }}>Primera opción</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {carreras.map((c) => (
                       <label key={`primera-${c.id}`} className="carrera-card" style={{ border: `2px solid ${form.primera_opcion_carrera === c.nombre ? 'var(--primary)' : 'var(--gray-200)'}` }}>
                         <input type="radio" name="primera_opcion_carrera" checked={form.primera_opcion_carrera === c.nombre} onChange={() => handleOptionChange('primera_opcion_carrera', c.nombre)} />
-                        <div><strong>{c.nombre}</strong><br /><small style={{ color: 'var(--gray-500)' }}>CÃ³digo: {c.codigo} | Plan: {c.plan} | {c.modalidad}</small></div>
+                        <div><strong>{c.nombre}</strong><br /><small style={{ color: 'var(--gray-500)' }}>Código: {c.codigo} | Plan: {c.plan} | {c.modalidad}</small></div>
                       </label>
                     ))}
                   </div>
                 </div>
 
                 <div className="opcion-columna">
-                  <h3 style={{ fontSize: '1.05rem', color: 'var(--gray-700)', marginBottom: '12px', fontWeight: '700' }}>Segunda opciÃ³n</h3>
+                  <h3 style={{ fontSize: '1.05rem', color: 'var(--gray-700)', marginBottom: '12px', fontWeight: '700' }}>Segunda opción</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {carreras.map((c) => (
                       <label key={`segunda-${c.id}`} className="carrera-card" style={{ border: `2px solid ${form.segunda_opcion_carrera === c.nombre ? 'var(--primary)' : 'var(--gray-200)'}` }}>
                         <input type="radio" name="segunda_opcion_carrera" checked={form.segunda_opcion_carrera === c.nombre} onChange={() => handleOptionChange('segunda_opcion_carrera', c.nombre)} />
-                        <div><strong>{c.nombre}</strong><br /><small style={{ color: 'var(--gray-500)' }}>CÃ³digo: {c.codigo} | Plan: {c.plan} | {c.modalidad}</small></div>
+                        <div><strong>{c.nombre}</strong><br /><small style={{ color: 'var(--gray-500)' }}>Código: {c.codigo} | Plan: {c.plan} | {c.modalidad}</small></div>
                       </label>
                     ))}
                   </div>
@@ -657,15 +596,15 @@ export default function PreinscripcionForm() {
             </div>
 
             <div className="preinscripcion-section">
-              <div className="preinscripcion-section-title">4. DeclaraciÃ³n Jurada *</div>
+              <div className="preinscripcion-section-title">4. Declaración Jurada *</div>
               <label className="checkbox-group">
                 <input type="checkbox" name="declaracion_jurada" checked={form.declaracion_jurada} onChange={handleChange} />
-                <span>Declaro que los datos ingresados son correctos y acepto las normas y reglamentos del proceso de admisiÃ³n.</span>
+                <span>Declaro que los datos ingresados son correctos y acepto las normas y reglamentos del proceso de admisión.</span>
               </label>
             </div>
 
             <button className="btn btn-primary btn-block btn-lg" type="submit" style={{ marginBottom: 40, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              Siguiente Paso <span style={{ marginLeft: 4 }}>â†’</span>
+              Siguiente Paso <span style={{ marginLeft: 4 }}>→</span>
             </button>
           </form>
         )}
@@ -676,12 +615,12 @@ export default function PreinscripcionForm() {
             <div className="preinscripcion-section" style={{ textAlign: 'left' }}>
               <div className="preinscripcion-section-title"><FiFileText /> 2. Carga de Documentos Obligatorios</div>
               <p style={{ color: '#475569', fontSize: '0.9rem', marginBottom: 24, lineHeight: '1.5' }}>
-                Para continuar con el trÃ¡mite preuniversitario, es estrictamente obligatorio que adjunte fotografÃ­as nÃ­tidas o escaneos de su <strong>CÃ©dula de Identidad</strong>, de su <strong>TÃ­tulo de Bachiller</strong> y una <strong>FotografÃ­a del postulante</strong>.
-                Los formatos aceptados son JPG, JPEG, PNG y WEBP, con un tamaÃ±o mÃ¡ximo de 5 MB por archivo.
+                Para continuar con el trámite preuniversitario, es estrictamente obligatorio que adjunte fotografías nítidas o escaneos de su <strong>Cédula de Identidad</strong>, de su <strong>Título de Bachiller</strong> y una <strong>Fotografía del postulante</strong>. 
+                Los formatos aceptados son JPG, JPEG, PNG y WEBP, con un tamaño máximo de 5 MB por archivo.
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }} className="form-grid-docs">
-
+                
                 {/* CI Upload Field */}
                 <div style={{
                   border: '2px dashed #cbd5e1',
@@ -716,13 +655,13 @@ export default function PreinscripcionForm() {
                     }}
                   />
                   <FiUpload style={{ fontSize: '2.2rem', color: '#94a3b8', marginBottom: 12 }} />
-                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>CÃ©dula de Identidad (CI) *</h4>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquÃ­ (MÃ¡x. 5MB)</p>
-
+                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>Cédula de Identidad (CI) *</h4>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquí (Máx. 5MB)</p>
+                  
                   {imagenCi && (
                     <div style={{ marginTop: '16px', zIndex: 4, position: 'relative', width: '100%', maxWidth: '250px' }}>
                       <span style={{ display: 'block', fontSize: '0.85rem', color: '#0f172a', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '8px' }}>
-                        âœ… {imagenCi.name}
+                        ✅ {imagenCi.name}
                       </span>
                       {imagenCiPreview && (
                         <img
@@ -743,7 +682,7 @@ export default function PreinscripcionForm() {
                   )}
                 </div>
 
-                {/* TÃ­tulo de Bachiller Upload Field */}
+                {/* Título de Bachiller Upload Field */}
                 <div style={{
                   border: '2px dashed #cbd5e1',
                   borderRadius: '12px',
@@ -777,18 +716,18 @@ export default function PreinscripcionForm() {
                     }}
                   />
                   <FiUpload style={{ fontSize: '2.2rem', color: '#94a3b8', marginBottom: 12 }} />
-                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>TÃ­tulo de Bachiller *</h4>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquÃ­ (MÃ¡x. 5MB)</p>
-
+                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>Título de Bachiller *</h4>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquí (Máx. 5MB)</p>
+                  
                   {imagenTituloBachiller && (
                     <div style={{ marginTop: '16px', zIndex: 4, position: 'relative', width: '100%', maxWidth: '250px' }}>
                       <span style={{ display: 'block', fontSize: '0.85rem', color: '#0f172a', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '8px' }}>
-                        âœ… {imagenTituloBachiller.name}
+                        ✅ {imagenTituloBachiller.name}
                       </span>
                       {imagenTituloBachillerPreview && (
                         <img
                           src={imagenTituloBachillerPreview}
-                          alt="Vista previa TÃ­tulo"
+                          alt="Vista previa Título"
                           style={{
                             width: '100%',
                             maxHeight: '120px',
@@ -804,7 +743,7 @@ export default function PreinscripcionForm() {
                   )}
                 </div>
 
-                {/* FotografÃ­a Upload Field */}
+                {/* Fotografía Upload Field */}
                 <div style={{
                   border: '2px dashed #cbd5e1',
                   borderRadius: '12px',
@@ -838,18 +777,18 @@ export default function PreinscripcionForm() {
                     }}
                   />
                   <FiUpload style={{ fontSize: '2.2rem', color: '#94a3b8', marginBottom: 12 }} />
-                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>FotografÃ­a del postulante *</h4>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquÃ­ (MÃ¡x. 5MB)</p>
-
+                  <h4 style={{ margin: '0 0 4px', color: '#1e293b', fontSize: '1rem', fontWeight: 600 }}>Fotografía del postulante *</h4>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: '#64748b' }}>Haga clic o arrastre la imagen aquí (Máx. 5MB)</p>
+                  
                   {foto && (
                     <div style={{ marginTop: '16px', zIndex: 4, position: 'relative', width: '100%', maxWidth: '250px' }}>
                       <span style={{ display: 'block', fontSize: '0.85rem', color: '#0f172a', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '8px' }}>
-                        âœ… {foto.name}
+                        ✅ {foto.name}
                       </span>
                       {fotoPreview && (
                         <img
                           src={fotoPreview}
-                          alt="Vista previa FotografÃ­a"
+                          alt="Vista previa Fotografía"
                           style={{
                             width: '100%',
                             maxHeight: '120px',
@@ -890,7 +829,7 @@ export default function PreinscripcionForm() {
                   </>
                 ) : (
                   <>
-                    Continuar al pago <span style={{ marginLeft: 4 }}>â†’</span>
+                    Continuar al pago <span style={{ marginLeft: 4 }}>→</span>
                   </>
                 )}
               </button>
@@ -904,8 +843,8 @@ export default function PreinscripcionForm() {
             <div className="preinscripcion-section">
               <div className="preinscripcion-section-title"><FiCreditCard /> 3. Pasarela de Pago Seguro</div>
               <p style={{ color: '#475569', fontSize: '0.9rem', marginBottom: 24, lineHeight: '1.5' }}>
-                Sus datos y documentos han sido pre-registrados con Ã©xito. Para completar de forma oficial su preinscripciÃ³n en el
-                Curso Preuniversitario FICCT, es necesario realizar el pago del arancel de admisiÃ³n institucional.
+                Sus datos y documentos han sido pre-registrados con éxito. Para completar de forma oficial su preinscripción en el 
+                Curso Preuniversitario FICCT, es necesario realizar el pago del arancel de admisión institucional.
               </p>
 
               <div style={{
@@ -919,11 +858,11 @@ export default function PreinscripcionForm() {
                 alignItems: 'center'
               }}>
                 <div>
-                  <span style={{ fontSize: '0.8rem', color: '#1e40af', fontWeight: 600 }}>TARIFA DE PREINSCRIPCIÃ“N</span>
+                  <span style={{ fontSize: '0.8rem', color: '#1e40af', fontWeight: 600 }}>TARIFA DE PREINSCRIPCIÓN</span>
                   <h3 style={{ margin: '4px 0 0', fontSize: '1.6rem', fontWeight: 800, color: '#1e3a8a' }}>350.00 BOB</h3>
                 </div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#1e40af', fontSize: '0.85rem', fontWeight: 600, backgroundColor: '#dbeafe', padding: '6px 12px', borderRadius: '20px' }}>
-                  <FiLock /> TransacciÃ³n Encriptada
+                  <FiLock /> Transacción Encriptada
                 </div>
               </div>
 
@@ -941,7 +880,7 @@ export default function PreinscripcionForm() {
                       Pago seguro con Stripe
                     </h4>
                     <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: '1.5', marginBottom: '16px' }}>
-                      SerÃ¡ redirigido a Stripe Checkout para pagar la tarifa de preinscripciÃ³n. El sistema no almacena los datos de su tarjeta. Stripe procesarÃ¡ el pago de forma segura.
+                      Será redirigido a Stripe Checkout para pagar la tarifa de preinscripción. El sistema no almacena los datos de su tarjeta. Stripe procesará el pago de forma segura.
                     </p>
                     <div style={{
                       fontSize: '0.85rem',
@@ -953,7 +892,7 @@ export default function PreinscripcionForm() {
                       textAlign: 'center',
                       fontWeight: 'bold'
                     }}>
-                      âš ï¸ MODO PRUEBA - No se realizarÃ¡ ningÃºn cobro real.
+                      ⚠️ MODO PRUEBA - No se realizará ningún cobro real.
                     </div>
                   </div>
 
@@ -965,10 +904,10 @@ export default function PreinscripcionForm() {
                         try {
                           let res;
                           if (postulanteId) {
-                            console.log('Iniciando Stripe checkout para preinscripciÃ³n temporal existente:', postulanteId);
+                            console.log('Iniciando Stripe checkout para preinscripción temporal existente:', postulanteId);
                             res = await preinscripcionStripeCheckout({ preinscripcion_temporal_id: postulanteId });
                           } else {
-                            console.log('Creando preinscripciÃ³n temporal e iniciando Stripe checkout');
+                            console.log('Creando preinscripción temporal e iniciando Stripe checkout');
                             const formData = new FormData();
                             formData.append('nombres', form.nombres);
                             formData.append('apellidos', form.apellidos);
@@ -984,7 +923,7 @@ export default function PreinscripcionForm() {
                             if (form.direccion) formData.append('direccion', form.direccion);
                             if (form.unidad_educativa) formData.append('colegio_procedencia', form.unidad_educativa);
                             if (form.provincia) formData.append('ciudad', form.provincia);
-
+                            
                             formData.append('carrera', form.primera_opcion_carrera);
                             formData.append('primera_opcion_carrera', form.primera_opcion_carrera);
                             formData.append('segunda_opcion_carrera', form.segunda_opcion_carrera);
@@ -1001,11 +940,11 @@ export default function PreinscripcionForm() {
                           const url = res.data?.checkout_url;
 
                           if (!url) {
-                            throw new Error('No se recibiÃ³ checkout_url de Stripe.');
+                            throw new Error('No se recibió checkout_url de Stripe.');
                           }
 
                           if (!url.startsWith('https://checkout.stripe.com/')) {
-                            throw new Error('La URL recibida no es una URL vÃ¡lida de Stripe Checkout.');
+                            throw new Error('La URL recibida no es una URL válida de Stripe Checkout.');
                           }
 
                           window.location.href = url;
@@ -1035,7 +974,7 @@ export default function PreinscripcionForm() {
                         transition: 'all 0.2s'
                       }}
                     >
-                      {loading ? <FiLoader className="spin" /> : <><FiCheck /> Pagar inscripciÃ³n</>}
+                      {loading ? <FiLoader className="spin" /> : <><FiCheck /> Pagar inscripción</>}
                     </button>
 
                     <button
@@ -1108,13 +1047,13 @@ export default function PreinscripcionForm() {
                 fontSize: '1.5rem',
                 margin: '0 auto 16px'
               }}>
-                âš ï¸
+                ⚠️
               </div>
               <h3 style={{ margin: '0 0 8px', fontSize: '1.25rem', fontWeight: '700', color: '#0f172a' }}>
-                Â¿Deseas cancelar tu preinscripciÃ³n?
+                ¿Deseas cancelar tu preinscripción?
               </h3>
               <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b', lineHeight: '1.5' }}>
-                Si cancelas, todos tus datos y documentos registrados serÃ¡n eliminados permanentemente del sistema.
+                Si cancelas, todos tus datos y documentos registrados serán eliminados permanentemente del sistema.
               </p>
             </div>
             <div style={{
@@ -1149,7 +1088,7 @@ export default function PreinscripcionForm() {
                   cursor: 'pointer'
                 }}
               >
-                {canceling ? 'Cancelando...' : 'SÃ­'}
+                {canceling ? 'Cancelando...' : 'Sí'}
               </button>
             </div>
           </div>

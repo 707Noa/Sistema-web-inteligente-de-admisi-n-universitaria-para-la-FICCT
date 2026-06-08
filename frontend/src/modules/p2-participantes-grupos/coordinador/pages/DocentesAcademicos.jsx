@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Layout from '@/layouts/Layout'
 import StatusBadge from '@/shared/components/StatusBadge'
 import Loading from '@/shared/components/Loading'
@@ -36,7 +36,7 @@ export default function DocentesAcademicos() {
   const [loadingCarga, setLoadingCarga] = useState(false)
 
   const openAsignar = (d) => { setModal({ mode: 'asignar', docente: d }); setMateriaId(d.materia_id || '') }
-
+  
   const openVer = async (d) => {
     setModal({ mode: 'ver', docente: d })
     setCarga(null)
@@ -71,7 +71,7 @@ export default function DocentesAcademicos() {
   return (
     <Layout>
       <div className="page-header">
-        <h1>GestiÃ³n del docente</h1>
+        <h1>Gestión del docente</h1>
         <div className="search-container">
           <FiSearch className="search-icon" />
           <input className="search-input" placeholder="Buscar por nombre o CI..." value={search} onChange={e => setSearch(e.target.value)} />
@@ -124,11 +124,11 @@ export default function DocentesAcademicos() {
           <div className="modal" style={{maxWidth:440}} onClick={e=>e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">{modal.mode==='ver'?'Detalle Docente':'Asignar Materia'}</span>
-              <button className="modal-close" onClick={close}>Ã—</button>
+              <button className="modal-close" onClick={close}>×</button>
             </div>
             <div className="modal-body">
               <p style={{fontSize:'0.9rem',marginBottom:16}}>
-                <strong>{modal.docente.name}</strong> â€” CI: {modal.docente.ci||'-'}
+                <strong>{modal.docente.name}</strong> — CI: {modal.docente.ci||'-'}
               </p>
               {modal.mode==='ver' ? (
                 <div>
@@ -151,7 +151,7 @@ export default function DocentesAcademicos() {
                                 <span>{item.materia_nombre}</span>
                               </div>
                               <div style={{color:'var(--gray-500)',fontSize:'0.75rem',marginTop:2}}>
-                                {item.dia} Â· {item.hora_inicio} - {item.hora_fin} ({item.turno})
+                                {item.dia} · {item.hora_inicio} - {item.hora_fin} ({item.turno})
                               </div>
                             </div>
                           ))}

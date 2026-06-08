@@ -66,7 +66,6 @@ class ImportacionController extends Controller
             'ciudad'           => ['ciudad'],
             'estado'           => ['estado'],
             'requisitos'       => ['requisitos', 'requisito', 'requisitos_completos', 'documentos_completos', 'verificado', 'estado_documentos', 'documentos_verificados'],
-            'preferencia_turno'=> ['turno elegido', 'turno', 'preferencia_turno', 'preferencia turno'],
         ];
 
         $colMap = [];
@@ -117,26 +116,9 @@ class ImportacionController extends Controller
                 continue;
             }
 
-            $correo   = $get('correo') ?: null;
-            $telefono = $get('telefono') ?: null;
-
-            if ($correo && Postulante::where('email', $correo)->exists()) {
-                $omitidos++;
-                $errores[] = "CI {$ci}: el correo '{$correo}' ya está registrado — omitida.";
-                continue;
-            }
-            if ($telefono && Postulante::where('celular', $telefono)->exists()) {
-                $omitidos++;
-                $errores[] = "CI {$ci}: el teléfono '{$telefono}' ya está registrado — omitida.";
-                continue;
-            }
-
             $estadoCsv     = strtoupper($get('estado'));
             $estadoTramite = in_array($estadoCsv, ['INSCRITO', 'PREINSCRITO']) ? $estadoCsv : 'PREINSCRITO';
             $segundaCarrera = $get('segunda_carrera');
-
-            // Generar registro automáticamente: 2026 + CI al revés
-            $codigoUsuario = '2026' . strrev(trim($ci));
 
             $requisitosRaw = $get('requisitos');
             $requisitosCompletos = false;
@@ -147,26 +129,13 @@ class ImportacionController extends Controller
                 }
             }
 
-            $preferenciaTurnoRaw = $get('preferencia_turno');
-            $preferenciaTurno = null;
-            if ($preferenciaTurnoRaw !== '') {
-                $normTurno = mb_strtolower(trim($preferenciaTurnoRaw));
-                if (in_array($normTurno, ['mañana', 'manana'])) {
-                    $preferenciaTurno = 'manana';
-                } elseif ($normTurno === 'tarde') {
-                    $preferenciaTurno = 'tarde';
-                } elseif ($normTurno === 'noche') {
-                    $preferenciaTurno = 'noche';
-                }
-            }
-
             try {
                 $postulante = Postulante::create([
                     'nombres'             => $nombres,
                     'apellidos'           => $apellidos,
                     'ci'                  => $ci,
-                    'email'               => $correo,
-                    'celular'             => $telefono,
+                    'email'               => ($get('correo') ?: null),
+                    'celular'             => ($get('telefono') ?: null),
                     'carrera'             => ($get('primera_carrera') ?: null),
                     'carrera_postulada'   => ($get('primera_carrera') ?: null),
                     'colegio_procedencia' => ($get('unidad_educativa') ?: null),
@@ -177,9 +146,7 @@ class ImportacionController extends Controller
                     'pago_estado'         => 'PAGADO',
                     'pago_metodo'         => 'CSV',
                     'pago_fecha'          => now(),
-                    'codigo_usuario'      => $codigoUsuario,
                     'requisitos_completos'=> $requisitosCompletos,
-                    'preferencia_turno'   => $preferenciaTurno,
                 ]);
 
                 $importados++;

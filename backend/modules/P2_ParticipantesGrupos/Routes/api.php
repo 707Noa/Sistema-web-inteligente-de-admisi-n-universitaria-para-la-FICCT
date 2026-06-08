@@ -10,13 +10,10 @@ use Modules\P2_ParticipantesGrupos\Controllers\MateriaController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordDocenteController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordGrupoController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordAsignacionController;
-
-use Modules\P4_ReportesMonitoreoAuditoria\Controllers\CoordReporteController;
+use Modules\P2_ParticipantesGrupos\Controllers\CoordReporteController;
 use Modules\P2_ParticipantesGrupos\Controllers\DocentePortalController;
 use Modules\P2_ParticipantesGrupos\Controllers\AutoridadPortalController;
 use Illuminate\Support\Facades\Route;
-
-
 
 // Preinscripción pública
 Route::post('/preinscripcion', [PreinscripcionController::class, 'store']);
@@ -42,14 +39,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/preinscripciones', [PreinscripcionAdminController::class, 'index']);
         Route::get('/preinscripciones/exportar-csv', [PreinscripcionAdminController::class, 'exportarCsv']);
         Route::get('/postulantes/{id}/documento/{type}', [PreinscripcionAdminController::class, 'descargarDocumento']);
-
-    });
-
-    // Solo administrador - Creación de cuentas y inscripción masiva
-    Route::middleware('role:administrador')->group(function () {
-        Route::post('/preinscripciones/generar-cuentas', [PreinscripcionAdminController::class, 'generarCuentasMasivo']);
-        Route::post('/preinscripciones/{postulante}/generar-cuenta', [PreinscripcionAdminController::class, 'generarCuenta']);
-
     });
 
     // Solo administrador - Creación de cuentas y inscripción masiva
@@ -59,7 +48,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::get('/materias-all', [MateriaController::class, 'all']);
-    Route::get('/materias/{materia_id}/temas', [MateriaController::class, 'getTemas']);
 
     /*
     |----------------------------------------------------------------------
@@ -67,9 +55,7 @@ Route::middleware('auth:sanctum')->group(function () {
     |----------------------------------------------------------------------
     */
     Route::middleware('role:postulante')->prefix('postulante')->group(function () {
-        Route::get('/perfil',  [PostulanteController::class, 'perfil']);
-        Route::get('/horario', [PostulanteController::class, 'horarioPostulante']);
-        Route::get('/grupo-compañeros', [PostulanteController::class, 'misCompaneros']);
+        Route::get('/perfil', [PostulanteController::class, 'perfil']);
     });
 
     /*
@@ -102,28 +88,19 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/docentes/{id}',                      [CoordDocenteController::class, 'show']);
         Route::get('/docentes/{id}/carga-horaria',        [CoordDocenteController::class, 'cargaHoraria']);
         Route::post('/docentes/{id}/asignar-materia',     [CoordDocenteController::class, 'asignarMateria']);
+
         // Grupos coordinados
-        Route::get('/grupos',                     [CoordGrupoController::class, 'index']);
-        Route::post('/grupos',                    [CoordGrupoController::class, 'store']);
-        Route::post('/grupos/auto-generar',       [CoordGrupoController::class, 'generarGruposAuto']);
-        Route::post('/grupos/calcular',           [CoordGrupoController::class, 'calcularGrupos']);
-
-        Route::get('/grupos/{id}',                [CoordGrupoController::class, 'show']);
-        Route::put('/grupos/{id}',                [CoordGrupoController::class, 'update']);
-        Route::delete('/grupos/{id}',             [CoordGrupoController::class, 'destroy']);
-
-        Route::get('/grupos/{id}/estudiantes',    [CoordGrupoController::class, 'estudiantes']);
-        Route::patch('/grupos/{id}/toggle-estado',[CoordGrupoController::class, 'toggleEstado']);
-
-        Route::post('/grupos/{id}/asignar-estudiantes', [CoordAsignacionController::class, 'asignarEstudiantes']);
-        Route::post('/grupos/{id}/asignar-docente',     [CoordAsignacionController::class, 'asignarDocenteAGrupo']);
-
-
-
+        Route::get('/grupos',                             [CoordGrupoController::class, 'index']);
+        Route::post('/grupos',                            [CoordGrupoController::class, 'store']);
+        Route::post('/grupos/calcular',                   [CoordGrupoController::class, 'calcularGrupos']);
+        Route::get('/grupos/{id}',                        [CoordGrupoController::class, 'show']);
+        Route::put('/grupos/{id}',                        [CoordGrupoController::class, 'update']);
+        Route::get('/grupos/{id}/estudiantes',            [CoordGrupoController::class, 'estudiantes']);
+        Route::patch('/grupos/{id}/toggle-estado',        [CoordGrupoController::class, 'toggleEstado']);
+        Route::post('/grupos/{id}/asignar-estudiantes',   [CoordAsignacionController::class, 'asignarEstudiantes']);
+        Route::post('/grupos/{id}/asignar-docente',       [CoordAsignacionController::class, 'asignarDocenteAGrupo']);
 
         // Asignaciones
-        Route::get('/asignacion/stats',                   [CoordAsignacionController::class, 'statsAsignacion']);
-        Route::post('/asignacion/docentes-auto',          [CoordAsignacionController::class, 'asignarDocentesAuto']);
         Route::post('/asignacion/postulantes-auto',       [CoordAsignacionController::class, 'asignarPostulantesAuto']);
         Route::get('/asignacion/grupo/{grupoId}/postulantes', [CoordAsignacionController::class, 'postulantesEnGrupo']);
         Route::post('/asignacion/docentes-disponibles',   [CoordAsignacionController::class, 'docentesDisponibles']);
@@ -131,50 +108,35 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/asignacion/asignaciones',            [CoordAsignacionController::class, 'getAsignaciones']);
         Route::get('/postulantes-sin-grupo',              [CoordAsignacionController::class, 'postulantesSinGrupo']);
 
-       // Reportes & Horarios
-        Route::get('/horarios',              [CoordReporteController::class, 'horarios']);
-        Route::post('/horarios',             [CoordGrupoController::class, 'crearHorario']);
-        Route::get('/reporte/horarios',      [CoordReporteController::class, 'horarios']);
-        Route::get('/reporte/horarios/csv',  [CoordReporteController::class, 'exportarCsv']);
+        // Reportes & Horarios
+        Route::get('/horarios',                           [CoordReporteController::class, 'horarios']);
+        Route::post('/horarios',                          [CoordGrupoController::class, 'crearHorario']);
+        Route::get('/reporte/horarios',                   [CoordReporteController::class, 'horarios']);
+        Route::get('/reporte/horarios/csv',               [CoordReporteController::class, 'exportarCsv']);
 
-        // Gestión de postulantes (coordinador)
-        Route::get('/postulantes/export/csv',       [PostulanteController::class, 'exportarCsv']);
-        Route::get('/postulantes',                  [PostulanteController::class, 'index']);
-        Route::post('/postulantes/eliminar-multiple',[PostulanteController::class, 'eliminarMultiple']);
-        Route::get('/postulantes/{id}',             [PostulanteController::class, 'show']);
-        Route::put('/postulantes/{id}',             [PostulanteController::class, 'update']);
-        Route::patch('/postulantes/{id}/requisitos',[PostulanteController::class, 'updateRequisitos']);
-        Route::delete('/postulantes/{id}',          [PostulanteController::class, 'destroy']);
+        // Gestión de postulantes (Coordinador)
+        Route::get('/postulantes/export/csv',             [PostulanteController::class, 'exportarCsv']);
+        Route::get('/postulantes',                        [PostulanteController::class, 'index']);
+        Route::post('/postulantes/eliminar-multiple',      [PostulanteController::class, 'eliminarMultiple']);
+        Route::get('/postulantes/{id}',                   [PostulanteController::class, 'show']);
+        Route::put('/postulantes/{id}',                   [PostulanteController::class, 'update']);
+        Route::patch('/postulantes/{id}/requisitos',       [PostulanteController::class, 'updateRequisitos']);
+        Route::delete('/postulantes/{id}',                 [PostulanteController::class, 'destroy']);
     });
 
     /*
-|--------------------------------------------------------------------------
-| Rutas de Autoridad Académica
-|--------------------------------------------------------------------------
-*/
-        Route::middleware('role:autoridad,administrador')->prefix('autoridad')->group(function () {
-        Route::get('/perfil',              [AutoridadPortalController::class, 'perfil']);
-        Route::get('/dashboard',           [AutoridadPortalController::class, 'dashboard']);
-        Route::get('/grupos',              [AutoridadPortalController::class, 'grupos']);
-        Route::get('/docentes-asignados',  [AutoridadPortalController::class, 'docentesAsignados']);
-        Route::get('/horarios',            [AutoridadPortalController::class, 'horarios']);
-        Route::get('/estadisticas',        [AutoridadPortalController::class, 'estadisticas']);
-
+    |----------------------------------------------------------------------
+    | Rutas de Autoridad Académica
+    |----------------------------------------------------------------------
+    */
+    Route::middleware('role:autoridad,administrador')->prefix('autoridad')->group(function () {
+        Route::get('/perfil',                             [AutoridadPortalController::class, 'perfil']);
+        Route::get('/dashboard',                          [AutoridadPortalController::class, 'dashboard']);
+        Route::get('/grupos',                             [AutoridadPortalController::class, 'grupos']);
+        Route::get('/docentes-asignados',                 [AutoridadPortalController::class, 'docentesAsignados']);
+        Route::get('/horarios',                           [AutoridadPortalController::class, 'horarios']);
+        Route::get('/estadisticas',                       [AutoridadPortalController::class, 'estadisticas']);
     });
-
-    /*
-|--------------------------------------------------------------------------
-| Rutas de Autoridad Académica
-|--------------------------------------------------------------------------
-*/
-        Route::middleware('role:autoridad,administrador')->prefix('autoridad')->group(function () {
-        Route::get('/perfil',             [AutoridadPortalController::class, 'perfil']);
-        Route::get('/dashboard',          [AutoridadPortalController::class, 'dashboard']);
-        Route::get('/grupos',             [AutoridadPortalController::class, 'grupos']);
-        Route::get('/docentes_asignados', [AutoridadPortalController::class, 'docentesAsignados']);
-        Route::get('/horarios',           [AutoridadPortalController::class, 'horarios']);
-    Route::get('/estadisticas',       [AutoridadPortalController::class, 'estadisticas']);
-});
 
     /*
     |----------------------------------------------------------------------
@@ -190,9 +152,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('/postulantes', PostulanteController::class);
         Route::post('/postulantes/{id}/foto', [PostulanteController::class, 'uploadFoto']);
 
-        // Docentes — rutas específicas ANTES del apiResource para evitar conflictos
-        Route::get('/docentes/usuario/{userId}/requisitos',  [DocenteController::class, 'getRequisitosPorUsuario']);
-        Route::put('/docentes/usuario/{userId}/requisitos',  [DocenteController::class, 'updateRequisitosPorUsuario']);
+        // Docentes
         Route::apiResource('/docentes', DocenteController::class);
 
         // Materias
