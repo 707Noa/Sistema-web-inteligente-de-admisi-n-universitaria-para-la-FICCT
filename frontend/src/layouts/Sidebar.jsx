@@ -1,4 +1,3 @@
-import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
 import { FiHome, FiUsers, FiUserCheck, FiX, FiUser, FiBook, FiGrid, FiList, FiBarChart2, FiClock, FiCheckSquare, FiAward, FiFileText, FiSliders, FiUserPlus } from 'react-icons/fi'
@@ -48,15 +47,6 @@ const menuItems = {
 
     { label: 'Mis materias', path: '/docente/mis-materias', icon: <FiBook /> },
     { label: 'Mis estudiantes', path: '/docente/mis-estudiantes', icon: <FiUsers /> },
-  ],
-  // ── Postulante ──
-  postulante: [
-    { label: 'Panel General', path: '/perfil', icon: <FiHome /> },
-
-    { label: 'Mis grupos (Gestión)', path: '/docente/mis-grupos', icon: <FiGrid /> },
-    { label: 'Mis materias', path: '/docente/mis-materias', icon: <FiBook /> },
-    { label: 'Mis estudiantes', path: '/docente/mis-estudiantes', icon: <FiUsers /> },
-    { label: 'Registro de notas', path: '/docente/registro-notas', icon: <FiList /> },
   ],
   // ── Postulante ──
   postulante: [
