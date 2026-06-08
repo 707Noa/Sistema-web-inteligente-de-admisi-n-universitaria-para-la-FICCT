@@ -24,6 +24,20 @@ import ReporteHorarios from '@/modules/p2-participantes-grupos/coordinador/pages
 import CoordinadorDashboard from '@/modules/p2-participantes-grupos/coordinador/pages/CoordinadorDashboard'
 import CoordinadorPerfil from '@/modules/p2-participantes-grupos/coordinador/pages/CoordinadorPerfil'
 import CoordinadorPostulantes from '@/modules/p2-participantes-grupos/coordinador/pages/CoordinadorPostulantes'
+import CuposCarrera from '@/modules/p2-participantes-grupos/coordinador/pages/CuposCarrera'
+import AdmisionFinal from '@/modules/p2-participantes-grupos/coordinador/pages/AdmisionFinal'
+
+// Páginas del Postulante (Portal)
+import PostulanteMiPerfil from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMiPerfil'
+import PostulanteMiHorario from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMiHorario'
+import PostulanteMisCalificaciones from '@/modules/p2-participantes-grupos/postulantes/pages/PostulanteMisCalificaciones'
+
+// Páginas del Docente (Portal p3)
+import DocenteMiPerfil from '@/modules/p3-evaluacion-resultados/docente/pages/MiPerfil'
+import DocenteMisGrupos from '@/modules/p3-evaluacion-resultados/docente/pages/MisGrupos'
+import DocenteAsistencia from '@/modules/p3-evaluacion-resultados/docente/pages/Asistencia'
+import DocenteCalificaciones from '@/modules/p3-evaluacion-resultados/docente/pages/Calificaciones'
+import DocenteReportes from '@/modules/p3-evaluacion-resultados/docente/pages/Reportes'
 
 // Docente Pages
 import MisGrupos from '@/modules/p2-participantes-grupos/docente/pages/MisGrupos'
@@ -146,6 +160,8 @@ export default function AppRouter() {
       <Route path="/coordinador/grupos"           element={<PrivateRoute><AdministrarGrupos /></PrivateRoute>} />
       <Route path="/coordinador/asignacion"       element={<PrivateRoute><ProcesarAsignacion /></PrivateRoute>} />
       <Route path="/coordinador/reporte-horarios" element={<PrivateRoute><ReporteHorarios /></PrivateRoute>} />
+      <Route path="/coordinador/cupos-carrera"    element={<PrivateRoute><CuposCarrera /></PrivateRoute>} />
+      <Route path="/coordinador/admision-final"   element={<PrivateRoute><AdmisionFinal /></PrivateRoute>} />
 
       {/* Rutas Autoridad Académica */}
       <Route path="/autoridad/dashboard"    element={<PrivateRoute><DashboardAutoridad /></PrivateRoute>} />
@@ -160,7 +176,20 @@ export default function AppRouter() {
       <Route path="/docente/mis-materias"   element={<PrivateRoute><MisMaterias /></PrivateRoute>} />
       <Route path="/docente/mis-estudiantes"element={<PrivateRoute><MisEstudiantes /></PrivateRoute>} />
       <Route path="/docente/registro-notas" element={<PrivateRoute><RegistroNotas /></PrivateRoute>} />
-      <Route path="/postulante/inicio" element={<PrivateRoute><InicioMock role="Postulante" /></PrivateRoute>} />
+
+      {/* Rutas Docente Portal (p3) */}
+      <Route path="/docente/perfil"           element={<PrivateRoute><DocenteMiPerfil /></PrivateRoute>} />
+      <Route path="/docente/horario"          element={<PrivateRoute><Navigate to="/docente/grupos" replace /></PrivateRoute>} />
+      <Route path="/docente/grupos"           element={<PrivateRoute><DocenteMisGrupos /></PrivateRoute>} />
+      <Route path="/docente/asistencia"       element={<PrivateRoute><DocenteAsistencia /></PrivateRoute>} />
+      <Route path="/docente/calificaciones"   element={<PrivateRoute><DocenteCalificaciones /></PrivateRoute>} />
+      <Route path="/docente/reportes"         element={<PrivateRoute><DocenteReportes /></PrivateRoute>} />
+
+      {/* Rutas Postulante Portal */}
+      <Route path="/postulante/perfil"          element={<PrivateRoute><PostulanteMiPerfil /></PrivateRoute>} />
+      <Route path="/postulante/horario"         element={<PrivateRoute><PostulanteMiHorario /></PrivateRoute>} />
+      <Route path="/postulante/calificaciones"  element={<PrivateRoute><PostulanteMisCalificaciones /></PrivateRoute>} />
+      <Route path="/postulante/inicio"          element={<PrivateRoute><PostulanteMiPerfil /></PrivateRoute>} />
 
       {/* Fallback Route */}
       <Route path="*" element={<NotFound />} />
