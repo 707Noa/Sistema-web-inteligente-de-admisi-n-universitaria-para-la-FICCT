@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { consultarPagoEstado, consultarStripeEstado } from '@/modules/p2-participantes-grupos/postulantes/services/preinscripcionService'
 import { FiCheckCircle, FiAlertTriangle, FiPrinter, FiArrowRight, FiInfo } from 'react-icons/fi'
@@ -29,7 +29,7 @@ export default function PagoConfirmado() {
           // Consultar el estado de Stripe
           const res = await consultarStripeEstado(sessionId)
           const data = res.data // { estado: "pagado"|"pendiente"|"fallido", postulante_id: X }
-          
+
           if (data.estado === 'pagado') {
             const pId = data.postulante_id || postulanteId
             if (pId) {
@@ -66,7 +66,7 @@ export default function PagoConfirmado() {
                 if (active) setStatus(resPostulante.data)
               }
               if (active) {
-                setError('El pago sigue en verificación. Pago pendiente de confirmación.')
+                setError('El pago sigue en verificaciÃ³n. Pago pendiente de confirmaciÃ³n.')
                 setLoading(false)
               }
               if (pollInterval) clearInterval(pollInterval)
@@ -75,7 +75,7 @@ export default function PagoConfirmado() {
         } else {
           // Si no es Stripe o no hay session_id
           if (!postulanteId) {
-            setError('ID de postulante ausente en la confirmación.')
+            setError('ID de postulante ausente en la confirmaciÃ³n.')
             setLoading(false)
             return
           }
@@ -96,7 +96,7 @@ export default function PagoConfirmado() {
             } catch (innerErr) {}
           }
           if (active) {
-            setError('No se pudo verificar el estado del pago. Pago pendiente de confirmación.')
+            setError('No se pudo verificar el estado del pago. Pago pendiente de confirmaciÃ³n.')
             setLoading(false)
           }
           if (pollInterval) clearInterval(pollInterval)
@@ -178,14 +178,14 @@ export default function PagoConfirmado() {
           {isSuccess ? (
             <>
               <FiCheckCircle style={{ fontSize: '4.5rem', color: '#10b981', marginBottom: 16 }} />
-              <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 700, color: '#065f46' }}>Preinscripción Completada</h2>
-              <p style={{ margin: '8px 0 0', color: '#047857', fontSize: '0.95rem', fontWeight: 500 }}>¡Su pago ha sido verificado con éxito! Pago confirmado correctamente.</p>
+              <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 700, color: '#065f46' }}>PreinscripciÃ³n Completada</h2>
+              <p style={{ margin: '8px 0 0', color: '#047857', fontSize: '0.95rem', fontWeight: 500 }}>Â¡Su pago ha sido verificado con Ã©xito! Pago confirmado correctamente.</p>
             </>
           ) : (
             <>
               <FiAlertTriangle style={{ fontSize: '4.5rem', color: '#f59e0b', marginBottom: 16 }} />
               <h2 style={{ margin: 0, fontSize: '1.6rem', fontWeight: 700, color: '#78350f' }}>Pago Pendiente / Fallido</h2>
-              <p style={{ margin: '8px 0 0', color: '#b45309', fontSize: '0.95rem', fontWeight: 500 }}>El pago aún no se encuentra confirmado en el sistema. Pago pendiente de confirmación.</p>
+              <p style={{ margin: '8px 0 0', color: '#b45309', fontSize: '0.95rem', fontWeight: 500 }}>El pago aÃºn no se encuentra confirmado en el sistema. Pago pendiente de confirmaciÃ³n.</p>
             </>
           )}
         </div>
@@ -194,7 +194,7 @@ export default function PagoConfirmado() {
         <div style={{ padding: '30px 24px' }}>
           {error && (
             <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px', borderRadius: '8px', marginBottom: 20, fontSize: '0.9rem' }}>
-              ⚠️ {error}
+              âš ï¸ {error}
             </div>
           )}
 
@@ -206,27 +206,27 @@ export default function PagoConfirmado() {
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: 8 }}>
               <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Nombres completo</span>
               <strong style={{ color: '#0f172a', fontSize: '0.9rem', textAlign: 'right' }}>
-                {status ? `${status.nombres} ${status.apellidos}` : '—'}
+                {status ? `${status.nombres} ${status.apellidos}` : 'â€”'}
               </strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: 8 }}>
-              <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Cédula de Identidad (CI)</span>
-              <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>{status ? status.ci : '—'}</strong>
+              <span style={{ color: '#64748b', fontSize: '0.9rem' }}>CÃ©dula de Identidad (CI)</span>
+              <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>{status ? status.ci : 'â€”'}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: 8 }}>
-              <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Correo electrónico</span>
-              <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>{status ? status.email : '—'}</strong>
+              <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Correo electrÃ³nico</span>
+              <strong style={{ color: '#0f172a', fontSize: '0.9rem' }}>{status ? status.email : 'â€”'}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: 8 }}>
-              <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Método de pago</span>
+              <span style={{ color: '#64748b', fontSize: '0.9rem' }}>MÃ©todo de pago</span>
               <strong style={{ color: '#0f172a', fontSize: '0.9rem', textTransform: 'uppercase' }}>
-                {status?.pago_metodo || gateway || '—'}
+                {status?.pago_metodo || gateway || 'â€”'}
               </strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: 8 }}>
               <span style={{ color: '#64748b', fontSize: '0.9rem' }}>Monto Transaccionado</span>
               <strong style={{ fontSize: '0.9rem', color: isSuccess ? '#10b981' : '#0f172a' }}>
-                {status?.pago_monto ? `${status.pago_monto} ${status.pago_moneda || 'BOB'}` : '—'}
+                {status?.pago_monto ? `${status.pago_monto} ${status.pago_moneda || 'BOB'}` : 'â€”'}
               </strong>
             </div>
             {status?.pago_referencia && (
@@ -253,11 +253,11 @@ export default function PagoConfirmado() {
             <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
               <FiInfo style={{ color: '#3b82f6', fontSize: '1.1rem', flexShrink: 0, marginTop: '2px' }} />
               <div>
-                <strong>Información importante:</strong><br />
+                <strong>InformaciÃ³n importante:</strong><br />
                 {isSuccess ? (
-                  'Su cuenta de acceso al preuniversitario será creada por el administrador pasadas las 24 horas. Su usuario será su correo y su contraseña será su CI.'
+                  'Su cuenta de acceso al preuniversitario serÃ¡ creada por el administrador pasadas las 24 horas. Su usuario serÃ¡ su correo y su contraseÃ±a serÃ¡ su CI.'
                 ) : (
-                  'Si ya realizó la transacción pero el estado sigue figurando como pendiente, el banco podría demorar unos minutos en confirmar la transferencia asíncrona. Puede consultar el estado más tarde.'
+                  'Si ya realizÃ³ la transacciÃ³n pero el estado sigue figurando como pendiente, el banco podrÃ­a demorar unos minutos en confirmar la transferencia asÃ­ncrona. Puede consultar el estado mÃ¡s tarde.'
                 )}
               </div>
             </div>

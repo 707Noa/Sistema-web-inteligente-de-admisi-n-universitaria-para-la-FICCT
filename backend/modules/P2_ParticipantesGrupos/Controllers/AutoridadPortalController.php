@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Modules\P2_ParticipantesGrupos\Controllers;
 
@@ -32,15 +32,15 @@ class AutoridadPortalController extends Controller
 
     public function dashboard(Request $request): JsonResponse
     {
-        $totalInscritos = Postulante::where('estado_tramite', 'INSCRITO')->count();
+        $totalInscritos = Postulante::count();
         $totalGrupos = Grupo::where('estado', 'activo')->count();
-        
+
         $totalDocentes = DocenteGrupoAsignacion::where('estado', 'activo')
             ->distinct('docente_user_id')
             ->count('docente_user_id');
 
         $totalHorarios = GrupoHorario::count();
-        
+
         $totalCarrerasConGrupo = Grupo::where('estado', 'activo')
             ->whereNotNull('carrera_id')
             ->distinct('carrera_id')
@@ -51,6 +51,42 @@ class AutoridadPortalController extends Controller
             ->where('grupos.estado', 'activo')
             ->count();
 
+        // Resultados acadÃ©micos
+        $totalAprobados = \App\Models\Examen::where('estado', 'aprobado')
+            ->distinct('postulante_id')->count('postulante_id');
+        $totalReprobados = \App\Models\Examen::where('estado', 'reprobado')
+            ->distinct('postulante_id')->count('postulante_id');
+        $totalAdmitidos = \App\Models\AdmisionResultado::where('estado_admision', 'admitido')->count();
+
+        // Postulantes sin grupo
+        $postulantesSinGrupo = Postulante::whereDoesntHave('grupos')->count();
+
+        // Asignaciones acadÃ©micas
+        $totalAsignaciones = DocenteGrupoAsignacion::where('estado', 'activo')->count();
+
+        // Postulantes por carrera
+        $postulantesPorCarrera = Postulante::selectRaw('carrera_postulada as carrera, COUNT(*) as total')
+            ->whereNotNull('carrera_postulada')
+            ->groupBy('carrera_postulada')
+            ->orderBy('total', 'desc')
+            ->get();
+
+        // Grupos recientes con ocupaciÃ³n
+        $gruposRecientes = Grupo::with(['carrera'])
+            ->where('estado', 'activo')
+            ->orderBy('id', 'desc')
+            ->take(5)
+            ->get()
+            ->map(fn($g) => [
+                'id' => $g->id,
+                'codigo' => $g->codigo ?? $g->nombre_grupo,
+                'carrera' => $g->carrera?->nombre ?? 'Sin carrera',
+                'turno' => $g->turno,
+                'cupo_maximo' => $g->cupo_maximo ?? $g->capacidad_maxima ?? 70,
+                'ocupacion' => $g->ocupacion(),
+                'aula' => $g->aula ?? 'Sin asignar',
+            ]);
+
         return response()->json([
             'total_inscritos' => $totalInscritos,
             'total_grupos' => $totalGrupos,
@@ -58,6 +94,13 @@ class AutoridadPortalController extends Controller
             'total_horarios' => $totalHorarios,
             'total_carreras' => $totalCarrerasConGrupo,
             'total_asignados' => $totalEstudiantesAsignados,
+            'total_aprobados' => $totalAprobados,
+            'total_reprobados' => $totalReprobados,
+            'total_admitidos' => $totalAdmitidos,
+            'total_asignaciones' => $totalAsignaciones,
+            'postulantes_sin_grupo' => $postulantesSinGrupo,
+            'postulantes_por_carrera' => $postulantesPorCarrera,
+            'grupos_recientes' => $gruposRecientes,
         ]);
     }
 

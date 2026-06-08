@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Modules\P2_ParticipantesGrupos\Controllers;
 
@@ -16,13 +16,13 @@ use Illuminate\Support\Facades\Log;
 class PreinscripcionController extends Controller
 {
     /**
-     * Registrar una nueva preinscripción con documentos.
+     * Registrar una nueva preinscripciÃ³n con documentos.
      */
     public function store(PreinscripcionRequest $request): JsonResponse
     {
         $validated = $request->validated();
 
-        // Mapear género/sexo de manera segura
+        // Mapear gÃ©nero/sexo de manera segura
         $sexo = $validated['sexo'] ?? $validated['genero'] ?? null;
         $generoEnum = null;
         if ($sexo) {
@@ -53,7 +53,7 @@ class PreinscripcionController extends Controller
             $oldTemp->delete();
         }
 
-        // Subir imágenes al almacenamiento privado seguro
+        // Subir imÃ¡genes al almacenamiento privado seguro
         $imagenCiPath = null;
         if ($request->hasFile('imagen_ci')) {
             $imagenCiPath = $request->file('imagen_ci')->store('private/postulantes/documentos');
@@ -69,7 +69,7 @@ class PreinscripcionController extends Controller
             $fotografiaPath = $request->file('fotografia')->store('fotos/postulantes', 'public');
         }
 
-        // Crear preinscripción temporal en lugar de postulante oficial
+        // Crear preinscripciÃ³n temporal en lugar de postulante oficial
         $datosFormulario = [
             'nombres' => $validated['nombres'],
             'apellidos' => $validated['apellidos'],
@@ -105,7 +105,7 @@ class PreinscripcionController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Preinscripción registrada temporalmente. Complete su pago para activar su cuenta.',
+            'message' => 'PreinscripciÃ³n registrada temporalmente. Complete su pago para activar su cuenta.',
             'data' => [
                 'id' => $temp->id,
                 'ci' => $temp->ci,
@@ -117,7 +117,7 @@ class PreinscripcionController extends Controller
     }
 
     /**
-     * Mostrar detalles de una preinscripción específica.
+     * Mostrar detalles de una preinscripciÃ³n especÃ­fica.
      */
     public function show(int $id): JsonResponse
     {
@@ -142,7 +142,7 @@ class PreinscripcionController extends Controller
             ]);
         }
 
-        return response()->json(['message' => 'Preinscripción no encontrada.'], 404);
+        return response()->json(['message' => 'PreinscripciÃ³n no encontrada.'], 404);
     }
 
     /**
@@ -221,11 +221,11 @@ class PreinscripcionController extends Controller
             ]);
         }
 
-        return response()->json(['message' => 'Preinscripción no encontrada.'], 404);
+        return response()->json(['message' => 'PreinscripciÃ³n no encontrada.'], 404);
     }
 
     /**
-     * Generar sesión de Stripe Checkout.
+     * Generar sesiÃ³n de Stripe Checkout.
      */
     public function stripeCheckout(Request $request): JsonResponse
     {
@@ -233,7 +233,7 @@ class PreinscripcionController extends Controller
 
         if (empty($id)) {
             return response()->json([
-                'message' => 'No se recibió el ID del postulante para iniciar el pago.'
+                'message' => 'No se recibiÃ³ el ID del postulante para iniciar el pago.'
             ], 400);
         }
 
@@ -241,14 +241,14 @@ class PreinscripcionController extends Controller
 
         if (!$temp) {
             return response()->json([
-                'message' => 'No se encontró la solicitud de preinscripción temporal.'
+                'message' => 'No se encontrÃ³ la solicitud de preinscripciÃ³n temporal.'
             ], 400);
         }
 
-        // Validar si ya pagó
+        // Validar si ya pagÃ³
         if ($temp->estado_pago === 'pagado') {
             return response()->json([
-                'message' => 'Esta solicitud de preinscripción ya tiene un pago confirmado.'
+                'message' => 'Esta solicitud de preinscripciÃ³n ya tiene un pago confirmado.'
             ], 400);
         }
 
@@ -256,7 +256,7 @@ class PreinscripcionController extends Controller
 
         if (empty($secret)) {
             return response()->json([
-                'message' => 'Stripe no está configurado correctamente en el servidor.'
+                'message' => 'Stripe no estÃ¡ configurado correctamente en el servidor.'
             ], 400);
         }
 
@@ -276,7 +276,7 @@ class PreinscripcionController extends Controller
                     'price_data' => [
                         'currency' => $currency,
                         'product_data' => [
-                            'name' => 'Tarifa de preinscripción CUP-FICCT',
+                            'name' => 'Tarifa de preinscripciÃ³n CUP-FICCT',
                         ],
                         'unit_amount' => $amountCents,
                     ],
@@ -300,19 +300,19 @@ class PreinscripcionController extends Controller
         } catch (\Stripe\Exception\AuthenticationException $e) {
             Log::error('Stripe Authentication Exception: ' . $e->getMessage());
             return response()->json([
-                'message' => 'La clave secreta de Stripe no es válida. Verifique STRIPE_SECRET en el .env.',
+                'message' => 'La clave secreta de Stripe no es vÃ¡lida. Verifique STRIPE_SECRET en el .env.',
                 'error' => $e->getMessage()
             ], 400);
         } catch (\Stripe\Exception\ApiErrorException $e) {
             Log::error('Stripe API Error Exception: ' . $e->getMessage());
             return response()->json([
-                'message' => 'No se pudo crear la sesión de Stripe debido a un error de su API.',
+                'message' => 'No se pudo crear la sesiÃ³n de Stripe debido a un error de su API.',
                 'error' => $e->getMessage()
             ], 400);
         } catch (\Exception $e) {
             Log::error('Stripe general exception in stripeCheckout: ' . $e->getMessage());
             return response()->json([
-                'message' => 'No se pudo crear la sesión de Stripe.',
+                'message' => 'No se pudo crear la sesiÃ³n de Stripe.',
                 'error' => $e->getMessage()
             ], 400);
         }
@@ -345,7 +345,7 @@ class PreinscripcionController extends Controller
             }
 
             if (!$timestamp || empty($signatures)) {
-                Log::warning('Stripe Webhook: Cabecera Stripe-Signature inválida.');
+                Log::warning('Stripe Webhook: Cabecera Stripe-Signature invÃ¡lida.');
                 return response()->json(['error' => 'Invalid signature header'], 400);
             }
 
@@ -384,7 +384,7 @@ class PreinscripcionController extends Controller
             if ($session) {
                 $sessionId = $session['id'] ?? '';
 
-                // Buscar preinscripción temporal por stripe_session_id
+                // Buscar preinscripciÃ³n temporal por stripe_session_id
                 $temp = PreinscripcionTemporal::where('stripe_session_id', $sessionId)->first();
 
                 if ($temp) {
@@ -440,7 +440,7 @@ class PreinscripcionController extends Controller
                     ]);
                 }
             } catch (\Exception $e) {
-                Log::error('Error al consultar sesión de Stripe Checkout: ' . $e->getMessage());
+                Log::error('Error al consultar sesiÃ³n de Stripe Checkout: ' . $e->getMessage());
             }
         }
 
@@ -491,14 +491,14 @@ class PreinscripcionController extends Controller
                 'titulo_bachiller' => $datos['titulo_bachiller'] ?? false,
                 'otros' => $datos['otros'] ?? null,
                 'preferencia_turno' => $datos['preferencia_turno'],
-                
+
                 'pago_estado' => 'PAGADO',
                 'pago_metodo' => 'STRIPE',
                 'pago_referencia' => $sessionId,
                 'pago_monto' => $amount,
                 'pago_moneda' => $currency,
                 'pago_fecha' => now(),
-                
+
                 'estado_tramite' => 'PREINSCRITO',
                 'estado' => 'activo',
                 'imagen_ci_path' => $docs['imagen_ci_path'] ?? null,
@@ -521,7 +521,7 @@ class PreinscripcionController extends Controller
                 'updated_at' => now(),
             ]);
 
-            // 3. Actualizar preinscripción temporal
+            // 3. Actualizar preinscripciÃ³n temporal
             $tempRecord->update([
                 'estado_pago' => 'pagado',
             ]);
@@ -542,7 +542,7 @@ class PreinscripcionController extends Controller
         $clientSecret = env('PAYPAL_CLIENT_SECRET');
 
         if (empty($clientId) || empty($clientSecret) || strpos($clientId, 'placeholder') !== false) {
-            // Simulación en desarrollo si no se configuran credenciales o son de prueba
+            // SimulaciÃ³n en desarrollo si no se configuran credenciales o son de prueba
             return response()->json([
                 'id' => 'PAY-MOCK-' . strtoupper(uniqid()),
                 'mock' => true
@@ -562,7 +562,7 @@ class PreinscripcionController extends Controller
 
             if (!$authResponse->successful()) {
                 Log::error('PayPal Auth fail: ' . $authResponse->body());
-                
+
                 // Fallback to simulation to prevent 500
                 return response()->json([
                     'id' => 'PAY-MOCK-' . strtoupper(uniqid()),
@@ -577,7 +577,7 @@ class PreinscripcionController extends Controller
             $currency = env('PREINSCRIPCION_MONEDA', 'BOB');
             $amountVal = $montoBob;
             if (strtoupper($currency) === 'BOB') {
-                $amountVal = round($montoBob / 6.96, 2); // Conversión a USD
+                $amountVal = round($montoBob / 6.96, 2); // ConversiÃ³n a USD
                 $currency = 'USD';
             }
 
@@ -592,7 +592,7 @@ class PreinscripcionController extends Controller
                                 'currency_code' => $currency,
                                 'value' => strval($amountVal),
                             ],
-                            'description' => 'Preinscripción CUP-FICCT - Postulante ID: ' . $id
+                            'description' => 'PreinscripciÃ³n CUP-FICCT - Postulante ID: ' . $id
                         ]
                     ]
                 ]);
@@ -602,7 +602,7 @@ class PreinscripcionController extends Controller
             }
 
             Log::error('PayPal Order create fail: ' . $orderResponse->body());
-            
+
             // Fallback to simulation to prevent 500
             return response()->json([
                 'id' => 'PAY-MOCK-' . strtoupper(uniqid()),
@@ -611,7 +611,7 @@ class PreinscripcionController extends Controller
 
         } catch (\Exception $e) {
             Log::error('PayPal Create exception: ' . $e->getMessage());
-            
+
             // Fallback to simulation to prevent 500
             return response()->json([
                 'id' => 'PAY-MOCK-' . strtoupper(uniqid()),
@@ -632,7 +632,7 @@ class PreinscripcionController extends Controller
             return response()->json(['message' => 'ID de orden no proporcionado.'], 400);
         }
 
-        // Si es una simulación de desarrollo local
+        // Si es una simulaciÃ³n de desarrollo local
         if (strpos($orderId, 'PAY-MOCK-') === 0) {
             $monto = env('PREINSCRIPCION_MONTO', 350);
             $currency = env('PREINSCRIPCION_MONEDA', 'BOB');
@@ -665,7 +665,7 @@ class PreinscripcionController extends Controller
 
             if (!$authResponse->successful()) {
                 Log::error('PayPal Auth fail: ' . $authResponse->body());
-                
+
                 // Fallback to success simulation to prevent 500
                 $postulante->update([
                     'pago_estado' => 'PAGADO',
@@ -709,7 +709,7 @@ class PreinscripcionController extends Controller
             }
 
             Log::error('PayPal Capture fail: ' . $captureResponse->body());
-            
+
             // Fallback to success simulation to prevent 500
             $postulante->update([
                 'pago_estado' => 'PAGADO',
@@ -724,7 +724,7 @@ class PreinscripcionController extends Controller
 
         } catch (\Exception $e) {
             Log::error('PayPal Capture exception: ' . $e->getMessage());
-            
+
             // Fallback to success simulation to prevent 500
             $postulante->update([
                 'pago_estado' => 'PAGADO',
@@ -740,22 +740,22 @@ class PreinscripcionController extends Controller
     }
 
     /**
-     * Simular el resultado del pago de preinscripción (Prototipo Académico).
+     * Simular el resultado del pago de preinscripciÃ³n (Prototipo AcadÃ©mico).
      */
     public function simularPago(Request $request, int $id): JsonResponse
     {
         $postulante = Postulante::findOrFail($id);
-        
+
         $estado = strtoupper($request->input('estado', 'PENDIENTE'));
         $metodo = strtoupper($request->input('metodo', 'TARJETA'));
-        
+
         if (!in_array($estado, ['PAGADO', 'FALLIDO', 'CANCELADO', 'PENDIENTE'])) {
             return response()->json(['message' => 'Estado de pago no permitido.'], 400);
         }
-        
+
         $monto = env('PREINSCRIPCION_MONTO', 350);
         $currency = env('PREINSCRIPCION_MONEDA', 'BOB');
-        
+
         if ($estado === 'PAGADO') {
             $ref = 'SIM-' . $metodo . '-' . strtoupper(uniqid());
             $postulante->update([
@@ -798,22 +798,22 @@ class PreinscripcionController extends Controller
                 'updated_at' => now(),
             ]);
         }
-        
+
         return response()->json([
             'status' => 'success',
-            'message' => 'Simulación de pago procesada con éxito.',
+            'message' => 'SimulaciÃ³n de pago procesada con Ã©xito.',
             'data' => $postulante
         ]);
     }
 
     /**
-     * Cancelar la preinscripción de un postulante (eliminar registro).
+     * Cancelar la preinscripciÃ³n de un postulante (eliminar registro).
      */
     public function cancelar(int $id): JsonResponse
     {
         // 1. Intentar buscar en preinscripciones temporales
         $temp = PreinscripcionTemporal::find($id);
-        
+
         if ($temp) {
             $docs = $temp->documentos_temporales;
             if (is_array($docs)) {
@@ -829,7 +829,7 @@ class PreinscripcionController extends Controller
             }
             $temp->delete();
             return response()->json([
-                'message' => 'Preinscripción temporal cancelada y eliminada correctamente.'
+                'message' => 'PreinscripciÃ³n temporal cancelada y eliminada correctamente.'
             ], 200);
         }
 
@@ -838,17 +838,17 @@ class PreinscripcionController extends Controller
 
         if (!$postulante) {
             return response()->json([
-                'message' => 'Preinscripción no encontrada.'
+                'message' => 'PreinscripciÃ³n no encontrada.'
             ], 404);
         }
 
         if ($postulante->estado_tramite === 'CUENTA_CREADA' || !empty($postulante->user_id) || !empty($postulante->cuenta_creada_at)) {
             return response()->json([
-                'message' => 'No se puede cancelar una preinscripción que ya tiene cuenta creada.'
+                'message' => 'No se puede cancelar una preinscripciÃ³n que ya tiene cuenta creada.'
             ], 409);
         }
 
-        // Si el postulante ya pagó, eliminar sus documentos oficiales
+        // Si el postulante ya pagÃ³, eliminar sus documentos oficiales
         if (!empty($postulante->imagen_ci_path)) {
             Storage::delete($postulante->imagen_ci_path);
         }
@@ -862,7 +862,7 @@ class PreinscripcionController extends Controller
         $postulante->delete();
 
         return response()->json([
-            'message' => 'Preinscripción cancelada correctamente.'
+            'message' => 'PreinscripciÃ³n cancelada correctamente.'
         ], 200);
     }
 
@@ -875,10 +875,10 @@ class PreinscripcionController extends Controller
             $id = $request->preinscripcion_temporal_id;
             $temp = PreinscripcionTemporal::find($id);
             if (!$temp) {
-                return response()->json(['message' => 'No se encontró la preinscripción temporal.'], 400);
+                return response()->json(['message' => 'No se encontrÃ³ la preinscripciÃ³n temporal.'], 400);
             }
             if ($temp->estado_pago === 'pagado') {
-                return response()->json(['message' => 'Esta preinscripción ya tiene un pago verificado.'], 400);
+                return response()->json(['message' => 'Esta preinscripciÃ³n ya tiene un pago verificado.'], 400);
             }
         } else {
             $validator = \Validator::make($request->all(), [
@@ -908,28 +908,28 @@ class PreinscripcionController extends Controller
                 'apellidos.required' => 'El apellido es obligatorio.',
                 'ci.required' => 'El CI es obligatorio.',
                 'ci.unique' => 'El CI ya fue registrado.',
-                'correo_electronico.required' => 'El correo electrónico es obligatorio.',
-                'correo_electronico.email' => 'El formato del correo electrónico no es válido.',
+                'correo_electronico.required' => 'El correo electrÃ³nico es obligatorio.',
+                'correo_electronico.email' => 'El formato del correo electrÃ³nico no es vÃ¡lido.',
                 'imagen_ci.required' => 'La imagen del CI es obligatoria.',
                 'imagen_ci.image' => 'El archivo del CI debe ser una imagen.',
                 'imagen_ci.mimes' => 'El CI debe estar en formato JPG, JPEG, PNG o WEBP.',
                 'imagen_ci.max' => 'La imagen del CI no debe superar los 5 MB.',
-                'imagen_titulo_bachiller.required' => 'La imagen del título de bachiller es obligatoria.',
-                'imagen_titulo_bachiller.image' => 'El archivo del título debe ser una imagen.',
-                'imagen_titulo_bachiller.mimes' => 'El título debe estar en formato JPG, JPEG, PNG o WEBP.',
-                'imagen_titulo_bachiller.max' => 'La imagen del título no debe superar los 5 MB.',
-                'fotografia.required' => 'La fotografía del postulante es obligatoria.',
-                'fotografia.file' => 'El archivo de la fotografía no es válido.',
-                'fotografia.mimes' => 'La fotografía debe estar en formato JPG, JPEG, PNG o WEBP.',
-                'fotografia.max' => 'La fotografía no debe superar los 5 MB.',
+                'imagen_titulo_bachiller.required' => 'La imagen del tÃ­tulo de bachiller es obligatoria.',
+                'imagen_titulo_bachiller.image' => 'El archivo del tÃ­tulo debe ser una imagen.',
+                'imagen_titulo_bachiller.mimes' => 'El tÃ­tulo debe estar en formato JPG, JPEG, PNG o WEBP.',
+                'imagen_titulo_bachiller.max' => 'La imagen del tÃ­tulo no debe superar los 5 MB.',
+                'fotografia.required' => 'La fotografÃ­a del postulante es obligatoria.',
+                'fotografia.file' => 'El archivo de la fotografÃ­a no es vÃ¡lido.',
+                'fotografia.mimes' => 'La fotografÃ­a debe estar en formato JPG, JPEG, PNG o WEBP.',
+                'fotografia.max' => 'La fotografÃ­a no debe superar los 5 MB.',
                 'preferencia_turno.required' => 'La preferencia de turno es obligatoria.',
-                'preferencia_turno.in' => 'El turno seleccionado no es válido.',
+                'preferencia_turno.in' => 'El turno seleccionado no es vÃ¡lido.',
             ]);
 
             if ($validator->fails()) {
-                Log::error('Errores de validación en preinscripcionStripeCheckout: ', $validator->errors()->toArray());
+                Log::error('Errores de validaciÃ³n en preinscripcionStripeCheckout: ', $validator->errors()->toArray());
                 return response()->json([
-                    'message' => 'Error de validación.',
+                    'message' => 'Error de validaciÃ³n.',
                     'errors' => $validator->errors()
                 ], 422);
             }
@@ -966,7 +966,7 @@ class PreinscripcionController extends Controller
                 $oldTemp->delete();
             }
 
-            // Subir imágenes al almacenamiento privado seguro
+            // Subir imÃ¡genes al almacenamiento privado seguro
             $imagenCiPath = null;
             if ($request->hasFile('imagen_ci')) {
                 $imagenCiPath = $request->file('imagen_ci')->store('private/postulantes/documentos');
@@ -1022,7 +1022,7 @@ class PreinscripcionController extends Controller
 
         if (empty($secret)) {
             return response()->json([
-                'message' => 'Stripe no está configurado correctamente en el servidor.'
+                'message' => 'Stripe no estÃ¡ configurado correctamente en el servidor.'
             ], 400);
         }
 
@@ -1041,7 +1041,7 @@ class PreinscripcionController extends Controller
                     'price_data' => [
                         'currency' => $currency,
                         'product_data' => [
-                            'name' => 'Tarifa de preinscripción CUP-FICCT',
+                            'name' => 'Tarifa de preinscripciÃ³n CUP-FICCT',
                         ],
                         'unit_amount' => $amountCents,
                     ],
@@ -1067,19 +1067,19 @@ class PreinscripcionController extends Controller
         } catch (\Stripe\Exception\AuthenticationException $e) {
             Log::error('Stripe Authentication Exception: ' . $e->getMessage());
             return response()->json([
-                'message' => 'La clave secreta de Stripe no es válida. Verifique STRIPE_SECRET en el .env.',
+                'message' => 'La clave secreta de Stripe no es vÃ¡lida. Verifique STRIPE_SECRET en el .env.',
                 'error' => $e->getMessage()
             ], 400);
         } catch (\Stripe\Exception\ApiErrorException $e) {
             Log::error('Stripe API Error Exception: ' . $e->getMessage());
             return response()->json([
-                'message' => 'No se pudo crear la sesión de Stripe debido a un error de su API.',
+                'message' => 'No se pudo crear la sesiÃ³n de Stripe debido a un error de su API.',
                 'error' => $e->getMessage()
             ], 400);
         } catch (\Exception $e) {
             Log::error('Stripe general exception in preinscripcionStripeCheckout: ' . $e->getMessage());
             return response()->json([
-                'message' => 'No se pudo crear la sesión de Stripe.',
+                'message' => 'No se pudo crear la sesiÃ³n de Stripe.',
                 'error' => $e->getMessage()
             ], 400);
         }
@@ -1128,7 +1128,7 @@ class PreinscripcionController extends Controller
                     ]);
                 }
             } catch (\Exception $e) {
-                Log::error('Error al consultar sesión de Stripe Checkout: ' . $e->getMessage());
+                Log::error('Error al consultar sesiÃ³n de Stripe Checkout: ' . $e->getMessage());
             }
         }
 

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Modules\P2_ParticipantesGrupos\Controllers;
 
@@ -92,7 +92,7 @@ class DocentePortalController extends Controller
             $q->whereIn('grupos.id', $grupoIds);
         })->with('grupos')->get()->map(function($p) use ($grupoIds, $user) {
             $grupo = $p->grupos->whereIn('id', $grupoIds)->first();
-            
+
             $materiaNames = DocenteGrupoAsignacion::where('docente_user_id', $user->id)
                 ->where('grupo_id', $grupo?->id)
                 ->where('estado', 'activo')
@@ -127,7 +127,7 @@ class DocentePortalController extends Controller
         ]);
 
         $user = $request->user();
-        
+
         $assigned = DocenteGrupoAsignacion::where('docente_user_id', $user->id)
             ->where('grupo_id', $request->grupo_id)
             ->where('materia_id', $request->materia_id)
@@ -135,11 +135,11 @@ class DocentePortalController extends Controller
             ->exists();
 
         if (!$assigned) {
-            return response()->json(['message' => 'No está asignado a este grupo o materia.'], 403);
+            return response()->json(['message' => 'No estÃ¡ asignado a este grupo o materia.'], 403);
         }
 
         $grupo = Grupo::with('postulantes')->findOrFail($request->grupo_id);
-        
+
         $notas = Nota::where('grupo_id', $request->grupo_id)
             ->where('materia_id', $request->materia_id)
             ->get()
@@ -215,7 +215,7 @@ class DocentePortalController extends Controller
     {
         $nota = Nota::findOrFail($id);
         $user = $request->user();
-        
+
         $assigned = DocenteGrupoAsignacion::where('docente_user_id', $user->id)
             ->where('grupo_id', $nota->grupo_id)
             ->where('materia_id', $nota->materia_id)

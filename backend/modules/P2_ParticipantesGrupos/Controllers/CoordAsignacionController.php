@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Modules\P2_ParticipantesGrupos\Controllers;
 
@@ -17,9 +17,9 @@ use Illuminate\Support\Facades\DB;
 
 class CoordAsignacionController extends Controller
 {
-    // ══════════════════════════════════════════════
-    // 4.1  Asignación automática de postulantes
-    // ══════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // 4.1  AsignaciÃ³n automÃ¡tica de postulantes
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     public function asignarPostulantesAuto(): JsonResponse
     {
@@ -28,20 +28,20 @@ class CoordAsignacionController extends Controller
 
         // 2. Verificar si existen postulantes INSCRITOS sin preferencia_turno
         $sinTurno = $postulantes->filter(fn($p) => empty($p->preferencia_turno) || !in_array($p->preferencia_turno, ['manana', 'tarde', 'noche']));
-        
+
         if ($sinTurno->isNotEmpty()) {
             return response()->json([
                 'message' => 'Existen postulantes inscritos sin turno elegido. Debe asignarles un turno antes de generar grupos.'
             ], 422);
         }
 
-        // 3. Generar y asignar grupos en una transacción
+        // 3. Generar y asignar grupos en una transacciÃ³n
         \DB::transaction(function () use ($postulantes) {
-            // Eliminar grupos anteriores (todos los que tengan código asignado)
+            // Eliminar grupos anteriores (todos los que tengan cÃ³digo asignado)
             Grupo::whereNotNull('codigo')->delete();
 
             $turnosInfo = [
-                'manana' => ['prefix' => 'M', 'label' => 'mañana'],
+                'manana' => ['prefix' => 'M', 'label' => 'maÃ±ana'],
                 'tarde'  => ['prefix' => 'T', 'label' => 'tarde'],
                 'noche'  => ['prefix' => 'N', 'label' => 'noche'],
             ];
@@ -70,7 +70,7 @@ class CoordAsignacionController extends Controller
                         'gestion'          => 'I-2026',
                     ]);
 
-                    // Generar horarios automáticos
+                    // Generar horarios automÃ¡ticos
                     $this->generarHorarios($grupo);
 
                     // Asignar postulantes
@@ -83,7 +83,7 @@ class CoordAsignacionController extends Controller
         $grupos = Grupo::whereNotNull('codigo')->where('estado', 'activo')->get();
 
         return response()->json([
-            'message'           => "Generación y asignación de grupos completada con éxito. Creados " . $grupos->count() . " grupos.",
+            'message'           => "GeneraciÃ³n y asignaciÃ³n de grupos completada con Ã©xito. Creados " . $grupos->count() . " grupos.",
             'total_inscritos'   => $totalInscritos,
             'total_grupos'      => $grupos->count(),
             'asignados'         => $totalInscritos,
@@ -93,7 +93,7 @@ class CoordAsignacionController extends Controller
         ]);
     }
 
-    /** Postulantes asignados a un grupo específico. */
+    /** Postulantes asignados a un grupo especÃ­fico. */
     public function postulantesEnGrupo(int $grupoId): JsonResponse
     {
         $grupo = Grupo::with('postulantes')->findOrFail($grupoId);
@@ -111,11 +111,11 @@ class CoordAsignacionController extends Controller
         ]);
     }
 
-    // ══════════════════════════════════════════════
-    // 4.2  Asignación de docentes a grupos/materias
-    // ══════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // 4.2  AsignaciÃ³n de docentes a grupos/materias
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    /** Docentes disponibles para una materia específica (sin conflictos). */
+    /** Docentes disponibles para una materia especÃ­fica (sin conflictos). */
     public function docentesDisponibles(Request $request): JsonResponse
     {
         $request->validate([
@@ -137,7 +137,7 @@ class CoordAsignacionController extends Controller
             return response()->json(['message' => "No existen docentes activos para {$materia->nombre}.", 'docentes' => []]);
         }
 
-        // Filtrar docentes con ≤4 grupos asignados
+        // Filtrar docentes con â‰¤4 grupos asignados
         $docenteIds = $docenteIds->filter(function ($uid) {
             $grupos = DocenteGrupoAsignacion::where('docente_user_id', $uid)
                 ->where('estado', 'activo')
@@ -146,7 +146,7 @@ class CoordAsignacionController extends Controller
             return $grupos < 4;
         });
 
-        // Filtrar sin superposición horaria
+        // Filtrar sin superposiciÃ³n horaria
         $disponibles = User::whereIn('id', $docenteIds)
             ->where('estado', 'activo')
             ->get()
@@ -210,7 +210,7 @@ class CoordAsignacionController extends Controller
             return response()->json(['message' => 'El docente ya tiene 4 grupos asignados.'], 422);
         }
 
-        // Determinar días a asignar: todos los del grupo o solo el día indicado
+        // Determinar dÃ­as a asignar: todos los del grupo o solo el dÃ­a indicado
         $todosLosDias = $request->boolean('todos_los_dias', false);
         $diasGrupo    = is_array($grupo->dias) ? $grupo->dias : ['lunes'];
         $dias         = $todosLosDias ? $diasGrupo : [$request->dia ?? $diasGrupo[0]];
@@ -229,7 +229,7 @@ class CoordAsignacionController extends Controller
                 ],
                 [
                     'docente_user_id' => $request->docente_user_id,
-                    'turno'           => $grupo->turno ?? 'mañana',
+                    'turno'           => $grupo->turno ?? 'maÃ±ana',
                     'hora_inicio'     => $request->hora_inicio,
                     'hora_fin'        => $request->hora_fin,
                     'estado'          => 'activo',
@@ -237,7 +237,7 @@ class CoordAsignacionController extends Controller
             );
         }
 
-        $diasLabel = $todosLosDias ? 'todos los días' : $dias[0];
+        $diasLabel = $todosLosDias ? 'todos los dÃ­as' : $dias[0];
         return response()->json([
             'message' => "Docente {$docente->name} asignado a {$materia->nombre} en grupo {$grupo->codigo} ({$diasLabel}).",
         ]);
@@ -266,11 +266,11 @@ class CoordAsignacionController extends Controller
         ]));
     }
 
-    // ══════════════════════════════════════════════
-    // 4.0  Estadísticas de asignación
-    // ══════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // 4.0  EstadÃ­sticas de asignaciÃ³n
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-    /** Devuelve estadísticas globales: inscritos, grupos, asignados, sin grupo, ocupación por grupo. */
+    /** Devuelve estadÃ­sticas globales: inscritos, grupos, asignados, sin grupo, ocupaciÃ³n por grupo. */
     public function statsAsignacion(): JsonResponse
     {
         $totalInscritos = Postulante::where('estado_tramite', 'INSCRITO')->count();
@@ -310,17 +310,17 @@ class CoordAsignacionController extends Controller
         ]);
     }
 
-    // ══════════════════════════════════════════════
-    // 4.3  Asignación automática de docentes
-    // ══════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // 4.3  AsignaciÃ³n automÃ¡tica de docentes
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     /**
-     * Asigna docentes automáticamente a todas las materias de grupos activos.
+     * Asigna docentes automÃ¡ticamente a todas las materias de grupos activos.
      * Por cada (grupo, materia) sin docente asignado, busca el primer docente disponible:
      *   - Tiene la especialidad de la materia.
-     *   - Está activo.
+     *   - EstÃ¡ activo.
      *   - No supera 4 grupos.
-     *   - No tiene conflicto de horario en el día representativo.
+     *   - No tiene conflicto de horario en el dÃ­a representativo.
      */
     public function asignarDocentesAuto(): JsonResponse
     {
@@ -343,7 +343,7 @@ class CoordAsignacionController extends Controller
         foreach ($grupos as $grupo) {
             $dias = is_array($grupo->dias) ? $grupo->dias : ['lunes'];
 
-            // Obtener una única entrada por materia (día representativo = primero)
+            // Obtener una Ãºnica entrada por materia (dÃ­a representativo = primero)
             $materiasPorId = [];
             foreach ($grupo->horarios as $h) {
                 if (!isset($materiasPorId[$h->materia_id])) {
@@ -357,7 +357,7 @@ class CoordAsignacionController extends Controller
                 $horarioLabel  = substr($horario->hora_inicio, 0, 5) . ' - ' . substr($horario->hora_fin, 0, 5);
                 $diaRepres     = $dias[0] ?? 'lunes';
 
-                // ¿Ya tiene docente asignado en este grupo+materia?
+                // Â¿Ya tiene docente asignado en este grupo+materia?
                 $asigExistente = DocenteGrupoAsignacion::where('grupo_id',   $grupo->id)
                     ->where('materia_id', $materiaId)
                     ->where('estado',     'activo')
@@ -408,13 +408,13 @@ class CoordAsignacionController extends Controller
                     continue;
                 }
 
-                // Asignar para todos los días del grupo
+                // Asignar para todos los dÃ­as del grupo
                 foreach ($dias as $dia) {
                     DocenteGrupoAsignacion::updateOrCreate(
                         ['grupo_id' => $grupo->id, 'materia_id' => $materiaId, 'dia' => $dia],
                         [
                             'docente_user_id' => $docente->id,
-                            'turno'           => $grupo->turno ?? 'mañana',
+                            'turno'           => $grupo->turno ?? 'maÃ±ana',
                             'hora_inicio'     => $horario->hora_inicio,
                             'hora_fin'        => $horario->hora_fin,
                             'estado'          => 'activo',
@@ -437,7 +437,7 @@ class CoordAsignacionController extends Controller
         }
 
         return response()->json([
-            'message'         => "Asignación completada. Asignadas: {$asignadas}, Sin docente: {$sinDocente}.",
+            'message'         => "AsignaciÃ³n completada. Asignadas: {$asignadas}, Sin docente: {$sinDocente}.",
             'total_materias'  => $totalMaterias,
             'asignadas'       => $asignadas,
             'sin_docente'     => $sinDocente,
@@ -446,7 +446,7 @@ class CoordAsignacionController extends Controller
         ]);
     }
 
-    // ── Helper: detección de conflicto ──
+    // â”€â”€ Helper: detecciÃ³n de conflicto â”€â”€
     private function tieneConflicto(int $docenteId, string $dia, string $horaInicio, string $horaFin, ?int $excludeId): bool
     {
         $query = DocenteGrupoAsignacion::where('docente_user_id', $docenteId)
@@ -511,7 +511,7 @@ class CoordAsignacionController extends Controller
 
         if ($actual + $nuevos > 70) {
             return response()->json([
-                'message' => "No se puede realizar la asignación. El grupo superaría el límite de 70 estudiantes (actual: {$actual}, intentando agregar: {$nuevos})."
+                'message' => "No se puede realizar la asignaciÃ³n. El grupo superarÃ­a el lÃ­mite de 70 estudiantes (actual: {$actual}, intentando agregar: {$nuevos})."
             ], 422);
         }
 
@@ -557,9 +557,9 @@ class CoordAsignacionController extends Controller
 
         foreach ($dias as $dia) {
             $diaLower = strtolower($dia);
-            $materiasDelDia = ['Computación', 'Física'];
+            $materiasDelDia = ['ComputaciÃ³n', 'FÃ­sica'];
             if (in_array($diaLower, ['miercoles', 'jueves'])) {
-                $materiasDelDia = ['Inglés', 'Matemáticas'];
+                $materiasDelDia = ['InglÃ©s', 'MatemÃ¡ticas'];
             }
 
             $mats = $materias->filter(fn($m) => in_array($m->nombre, $materiasDelDia))
@@ -579,7 +579,7 @@ class CoordAsignacionController extends Controller
     private function getHorarioBloque(string $turno, string $dia, int $blockIndex): array
     {
         $esLmv = in_array(strtolower($dia), ['lunes', 'miercoles', 'viernes']);
-        $turnoNormalized = str_replace(['mañana', 'tarde', 'noche'], ['manana', 'tarde', 'noche'], strtolower($turno));
+        $turnoNormalized = str_replace(['maÃ±ana', 'tarde', 'noche'], ['manana', 'tarde', 'noche'], strtolower($turno));
 
         if ($esLmv) {
             if ($blockIndex === 0) {

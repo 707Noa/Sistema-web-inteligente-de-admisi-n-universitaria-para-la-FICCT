@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+﻿import React, { useState, useEffect, useCallback } from 'react'
 import Layout from '@/layouts/Layout'
 import StatusBadge from '@/shared/components/StatusBadge'
 import Loading from '@/shared/components/Loading'
@@ -85,7 +85,7 @@ export default function CoordinadorPostulantes() {
     setTimeout(() => setMensaje(null), 5000)
   }
 
-  /* ── Selection handlers ── */
+  /* â”€â”€ Selection handlers â”€â”€ */
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       const visibleIds = items.map(item => item.id)
@@ -115,9 +115,9 @@ export default function CoordinadorPostulantes() {
   const allVisibleSelected = items.length > 0 && items.every(item => seleccionados.includes(item.id))
   const someVisibleSelected = items.length > 0 && items.some(item => seleccionados.includes(item.id)) && !allVisibleSelected
 
-  /* ── Deletion handlers ── */
+  /* â”€â”€ Deletion handlers â”€â”€ */
   const handleEliminarIndividual = async (id, nombre) => {
-    if (window.confirm('¿Está seguro de eliminar este postulante?')) {
+    if (window.confirm('Â¿EstÃ¡ seguro de eliminar este postulante?')) {
       try {
         const res = await deletePostulanteCoordinador(id)
         showMsg('success', res.data?.message || 'Postulante eliminado correctamente.')
@@ -144,18 +144,18 @@ export default function CoordinadorPostulantes() {
       return
     }
 
-    if (!window.confirm(`¿Está seguro de eliminar los postulantes seleccionados?`)) {
+    if (!window.confirm(`Â¿EstÃ¡ seguro de eliminar los postulantes seleccionados?`)) {
       return
     }
 
     setProcesandoEliminar(true)
     try {
       const res = await eliminarPostulantesMultipleCoordinador(seleccionados)
-      showMsg('success', res.data?.message || 'Proceso de eliminación finalizado.')
+      showMsg('success', res.data?.message || 'Proceso de eliminaciÃ³n finalizado.')
       setSeleccionados([])
       fetchData(page)
     } catch (err) {
-      showMsg('error', err.response?.data?.message || 'Error al procesar la eliminación.')
+      showMsg('error', err.response?.data?.message || 'Error al procesar la eliminaciÃ³n.')
     } finally {
       setProcesandoEliminar(false)
     }
@@ -171,11 +171,11 @@ export default function CoordinadorPostulantes() {
 
   return (
     <Layout>
-      {/* ── Cabecera ── */}
+      {/* â”€â”€ Cabecera â”€â”€ */}
       <div className="page-header" style={{ marginBottom: 20 }}>
-        <h1>Gestión de Postulantes</h1>
+        <h1>GestiÃ³n de Postulantes</h1>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
-          
+
           <div className="search-container" style={{ margin: 0 }}>
             <FiSearch className="search-icon" />
             <input
@@ -278,7 +278,7 @@ export default function CoordinadorPostulantes() {
         </div>
       </div>
 
-      {/* ── Alerta flotante ── */}
+      {/* â”€â”€ Alerta flotante â”€â”€ */}
       {mensaje && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
@@ -289,11 +289,11 @@ export default function CoordinadorPostulantes() {
           {mensaje.type === 'success' ? <FiCheckCircle /> : <FiAlertCircle />}
           <span style={{ flex: 1 }}>{mensaje.text}</span>
           <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: 'inherit' }}
-            onClick={() => setMensaje(null)}>×</button>
+            onClick={() => setMensaje(null)}>Ã—</button>
         </div>
       )}
 
-      {/* ── Tabla ── */}
+      {/* â”€â”€ Tabla â”€â”€ */}
       <div className="tabla-scroll-postulantes">
         {loading ? <div style={{ padding: '40px 0' }}><Loading /></div> : (
           <table className="table">
@@ -346,7 +346,7 @@ export default function CoordinadorPostulantes() {
                   </td>
                   <td>
                     {p.preferencia_turno === 'manana' ? (
-                      <span className="badge badge-info" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>Mañana</span>
+                      <span className="badge badge-info" style={{ backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>MaÃ±ana</span>
                     ) : p.preferencia_turno === 'tarde' ? (
                       <span className="badge badge-warning" style={{ backgroundColor: '#fef3c7', color: '#b45309', fontWeight: 600 }}>Tarde</span>
                     ) : p.preferencia_turno === 'noche' ? (
@@ -365,7 +365,7 @@ export default function CoordinadorPostulantes() {
                         fontWeight: '600',
                         fontSize: '0.8rem',
                         display: 'inline-block'
-                      }}>Sí</span>
+                      }}>SÃ­</span>
                     ) : (
                       <span style={{
                         padding: '4px 8px',
@@ -413,7 +413,7 @@ export default function CoordinadorPostulantes() {
         )}
       </div>
 
-      {/* Paginación */}
+      {/* PaginaciÃ³n */}
       {totalPages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '20px', marginBottom: '20px' }}>
           <button
@@ -424,7 +424,7 @@ export default function CoordinadorPostulantes() {
             Anterior
           </button>
           <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.9rem', color: '#64748b', padding: '0 8px' }}>
-            Página {page} de {totalPages}
+            PÃ¡gina {page} de {totalPages}
           </span>
           <button
             className="btn btn-outline btn-sm"

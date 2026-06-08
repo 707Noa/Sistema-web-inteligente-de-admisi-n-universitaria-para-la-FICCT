@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import Layout from '@/layouts/Layout'
 import Loading from '@/shared/components/Loading'
 import { getEstadisticas } from '../services/autoridadService'
@@ -12,7 +12,7 @@ export default function EstadisticasAutoridad() {
   useEffect(() => {
     getEstadisticas()
       .then(r => setData(r.data))
-      .catch(e => setError(e.message || 'Error al cargar estadísticas.'))
+      .catch(e => setError(e.message || 'Error al cargar estadÃ­sticas.'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -27,7 +27,7 @@ export default function EstadisticasAutoridad() {
   return (
     <Layout>
       <div className="page-header">
-        <h1>Estadísticas Generales</h1>
+        <h1>EstadÃ­sticas Generales</h1>
       </div>
 
       {error && (
@@ -37,7 +37,7 @@ export default function EstadisticasAutoridad() {
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(440px, 1fr))', gap: 24 }}>
-        
+
         {/* Grupos por Carrera */}
         <div className="card" style={{ padding: 24 }}>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -110,7 +110,7 @@ export default function EstadisticasAutoridad() {
         {/* Cupos Ocupados por Grupo */}
         <div className="card" style={{ padding: 24 }}>
           <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--gray-900)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FiPieChart style={{ color: '#8b5cf6' }} /> Ocupación y Cupos por Grupo
+            <FiPieChart style={{ color: '#8b5cf6' }} /> OcupaciÃ³n y Cupos por Grupo
           </h2>
           <div>
             {(data?.cupos_grupo || []).map((item, idx) => {

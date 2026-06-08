@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Layout from '@/layouts/Layout'
 import StatusBadge from '@/shared/components/StatusBadge'
 import Loading from '@/shared/components/Loading'
@@ -20,7 +20,7 @@ import {
 } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 
-// ── Utilidades ────────────────────────────────────────────────────────────────
+// â”€â”€ Utilidades â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function toInputDate(dateStr) {
   if (!dateStr) return ''
@@ -42,13 +42,13 @@ function formatFecha(dateStr) {
 
 const ESTADOS_TRAMITE = ['PREINSCRITO', 'INSCRITO', 'PENDIENTE_PAGO']
 
-// ── Componente principal ──────────────────────────────────────────────────────
+// â”€â”€ Componente principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function Postulantes() {
   const navigate    = useNavigate()
   const fileInputRef = useRef(null)
 
-  // ── Lista ──
+  // â”€â”€ Lista â”€â”€
   const [items, setItems]     = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch]   = useState('')
@@ -72,21 +72,21 @@ export default function Postulantes() {
   const [procesandoEliminar, setProcesandoEliminar] = useState(false)
   const [actionResultModal, setActionResultModal] = useState(null)
 
-  // ── Modal edición ── (from Upstream)
+  // â”€â”€ Modal ediciÃ³n â”€â”€ (from Upstream)
   const [showForm, setShowForm]     = useState(false)
   const [editId, setEditId]         = useState(null)
   const [formData, setFormData]     = useState({})
   const [formErrors, setFormErrors] = useState({})
   const [formLoading, setFormLoading] = useState(false)
 
-  // ── Modal masivo ── (from Upstream)
+  // â”€â”€ Modal masivo â”€â”€ (from Upstream)
   const [showMasivo, setShowMasivo] = useState(false)
   const [csvFile, setCsvFile]       = useState(null)
   const [dragOver, setDragOver]     = useState(false)
   const [procesando, setProcesando] = useState(false)
   const [resultado, setResultado]   = useState(null)
 
-  // ── Helpers ──
+  // â”€â”€ Helpers â”€â”€
   const showMsg = (type, text) => {
     setMensaje({ type, text })
     setTimeout(() => setMensaje(null), 6000)
@@ -141,7 +141,7 @@ export default function Postulantes() {
     setPage(1)
   }
 
-  /* ── Selection handlers ── */
+  /* â”€â”€ Selection handlers â”€â”€ */
   const handleSelectAll = (e) => {
     if (e.target.checked) {
       const visibleIds = items.map(item => item.id)
@@ -171,19 +171,19 @@ export default function Postulantes() {
   const allVisibleSelected = items.length > 0 && items.every(item => seleccionados.includes(item.id))
   const someVisibleSelected = items.length > 0 && items.some(item => seleccionados.includes(item.id)) && !allVisibleSelected
 
-  /* ── Mass actions handlers ── */
+  /* â”€â”€ Mass actions handlers â”€â”€ */
   const handleCrearCuentas = async () => {
     let msg = ''
     let mode = ''
 
     if (seleccionados.length > 0) {
-      msg = `¿Está seguro de crear cuentas para los ${seleccionados.length} postulantes seleccionados?`
+      msg = `Â¿EstÃ¡ seguro de crear cuentas para los ${seleccionados.length} postulantes seleccionados?`
       mode = 'seleccionados'
     } else if (search || carreraFilter || estadoFilter) {
-      msg = '¿Está seguro de crear cuentas para los postulantes que cumplen con los filtros actuales?'
+      msg = 'Â¿EstÃ¡ seguro de crear cuentas para los postulantes que cumplen con los filtros actuales?'
       mode = 'filtrados'
     } else {
-      msg = '¿Está seguro de crear cuentas para todos los postulantes preinscritos elegibles?'
+      msg = 'Â¿EstÃ¡ seguro de crear cuentas para todos los postulantes preinscritos elegibles?'
       mode = 'general'
     }
 
@@ -203,15 +203,15 @@ export default function Postulantes() {
       })
 
       setActionResultModal({
-        title: 'Resumen de Creación de Cuentas',
+        title: 'Resumen de CreaciÃ³n de Cuentas',
         type: 'crear',
         data: res.data
       })
-      showMsg('success', 'Proceso de creación de cuentas finalizado.')
+      showMsg('success', 'Proceso de creaciÃ³n de cuentas finalizado.')
       setSeleccionados([])
       fetchData(page)
     } catch (err) {
-      showMsg('error', err.response?.data?.message || 'Error al procesar la creación de cuentas.')
+      showMsg('error', err.response?.data?.message || 'Error al procesar la creaciÃ³n de cuentas.')
     } finally {
       setProcesandoCuentas(false)
     }
@@ -237,7 +237,7 @@ export default function Postulantes() {
       .map(([state, count]) => `- ${count} ${state}`)
       .join('\n')
 
-    const message = `Está a punto de eliminar ${seleccionados.length} postulantes:\n${summaryText}\n\n¿Desea continuar?`
+    const message = `EstÃ¡ a punto de eliminar ${seleccionados.length} postulantes:\n${summaryText}\n\nÂ¿Desea continuar?`
 
     if (!window.confirm(message)) {
       return
@@ -247,22 +247,22 @@ export default function Postulantes() {
     try {
       const res = await eliminarPostulantesMasivo(seleccionados)
       setActionResultModal({
-        title: 'Resumen de Eliminación/Desactivación',
+        title: 'Resumen de EliminaciÃ³n/DesactivaciÃ³n',
         type: 'eliminar',
         data: res.data
       })
-      showMsg('success', 'Proceso de eliminación finalizado.')
+      showMsg('success', 'Proceso de eliminaciÃ³n finalizado.')
       setSeleccionados([])
       fetchData(page)
     } catch (err) {
-      showMsg('error', err.response?.data?.message || 'Error al procesar la eliminación.')
+      showMsg('error', err.response?.data?.message || 'Error al procesar la eliminaciÃ³n.')
     } finally {
       setProcesandoEliminar(false)
     }
   }
 
   const handleEliminarIndividual = async (id, nombre, estado) => {
-    if (!window.confirm(`¿Está seguro de eliminar este postulante? Estado actual: ${estado || 'Desconocido'}.`)) return
+    if (!window.confirm(`Â¿EstÃ¡ seguro de eliminar este postulante? Estado actual: ${estado || 'Desconocido'}.`)) return
     try {
       const res = await deletePostulante(id)
       showMsg('success', res.data?.message || 'Postulante eliminado correctamente.')
@@ -273,13 +273,13 @@ export default function Postulantes() {
     }
   }
 
-  /* ── Generar cuenta individual ── */
+  /* â”€â”€ Generar cuenta individual â”€â”€ */
   const handleGenerarCuenta = async (p) => {
     setGenerando(p.id)
     try {
       const r = await generarCuenta(p.id)
       const codigo = r.data.user?.codigo || r.data.postulante?.codigo_usuario || ''
-      showMsg('success', `Cuenta creada. Código de acceso: ${codigo}`)
+      showMsg('success', `Cuenta creada. CÃ³digo de acceso: ${codigo}`)
       fetchData(page)
     } catch (err) {
       showMsg('error', err.response?.data?.message || 'Error al generar cuenta.')
@@ -288,7 +288,7 @@ export default function Postulantes() {
     }
   }
 
-  // ── Abrir edición ──
+  // â”€â”€ Abrir ediciÃ³n â”€â”€
   const openEdit = (p) => {
     setEditId(p.id)
     setFormData({
@@ -332,7 +332,7 @@ export default function Postulantes() {
 
   const fieldErr = (f) => formErrors[f]?.[0]
 
-  // ── Masivo ──
+  // â”€â”€ Masivo â”€â”€
   const closeMasivo = () => {
     setShowMasivo(false); setCsvFile(null); setResultado(null); setDragOver(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
@@ -358,12 +358,12 @@ export default function Postulantes() {
     }
   }
 
-  // Texto de contador dinámico
+  // Texto de contador dinÃ¡mico
   const textoContador = () => {
     const parts = []
     if (estadoFilter)  parts.push(estadoFilter)
     if (carreraFilter) parts.push(carreraFilter)
-    if (parts.length > 0) return `${meta.total} postulante${meta.total !== 1 ? 's' : ''} — ${parts.join(', ')}`
+    if (parts.length > 0) return `${meta.total} postulante${meta.total !== 1 ? 's' : ''} â€” ${parts.join(', ')}`
     if (search) return `${meta.total} resultado${meta.total !== 1 ? 's' : ''} para "${search}"`
     return `${meta.total} postulante${meta.total !== 1 ? 's' : ''} en total`
   }
@@ -372,11 +372,11 @@ export default function Postulantes() {
 
   return (
     <Layout>
-      {/* ── Cabecera ── */}
+      {/* â”€â”€ Cabecera â”€â”€ */}
       <div className="page-header" style={{ marginBottom: 20 }}>
-        <h1>Gestión de Postulantes</h1>
+        <h1>GestiÃ³n de Postulantes</h1>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginTop: 12 }}>
-          
+
           <div className="search-container" style={{ margin: 0 }}>
             <FiSearch className="search-icon" />
             <input
@@ -455,7 +455,7 @@ export default function Postulantes() {
             onClick={() => { setShowMasivo(true); setResultado(null) }}
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <FiUsers /> Generación Masiva
+            <FiUsers /> GeneraciÃ³n Masiva
           </button>
 
           <button
@@ -493,7 +493,7 @@ export default function Postulantes() {
         {loading ? 'Actualizando...' : textoContador()}
       </p>
 
-      {/* ── Mensaje flotante ── */}
+      {/* â”€â”€ Mensaje flotante â”€â”€ */}
       {mensaje && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
@@ -504,11 +504,11 @@ export default function Postulantes() {
           {mensaje.type === 'success' ? <FiCheckCircle /> : <FiAlertCircle />}
           <span style={{ flex: 1 }}>{mensaje.text}</span>
           <button style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'inherit' }}
-            onClick={() => setMensaje(null)}>×</button>
+            onClick={() => setMensaje(null)}>Ã—</button>
         </div>
       )}
 
-      {/* ── Tabla ── */}
+      {/* â”€â”€ Tabla â”€â”€ */}
       <div className="tabla-scroll-postulantes">
         {loading ? <div style={{ padding: '40px 0' }}><Loading /></div> : (
           <table className="table">
@@ -568,7 +568,7 @@ export default function Postulantes() {
                         fontWeight: '600',
                         fontSize: '0.8rem',
                         display: 'inline-block'
-                      }}>Sí</span>
+                      }}>SÃ­</span>
                     ) : (
                       <span style={{
                         padding: '4px 8px',
@@ -654,7 +654,7 @@ export default function Postulantes() {
             Anterior
           </button>
           <span style={{ display: 'flex', alignItems: 'center', fontSize: '0.9rem', color: '#64748b', padding: '0 8px' }}>
-            Página {page} de {totalPages}
+            PÃ¡gina {page} de {totalPages}
           </span>
           <button
             className="btn btn-outline btn-sm"
@@ -666,15 +666,15 @@ export default function Postulantes() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════
-          Modal — Editar Postulante
-      ══════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          Modal â€” Editar Postulante
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showForm && (
         <div className="modal-overlay" onClick={() => setShowForm(false)}>
           <div className="modal" style={{ maxWidth: 640 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">Editar Postulante</span>
-              <button className="modal-close" onClick={() => setShowForm(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowForm(false)}>Ã—</button>
             </div>
 
             <form onSubmit={handleFormSubmit}>
@@ -710,14 +710,14 @@ export default function Postulantes() {
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Teléfono</label>
+                    <label className="form-label">TelÃ©fono</label>
                     <input className="form-input" value={formData.celular}
                       onChange={e => setFormData({ ...formData, celular: e.target.value })} />
                     {fieldErr('celular') && <span style={{ color: '#dc2626', fontSize: '0.78rem' }}>{fieldErr('celular')}</span>}
                   </div>
 
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label className="form-label">Correo electrónico</label>
+                    <label className="form-label">Correo electrÃ³nico</label>
                     <input className="form-input" type="email" value={formData.email}
                       onChange={e => setFormData({ ...formData, email: e.target.value })} />
                     {fieldErr('email') && <span style={{ color: '#dc2626', fontSize: '0.78rem' }}>{fieldErr('email')}</span>}
@@ -742,7 +742,7 @@ export default function Postulantes() {
                     <select className="form-select" value={formData.preferencia_turno || ''}
                       onChange={e => setFormData({ ...formData, preferencia_turno: e.target.value })}>
                       <option value="">Sin definir</option>
-                      <option value="manana">Mañana</option>
+                      <option value="manana">MaÃ±ana</option>
                       <option value="tarde">Tarde</option>
                       <option value="noche">Noche</option>
                     </select>
@@ -767,7 +767,7 @@ export default function Postulantes() {
                   </div>
 
                   <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                    <label className="form-label">Dirección</label>
+                    <label className="form-label">DirecciÃ³n</label>
                     <input className="form-input" value={formData.direccion}
                       onChange={e => setFormData({ ...formData, direccion: e.target.value })} />
                   </div>
@@ -798,15 +798,15 @@ export default function Postulantes() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════
-          Modal — Generación Masiva
-      ══════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          Modal â€” GeneraciÃ³n Masiva
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showMasivo && (
         <div className="modal-overlay" onClick={closeMasivo}>
           <div className="modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <span className="modal-title">Generación Masiva de Cuentas</span>
-              <button className="modal-close" onClick={closeMasivo}>×</button>
+              <span className="modal-title">GeneraciÃ³n Masiva de Cuentas</span>
+              <button className="modal-close" onClick={closeMasivo}>Ã—</button>
             </div>
 
             <div className="modal-body">
@@ -829,12 +829,12 @@ export default function Postulantes() {
                     <div>
                       <strong>Formato CSV (separador <code>;</code>):</strong>
                       <code style={{ display: 'block', marginTop: 4, marginBottom: 6, wordBreak: 'break-all' }}>
-                        Nombres;Apellidos;CI;Correo;Teléfono;"1ª Carrera";"2ª Carrera";"Unidad Educativa";Ciudad;Estado;"Turno Elegido"
+                        Nombres;Apellidos;CI;Correo;TelÃ©fono;"1Âª Carrera";"2Âª Carrera";"Unidad Educativa";Ciudad;Estado;"Turno Elegido"
                       </code>
                       <span>
                         Estado <code>PREINSCRITO</code>: importa el postulante <strong>sin</strong> crear cuenta.{' '}
-                        Estado <code>INSCRITO</code>: importa <strong>y</strong> genera cuenta automáticamente.{' '}
-                        El campo <strong>Registro</strong> se genera automáticamente desde el CI.
+                        Estado <code>INSCRITO</code>: importa <strong>y</strong> genera cuenta automÃ¡ticamente.{' '}
+                        El campo <strong>Registro</strong> se genera automÃ¡ticamente desde el CI.
                       </span>
                     </div>
                   </div>
@@ -868,7 +868,7 @@ export default function Postulantes() {
                         </p>
                       ) : (
                         <p style={{ color: 'var(--gray-500)', fontSize: '0.875rem', margin: 0 }}>
-                          Haga clic para seleccionar o arrastre un archivo CSV aquí
+                          Haga clic para seleccionar o arrastre un archivo CSV aquÃ­
                         </p>
                       )}
                       <input
@@ -938,15 +938,15 @@ export default function Postulantes() {
         </div>
       )}
 
-      {/* ══════════════════════════════════════════════
-          Modal — Resumen de Acción Masiva
-      ══════════════════════════════════════════════ */}
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+          Modal â€” Resumen de AcciÃ³n Masiva
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {actionResultModal && (
         <div className="modal-overlay" onClick={() => setActionResultModal(null)}>
           <div className="modal" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">{actionResultModal.title}</span>
-              <button className="modal-close" onClick={() => setActionResultModal(null)}>×</button>
+              <button className="modal-close" onClick={() => setActionResultModal(null)}>Ã—</button>
             </div>
             <div className="modal-body">
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
@@ -985,7 +985,7 @@ export default function Postulantes() {
 
               {actionResultModal.type === 'eliminar' && (
                 <div style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: 12, lineHeight: 1.6 }}>
-                  <p><strong>Eliminados físicamente (sin cuenta):</strong> {actionResultModal.data.eliminados_fisicamente ?? 0}</p>
+                  <p><strong>Eliminados fÃ­sicamente (sin cuenta):</strong> {actionResultModal.data.eliminados_fisicamente ?? 0}</p>
                   <p><strong>Desactivados (con cuenta):</strong> {actionResultModal.data.desactivados ?? 0}</p>
                 </div>
               )}

@@ -6,50 +6,65 @@ import { FiHome, FiUsers, FiUserCheck, FiX, FiUser, FiBook, FiGrid, FiList, FiBa
 const menuItems = {
   // ── Administrador (sin cambios) ──
   administrador: [
-    { label: 'Dashboard',              path: '/admin/dashboard',   icon: <FiHome /> },
-    { label: 'Gestión de Usuarios',    path: '/admin/usuarios',    icon: <FiUsers /> },
+    { label: 'Dashboard', path: '/admin/dashboard', icon: <FiHome /> },
+    { label: 'Gestión de Usuarios', path: '/admin/usuarios', icon: <FiUsers /> },
     { label: 'Gestión de Postulantes', path: '/admin/postulantes', icon: <FiUserCheck /> },
   ],
   // ── Coordinador Académico ──
   coordinador: [
-    { label: 'Dashboard',              path: '/coordinador/dashboard',        icon: <FiHome /> },
-    { label: 'Perfil',                 path: '/coordinador/perfil',           icon: <FiUser /> },
-    { label: 'Gestión de postulantes', path: '/coordinador/postulantes',      icon: <FiUserCheck /> },
-    { label: 'Gestión de docentes',    path: '/coordinador/docentes',         icon: <FiBook /> },
-    { label: 'Gestión de grupos',      path: '/coordinador/grupos',           icon: <FiGrid /> },
-    { label: 'Asignación académica',   path: '/coordinador/asignacion',       icon: <FiList /> },
-    { label: 'Reporte de horarios',    path: '/coordinador/reporte-horarios', icon: <FiBarChart2 /> },
-    { label: 'Cupos por carrera',      path: '/coordinador/cupos-carrera',     icon: <FiSliders /> },
-    { label: 'Admisión final',         path: '/coordinador/admision-final',    icon: <FiUserPlus /> },
+    { label: 'Dashboard', path: '/coordinador/dashboard', icon: <FiHome /> },
+
+    { label: 'Perfil', path: '/coordinador/perfil', icon: <FiUser /> },
+
+    { label: 'Gestión de postulantes', path: '/coordinador/postulantes', icon: <FiUserCheck /> },
+    { label: 'Gestión de docentes', path: '/coordinador/docentes', icon: <FiBook /> },
+    { label: 'Gestión de grupos', path: '/coordinador/grupos', icon: <FiGrid /> },
+    { label: 'Asignación académica', path: '/coordinador/asignacion', icon: <FiList /> },
+    { label: 'Reporte de horarios', path: '/coordinador/reporte-horarios', icon: <FiBarChart2 /> },
+    { label: 'Cupos por carrera', path: '/coordinador/cupos-carrera', icon: <FiSliders /> },
+    { label: 'Admisión final', path: '/coordinador/admision-final', icon: <FiUserPlus /> },
   ],
   // ── Autoridad Académica ──
   autoridad: [
-    { label: 'Perfil',                 path: '/perfil',                 icon: <FiUser /> },
-    { label: 'Dashboard académico',    path: '/autoridad/dashboard',    icon: <FiHome /> },
-    { label: 'Grupos habilitados',     path: '/autoridad/grupos',       icon: <FiGrid /> },
-    { label: 'Docentes asignados',     path: '/autoridad/docentes',     icon: <FiBook /> },
-    { label: 'Horarios',               path: '/autoridad/horarios',     icon: <FiList /> },
-    { label: 'Estadísticas generales', path: '/autoridad/estadisticas',  icon: <FiBarChart2 /> },
+
+    { label: 'Perfil', path: '/perfil', icon: <FiUser /> },
+
+    { label: 'Dashboard académico', path: '/autoridad/dashboard', icon: <FiHome /> },
+    { label: 'Grupos habilitados', path: '/autoridad/grupos', icon: <FiGrid /> },
+    { label: 'Docentes asignados', path: '/autoridad/docentes', icon: <FiBook /> },
+    { label: 'Horarios', path: '/autoridad/horarios', icon: <FiList /> },
+    { label: 'Estadísticas generales', path: '/autoridad/estadisticas', icon: <FiBarChart2 /> },
   ],
   // ── Docente ──
   docente: [
-    { label: 'Perfil General',         path: '/perfil',                 icon: <FiUser /> },
-    { label: 'Mi Perfil (Docente)',    path: '/docente/perfil',         icon: <FiUser /> },
-    { label: 'Mis Grupos',             path: '/docente/grupos',         icon: <FiGrid /> },
-    { label: 'Asistencia',             path: '/docente/asistencia',     icon: <FiCheckSquare /> },
-    { label: 'Calificaciones',         path: '/docente/calificaciones', icon: <FiAward /> },
-    { label: 'Reportes',               path: '/docente/reportes',       icon: <FiFileText /> },
-    { label: 'Mis grupos (Gestión)',   path: '/docente/mis-grupos',     icon: <FiGrid /> },
-    { label: 'Mis materias',           path: '/docente/mis-materias',   icon: <FiBook /> },
-    { label: 'Mis estudiantes',        path: '/docente/mis-estudiantes',icon: <FiUsers /> },
-    { label: 'Registro de notas',      path: '/docente/registro-notas', icon: <FiList /> },
+
+    { label: 'Perfil General', path: '/perfil', icon: <FiUser /> },
+    { label: 'Mi Perfil (Docente)', path: '/docente/perfil', icon: <FiUser /> },
+
+    { label: 'Mis Grupos', path: '/docente/grupos', icon: <FiGrid /> },
+    { label: 'Asistencia', path: '/docente/asistencia', icon: <FiCheckSquare /> },
+    { label: 'Calificaciones', path: '/docente/calificaciones', icon: <FiAward /> },
+    { label: 'Reportes', path: '/docente/reportes', icon: <FiFileText /> },
+
+    { label: 'Mis materias', path: '/docente/mis-materias', icon: <FiBook /> },
+    { label: 'Mis estudiantes', path: '/docente/mis-estudiantes', icon: <FiUsers /> },
   ],
   // ── Postulante ──
   postulante: [
-    { label: 'Perfil General',         path: '/perfil',                    icon: <FiUser /> },
-    { label: 'Mi Perfil',              path: '/postulante/perfil',         icon: <FiUser /> },
-    { label: 'Mi Horario',             path: '/postulante/horario',        icon: <FiClock /> },
-    { label: 'Mis Calificaciones',     path: '/postulante/calificaciones', icon: <FiAward /> },
+    { label: 'Panel General', path: '/perfil', icon: <FiHome /> },
+
+    { label: 'Mis grupos (Gestión)', path: '/docente/mis-grupos', icon: <FiGrid /> },
+    { label: 'Mis materias', path: '/docente/mis-materias', icon: <FiBook /> },
+    { label: 'Mis estudiantes', path: '/docente/mis-estudiantes', icon: <FiUsers /> },
+    { label: 'Registro de notas', path: '/docente/registro-notas', icon: <FiList /> },
+  ],
+  // ── Postulante ──
+  postulante: [
+    { label: 'Perfil General', path: '/perfil', icon: <FiUser /> },
+    { label: 'Mi Perfil', path: '/postulante/perfil', icon: <FiUser /> },
+
+    { label: 'Mi Horario', path: '/postulante/horario', icon: <FiClock /> },
+    { label: 'Mis Calificaciones', path: '/postulante/calificaciones', icon: <FiAward /> },
   ],
 }
 

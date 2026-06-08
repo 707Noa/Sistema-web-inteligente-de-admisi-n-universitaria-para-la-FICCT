@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 namespace Modules\P2_ParticipantesGrupos\Controllers;
 
@@ -15,7 +15,7 @@ use Illuminate\Http\Request;
 
 class CoordDocenteController extends Controller
 {
-    private const MATERIAS_VALIDAS = ['Computación', 'Física', 'Inglés', 'Matemáticas'];
+    private const MATERIAS_VALIDAS = ['ComputaciÃ³n', 'FÃ­sica', 'InglÃ©s', 'MatemÃ¡ticas'];
 
     public function perfil(Request $request): JsonResponse
     {
@@ -35,13 +35,13 @@ class CoordDocenteController extends Controller
     {
         $totalInscritos = Postulante::where('estado_tramite', 'INSCRITO')->count();
         $totalGrupos = Grupo::where('estado', 'activo')->count();
-        
+
         $totalDocentes = User::whereHas('role', fn($q) => $q->where('name', 'docente'))
             ->where('estado', 'activo')
             ->count();
 
         $totalAsignaciones = DocenteGrupoAsignacion::where('estado', 'activo')->count();
-        
+
         $gruposSinDocente = Grupo::where('estado', 'activo')
             ->whereDoesntHave('asignaciones', fn($q) => $q->where('estado', 'activo'))
             ->count();
@@ -63,7 +63,7 @@ class CoordDocenteController extends Controller
                 'ocupacion' => $g->ocupacion(),
             ]);
 
-        // Docentes con más carga asignada (unique groups)
+        // Docentes con mÃ¡s carga asignada (unique groups)
         $docentesCarga = User::whereHas('role', fn($q) => $q->where('name', 'docente'))
             ->where('estado', 'activo')
             ->get()
@@ -83,7 +83,7 @@ class CoordDocenteController extends Controller
             ->take(5)
             ->values();
 
-        // Alertas académicas
+        // Alertas acadÃ©micas
         $alertas = [];
 
         // 1. Grupos sin docente
@@ -93,12 +93,12 @@ class CoordDocenteController extends Controller
         foreach ($gruposSinDocenteList as $g) {
             $alertas[] = [
                 'tipo' => 'grupo_sin_docente',
-                'mensaje' => "El grupo " . ($g->codigo ?? $g->nombre_grupo) . " no tiene ningún docente asignado.",
+                'mensaje' => "El grupo " . ($g->codigo ?? $g->nombre_grupo) . " no tiene ningÃºn docente asignado.",
                 'target_id' => $g->id,
             ];
         }
 
-        // 2. Docentes con 4 o más grupos
+        // 2. Docentes con 4 o mÃ¡s grupos
         $docentesCon4Grupos = User::whereHas('role', fn($q) => $q->where('name', 'docente'))
             ->where('estado', 'activo')
             ->get()
@@ -111,7 +111,7 @@ class CoordDocenteController extends Controller
         foreach ($docentesCon4Grupos as $u) {
             $alertas[] = [
                 'tipo' => 'docente_limite',
-                'mensaje' => "El docente {$u->name} ha alcanzado el límite máximo de 4 grupos asignados.",
+                'mensaje' => "El docente {$u->name} ha alcanzado el lÃ­mite mÃ¡ximo de 4 grupos asignados.",
                 'target_id' => $u->id,
             ];
         }
@@ -125,7 +125,7 @@ class CoordDocenteController extends Controller
         foreach ($gruposLlenos as $g) {
             $alertas[] = [
                 'tipo' => 'grupo_lleno',
-                'mensaje' => "El grupo " . ($g->codigo ?? $g->nombre_grupo) . " está cerca del límite de 70 estudiantes (" . $g->ocupacion() . "/70).",
+                'mensaje' => "El grupo " . ($g->codigo ?? $g->nombre_grupo) . " estÃ¡ cerca del lÃ­mite de 70 estudiantes (" . $g->ocupacion() . "/70).",
                 'target_id' => $g->id,
             ];
         }
@@ -236,7 +236,7 @@ class CoordDocenteController extends Controller
 
         if (!in_array($materia->nombre, self::MATERIAS_VALIDAS)) {
             return response()->json([
-                'message' => 'La materia seleccionada no es válida. Solo se permiten: ' . implode(', ', self::MATERIAS_VALIDAS),
+                'message' => 'La materia seleccionada no es vÃ¡lida. Solo se permiten: ' . implode(', ', self::MATERIAS_VALIDAS),
             ], 422);
         }
 

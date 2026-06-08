@@ -10,6 +10,8 @@ use Modules\P2_ParticipantesGrupos\Controllers\MateriaController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordDocenteController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordGrupoController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordAsignacionController;
+
+use Modules\P4_ReportesMonitoreoAuditoria\Controllers\CoordReporteController;
 use Modules\P2_ParticipantesGrupos\Controllers\CoordReporteController;
 use Modules\P2_ParticipantesGrupos\Controllers\DocentePortalController;
 use Modules\P2_ParticipantesGrupos\Controllers\AutoridadPortalController;
@@ -41,6 +43,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/preinscripciones', [PreinscripcionAdminController::class, 'index']);
         Route::get('/preinscripciones/exportar-csv', [PreinscripcionAdminController::class, 'exportarCsv']);
         Route::get('/postulantes/{id}/documento/{type}', [PreinscripcionAdminController::class, 'descargarDocumento']);
+
+    });
+
+    // Solo administrador - Creación de cuentas y inscripción masiva
+    Route::middleware('role:administrador')->group(function () {
+        Route::post('/preinscripciones/generar-cuentas', [PreinscripcionAdminController::class, 'generarCuentasMasivo']);
+        Route::post('/preinscripciones/{postulante}/generar-cuenta', [PreinscripcionAdminController::class, 'generarCuenta']);
+
     });
 
     // Solo administrador - Creación de cuentas y inscripción masiva
@@ -50,6 +60,7 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     Route::get('/materias-all', [MateriaController::class, 'all']);
+    Route::get('/materias/{materia_id}/temas', [MateriaController::class, 'getTemas']);
 
     /*
     |----------------------------------------------------------------------
@@ -59,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:postulante')->prefix('postulante')->group(function () {
         Route::get('/perfil',  [PostulanteController::class, 'perfil']);
         Route::get('/horario', [PostulanteController::class, 'horarioPostulante']);
+        Route::get('/grupo-compañeros', [PostulanteController::class, 'misCompaneros']);
     });
 
     /*
@@ -134,6 +146,21 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/postulantes/{id}',             [PostulanteController::class, 'update']);
         Route::patch('/postulantes/{id}/requisitos',[PostulanteController::class, 'updateRequisitos']);
         Route::delete('/postulantes/{id}',          [PostulanteController::class, 'destroy']);
+    });
+
+    /*
+|--------------------------------------------------------------------------
+| Rutas de Autoridad Académica
+|--------------------------------------------------------------------------
+*/
+        Route::middleware('role:autoridad,administrador')->prefix('autoridad')->group(function () {
+        Route::get('/perfil',              [AutoridadPortalController::class, 'perfil']);
+        Route::get('/dashboard',           [AutoridadPortalController::class, 'dashboard']);
+        Route::get('/grupos',              [AutoridadPortalController::class, 'grupos']);
+        Route::get('/docentes-asignados',  [AutoridadPortalController::class, 'docentesAsignados']);
+        Route::get('/horarios',            [AutoridadPortalController::class, 'horarios']);
+        Route::get('/estadisticas',        [AutoridadPortalController::class, 'estadisticas']);
+
     });
 
     /*
