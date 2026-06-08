@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace Modules\P2_ParticipantesGrupos\Controllers;
 
@@ -33,25 +33,22 @@ class AutoridadPortalController extends Controller
     public function dashboard(Request $request): JsonResponse
     {
         $totalInscritos = Postulante::count();
-        $totalGrupos = Grupo::where('estado', 'activo')->count();
-
+        $totalGrupos = Grupo::where('estado', 'activo')->count(); 
         $totalDocentes = DocenteGrupoAsignacion::where('estado', 'activo')
             ->distinct('docente_user_id')
             ->count('docente_user_id');
 
-        $totalHorarios = GrupoHorario::count();
-
+        $totalHorarios = GrupoHorario::count(); 
         $totalCarrerasConGrupo = Grupo::where('estado', 'activo')
             ->whereNotNull('carrera_id')
             ->distinct('carrera_id')
             ->count('carrera_id');
-
         $totalEstudiantesAsignados = DB::table('grupo_postulante')
             ->join('grupos', 'grupo_postulante.grupo_id', '=', 'grupos.id')
             ->where('grupos.estado', 'activo')
             ->count();
 
-        // Resultados acadÃ©micos
+        // Resultados académicos
         $totalAprobados = \App\Models\Examen::where('estado', 'aprobado')
             ->distinct('postulante_id')->count('postulante_id');
         $totalReprobados = \App\Models\Examen::where('estado', 'reprobado')
@@ -61,7 +58,7 @@ class AutoridadPortalController extends Controller
         // Postulantes sin grupo
         $postulantesSinGrupo = Postulante::whereDoesntHave('grupos')->count();
 
-        // Asignaciones acadÃ©micas
+        // Asignaciones académicas
         $totalAsignaciones = DocenteGrupoAsignacion::where('estado', 'activo')->count();
 
         // Postulantes por carrera
@@ -71,7 +68,7 @@ class AutoridadPortalController extends Controller
             ->orderBy('total', 'desc')
             ->get();
 
-        // Grupos recientes con ocupaciÃ³n
+        // Grupos recientes con ocupación
         $gruposRecientes = Grupo::with(['carrera'])
             ->where('estado', 'activo')
             ->orderBy('id', 'desc')

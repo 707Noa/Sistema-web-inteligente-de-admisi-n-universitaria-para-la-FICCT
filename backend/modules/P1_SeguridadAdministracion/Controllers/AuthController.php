@@ -36,9 +36,6 @@ class AuthController extends Controller
             \Illuminate\Support\Facades\Log::warning("Fallo de login para '{$request->login}': Usuario no encontrado.");
             $debugResponse = config('app.debug') ? ['debug_reason' => 'Usuario no encontrado.'] : [];
             return response()->json(array_merge([
-
-                'message' => 'El usuario no se encuentra registrado.',
-
                 'message' => 'Credenciales incorrectas.',
 
             ], $debugResponse), 401);
@@ -56,7 +53,6 @@ class AuthController extends Controller
             $debugResponse = config('app.debug') ? ['debug_reason' => 'Contraseña incorrecta.'] : [];
             return response()->json(array_merge([
 
-                'message' => 'Contraseña incorrecta.',
                 'message' => 'Credenciales incorrectas.',
 
             ], $debugResponse), 401);
@@ -71,9 +67,9 @@ class AuthController extends Controller
         }
 
 
-        // Reglas de acceso dual (no aplica para administradores: cuenta de sistema)
+        // Reglas de acceso dual
         $roleName = $user->role->name ?? '';
-        if (!$user->must_change_password && strtolower($roleName) !== 'administrador') {
+        if (!$user->must_change_password) {
             if (strtolower($user->email ?? '') === strtolower($login)) {
                 return response()->json([
                     'message' => 'Acceso denegado. El usuario ya actualizó sus datos de acceso. Use su código de registro.',
@@ -97,7 +93,9 @@ class AuthController extends Controller
             }
         }
 
-        // Verificar que el rol coincida con el perfil seleccionado
+        // Verificar que el rol coincida con el perfil seleccionado (comparación flexible e insensible a mayúsculas/minúsculas)
+        $roleName = $user->role->name ?? '';
+
         if (strtolower($roleName) !== strtolower($request->perfil)) {
             AuditoriaService::registrar(
                 $user->id,
@@ -211,8 +209,13 @@ class AuthController extends Controller
         return match(strtolower($role)) {
             'administrador' => '/admin/dashboard',
             'coordinador'   => '/coordinador/dashboard',
+
             'docente'       => '/docente/grupos',
+            'postulante'    => '/perfil',
+
+            'docente'       => '/docente/perfil',
             'postulante'    => '/postulante/perfil',
+
             'autoridad'     => '/autoridad/dashboard',
             default         => '/perfil',
         };
