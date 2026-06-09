@@ -48,7 +48,7 @@ class ReporteIAController extends Controller
         $resultado = $this->interpretacion->interpretar($request->texto);
 
         if (!$resultado['exitoso']) {
-            return response()->json($resultado, 422);
+            return response()->json($resultado, 200);
         }
 
         AuditoriaService::registrar(
