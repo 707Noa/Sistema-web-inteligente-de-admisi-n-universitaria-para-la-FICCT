@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 namespace Modules\P2_ParticipantesGrupos\Controllers;
 
