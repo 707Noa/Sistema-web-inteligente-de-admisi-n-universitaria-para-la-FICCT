@@ -236,6 +236,7 @@ public function update(Request $request, int $id): JsonResponse
                     0 => ['inicio' => '13:00:00', 'fin' => '14:00:00'],
                     1 => ['inicio' => '14:00:00', 'fin' => '15:00:00'],
                     2 => ['inicio' => '15:00:00', 'fin' => '16:00:00'],
+                    3 => ['inicio' => '16:00:00', 'fin' => '17:00:00'],
                 ];
             case 'noche':
                 return [
@@ -256,67 +257,41 @@ public function update(Request $request, int $id): JsonResponse
 
     private function generarHorarios(Grupo $grupo): void
     {
-        $turnoConfig = self::TURNOS[$grupo->turno] ?? self::TURNOS['mañana'];
-
         $materias = Materia::whereIn('nombre', self::MATERIAS_ORDEN)
             ->where('estado', 'activo')
             ->get()
             ->sortBy(fn($m) => array_search($m->nombre, self::MATERIAS_ORDEN))
             ->values();
 
-        $dias = is_array($grupo->dias)
-            ? $grupo->dias
-            : ($grupo->dias ? json_decode($grupo->dias, true) : ['lunes']);
-
-        if (!is_array($dias) || empty($dias)) {
-            $dias = ['lunes'];
+        if ($materias->isEmpty()) {
+            return;
         }
 
-        // Obtener ids de otros grupos activos del mismo turno
-        $grupoIds = Grupo::where('turno', $grupo->turno)
-            ->where('estado', 'activo')
-            ->where('id', '!=', $grupo->id)
-            ->pluck('id');
+        $dias = is_array($grupo->dias)
+            ? $grupo->dias
+            : ($grupo->dias ? json_decode($grupo->dias, true) : ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']);
 
-        $bloques = $this->getBloquesConfig($grupo->turno);
+        if (!is_array($dias) || empty($dias)) {
+            $dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+        }
+
+        $bloques  = $this->getBloquesConfig($grupo->turno);
+        $numBloques = count($bloques);
+
+        // Rotar el orden de materias según la posición del grupo dentro de su turno.
+        // Grupos paralelos del mismo turno reciben distintos horarios (sin solapamiento de materia).
+        $rotacion = Grupo::where('turno', $grupo->turno)
+            ->where('estado', 'activo')
+            ->where('id', '<', $grupo->id)
+            ->count() % $materias->count();
+
+        $materiasOrdenadas = $materias->slice($rotacion)->merge($materias->slice(0, $rotacion))->values();
 
         foreach ($dias as $dia) {
             $diaLower = strtolower($dia);
-            $materiasDelDia = ['Computación', 'Física'];
-            if (in_array($diaLower, ['miercoles', 'jueves'])) {
-                $materiasDelDia = ['Inglés', 'Matemáticas'];
-            }
-
-            $mats = $materias->filter(fn($m) => in_array($m->nombre, $materiasDelDia))
-                ->sortBy(fn($m) => array_search($m->nombre, $materiasDelDia))
-                ->values();
-
-            // Buscar horarios existentes para el mismo día de otros grupos en este turno
-            $horariosExistentes = GrupoHorario::whereIn('grupo_id', $grupoIds)
-                ->where('dia', $diaLower)
-                ->get();
-
-            // Calcular conflictos para cada bloque
-            $conflictCounts = [];
-            foreach ($bloques as $bIdx => $bRange) {
-                $conflictCounts[$bIdx] = 0;
-                foreach ($horariosExistentes as $h) {
-                    $horaHStart = substr($h->hora_inicio, 0, 5);
-                    $horaBStart = substr($bRange['inicio'], 0, 5);
-                    if ($horaHStart === $horaBStart) {
-                        $conflictCounts[$bIdx]++;
-                    }
-                }
-            }
-
-            // Ordenar por menor número de conflictos
-            asort($conflictCounts);
-            $selectedBlockIndices = array_slice(array_keys($conflictCounts), 0, count($mats));
-            sort($selectedBlockIndices);
-
-            foreach ($mats as $idx => $materia) {
-                $blockIdx = $selectedBlockIndices[$idx] ?? $idx;
-                $horario = $bloques[$blockIdx];
+            foreach ($materiasOrdenadas as $idx => $materia) {
+                $blockIdx = $idx % $numBloques;
+                $horario  = $bloques[$blockIdx];
                 GrupoHorario::updateOrCreate(
                     ['grupo_id' => $grupo->id, 'materia_id' => $materia->id, 'dia' => $diaLower],
                     ['hora_inicio' => $horario['inicio'], 'hora_fin' => $horario['fin']]
@@ -337,7 +312,7 @@ public function update(Request $request, int $id): JsonResponse
             'id'          => $g->id,
             'codigo'      => $g->codigo,
             'turno'       => $g->turno,
-            'aula'        => $g->aula ?? '-',
+            'aula'        => $g->aula ?: null,
             'dias'        => $g->dias ?? [],
             'cupo_maximo' => $g->cupo_maximo ?? $g->capacidad_maxima ?? 70,
             'estado'      => $g->estado,
@@ -396,6 +371,21 @@ public function update(Request $request, int $id): JsonResponse
             'hora_inicio' => 'required|string',
             'hora_fin' => 'required|string',
         ]);
+
+        // Verificar solapamiento con otras materias del mismo grupo en el mismo día
+        // Condición: A.inicio < B.fin AND A.fin > B.inicio
+        $conflictoIntraGrupo = GrupoHorario::where('grupo_id', $request->grupo_id)
+            ->where('dia', $request->dia)
+            ->where('materia_id', '!=', $request->materia_id)
+            ->where('hora_inicio', '<', $request->hora_fin)
+            ->where('hora_fin', '>', $request->hora_inicio)
+            ->exists();
+
+        if ($conflictoIntraGrupo) {
+            return response()->json([
+                'message' => 'El horario solicitado se solapa con otra materia de este grupo en el mismo día. Elige un horario diferente.',
+            ], 422);
+        }
 
         $horario = GrupoHorario::updateOrCreate(
             [

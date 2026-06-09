@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Layout from '@/layouts/Layout'
 import Loading from '@/shared/components/Loading'
+import StatusBadge from '@/shared/components/StatusBadge'
 import { getDocentesAsignados } from '../services/autoridadService'
 import { FiSearch } from 'react-icons/fi'
 
@@ -20,10 +21,10 @@ export default function DocentesAsignados() {
   const filtered = asignaciones.filter(a => {
     const s = search.toLowerCase()
     return (
-      a.docente_name.toLowerCase().includes(s) ||
-      a.materia_nombre.toLowerCase().includes(s) ||
-      a.grupo_codigo.toLowerCase().includes(s) ||
-      a.carrera.toLowerCase().includes(s)
+      (a.docente_name || '').toLowerCase().includes(s) ||
+      (a.materia_nombre || '').toLowerCase().includes(s) ||
+      (a.grupo_codigo || '').toLowerCase().includes(s) ||
+      (a.turno || '').toLowerCase().includes(s)
     )
   })
 
@@ -37,7 +38,7 @@ export default function DocentesAsignados() {
           <FiSearch className="search-icon" />
           <input
             className="search-input"
-            placeholder="Buscar por docente, materia, grupo..."
+            placeholder="Buscar por docente, materia, grupo, turno..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -58,9 +59,10 @@ export default function DocentesAsignados() {
               <th>Registro</th>
               <th>Materia</th>
               <th>Grupo</th>
-              <th>Carrera</th>
+              <th>Turno</th>
               <th>Horario</th>
               <th>Aula</th>
+              <th>Estado</th>
             </tr>
           </thead>
           <tbody>
@@ -75,18 +77,20 @@ export default function DocentesAsignados() {
                 <td style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>{a.docente_codigo}</td>
                 <td><span className="badge badge-success" style={{ textTransform: 'none' }}>{a.materia_nombre}</span></td>
                 <td><strong>{a.grupo_codigo}</strong></td>
-                <td>{a.carrera}</td>
+                <td><span className="badge badge-info" style={{ textTransform: 'capitalize' }}>{a.turno}</span></td>
                 <td>
-                  <span style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                    {a.dia} · {a.hora_inicio} - {a.hora_fin}
-                  </span>
+                  <div style={{ fontWeight: 600, color: 'var(--primary)', lineHeight: 1.4 }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--gray-500)', fontWeight: 400 }}>{a.dias_texto}</div>
+                    {a.hora_inicio} – {a.hora_fin}
+                  </div>
                 </td>
-                <td>{a.aula}</td>
+                <td>{a.aula || <span style={{ color: 'var(--gray-400)', fontStyle: 'italic' }}>Sin aula</span>}</td>
+                <td><StatusBadge status={a.estado} /></td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>
+                <td colSpan={8} style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>
                   No se encontraron asignaciones de docentes
                 </td>
               </tr>

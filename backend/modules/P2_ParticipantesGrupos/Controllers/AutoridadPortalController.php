@@ -34,13 +34,13 @@ class AutoridadPortalController extends Controller
     {
         $totalInscritos = Postulante::count();
         $totalGrupos = Grupo::where('estado', 'activo')->count();
-        
+
         $totalDocentes = DocenteGrupoAsignacion::where('estado', 'activo')
             ->distinct('docente_user_id')
             ->count('docente_user_id');
 
         $totalHorarios = GrupoHorario::count();
-        
+
         $totalCarrerasConGrupo = Grupo::where('estado', 'activo')
             ->whereNotNull('carrera_id')
             ->distinct('carrera_id')
@@ -51,27 +51,21 @@ class AutoridadPortalController extends Controller
             ->where('grupos.estado', 'activo')
             ->count();
 
-        // Resultados académicos
         $totalAprobados = \App\Models\Examen::where('estado', 'aprobado')
             ->distinct('postulante_id')->count('postulante_id');
         $totalReprobados = \App\Models\Examen::where('estado', 'reprobado')
             ->distinct('postulante_id')->count('postulante_id');
         $totalAdmitidos = \App\Models\AdmisionResultado::where('estado_admision', 'admitido')->count();
 
-        // Postulantes sin grupo
         $postulantesSinGrupo = Postulante::whereDoesntHave('grupos')->count();
-
-        // Asignaciones académicas
         $totalAsignaciones = DocenteGrupoAsignacion::where('estado', 'activo')->count();
 
-        // Postulantes por carrera
         $postulantesPorCarrera = Postulante::selectRaw('carrera_postulada as carrera, COUNT(*) as total')
             ->whereNotNull('carrera_postulada')
             ->groupBy('carrera_postulada')
             ->orderBy('total', 'desc')
             ->get();
 
-        // Grupos recientes con ocupación
         $gruposRecientes = Grupo::with(['carrera'])
             ->where('estado', 'activo')
             ->orderBy('id', 'desc')
@@ -106,18 +100,32 @@ class AutoridadPortalController extends Controller
 
     public function grupos(Request $request): JsonResponse
     {
-        $grupos = Grupo::with(['carrera', 'postulantes'])
-            ->get()
+        $grupos = Grupo::with(['postulantes'])->get()
             ->map(function($g) {
+                $materiasCount = GrupoHorario::where('grupo_id', $g->id)
+                    ->distinct('materia_id')
+                    ->count('materia_id');
+
+                $docentesCount = DocenteGrupoAsignacion::where('grupo_id', $g->id)
+                    ->where('estado', 'activo')
+                    ->distinct('docente_user_id')
+                    ->count('docente_user_id');
+
+                $ocupacion = $g->postulantes->count();
+                $cupoMaximo = $g->cupo_maximo ?? 70;
+                $pctOcupacion = $cupoMaximo > 0 ? round(($ocupacion / $cupoMaximo) * 100) : 0;
+
                 return [
                     'id' => $g->id,
                     'codigo' => $g->codigo ?? $g->nombre_grupo,
-                    'carrera' => $g->carrera?->nombre ?? 'Sin carrera',
                     'gestion' => $g->gestion ?? 'I-2026',
                     'turno' => $g->turno ?? 'Sin turno',
-                    'aula' => $g->aula ?? 'Sin aula',
-                    'cupo_maximo' => $g->cupo_maximo ?? 70,
-                    'ocupacion' => $g->postulantes->count(),
+                    'aula' => $g->aula ?: null,
+                    'cupo_maximo' => $cupoMaximo,
+                    'ocupacion' => $ocupacion,
+                    'pct_ocupacion' => $pctOcupacion,
+                    'materias_count' => $materiasCount,
+                    'docentes_count' => $docentesCount,
                     'estado' => $g->estado,
                 ];
             });
@@ -127,25 +135,42 @@ class AutoridadPortalController extends Controller
 
     public function docentesAsignados(Request $request): JsonResponse
     {
-        $asignaciones = DocenteGrupoAsignacion::with(['docente', 'grupo.carrera', 'materia'])
+        $dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+
+        $asignaciones = DocenteGrupoAsignacion::with(['docente', 'grupo', 'materia'])
             ->where('estado', 'activo')
             ->get()
-            ->map(function($a) {
+            ->groupBy(function($a) {
+                return implode('|', [
+                    $a->docente_user_id,
+                    $a->materia_id,
+                    $a->grupo_id,
+                    $a->hora_inicio,
+                    $a->hora_fin,
+                ]);
+            })
+            ->map(function($group) use ($dias) {
+                $first = $group->first();
+                $diasPresentes = $group->pluck('dia')->map(fn($d) => strtolower($d))->unique()->sort()->values()->toArray();
+                $todosLosDias = count(array_diff($dias, $diasPresentes)) === 0;
+                $diasTexto = $todosLosDias ? 'Lunes a viernes' : implode(', ', array_map('ucfirst', $diasPresentes));
+
                 return [
-                    'id' => $a->id,
-                    'docente_name' => $a->docente?->name ?? 'Sin nombre',
-                    'docente_ci' => $a->docente?->ci ?? '-',
-                    'docente_codigo' => $a->docente?->codigo ?? '-',
-                    'materia_nombre' => $a->materia?->nombre ?? 'Sin materia',
-                    'grupo_codigo' => $a->grupo?->codigo ?? $a->grupo?->nombre_grupo,
-                    'carrera' => $a->grupo?->carrera?->nombre ?? 'Sin carrera',
-                    'turno' => $a->turno,
-                    'dia' => $a->dia,
-                    'hora_inicio' => substr($a->hora_inicio, 0, 5),
-                    'hora_fin' => substr($a->hora_fin, 0, 5),
-                    'aula' => $a->grupo?->aula ?? 'Sin aula',
+                    'id' => $first->id,
+                    'docente_name' => $first->docente?->name ?? 'Sin nombre',
+                    'docente_ci' => $first->docente?->ci ?? '-',
+                    'docente_codigo' => $first->docente?->codigo ?? '-',
+                    'materia_nombre' => $first->materia?->nombre ?? 'Sin materia',
+                    'grupo_codigo' => $first->grupo?->codigo ?? $first->grupo?->nombre_grupo,
+                    'turno' => $first->turno,
+                    'dias_texto' => $diasTexto,
+                    'hora_inicio' => substr($first->hora_inicio, 0, 5),
+                    'hora_fin' => substr($first->hora_fin, 0, 5),
+                    'aula' => $first->grupo?->aula ?? null,
+                    'estado' => $first->estado,
                 ];
-            });
+            })
+            ->values();
 
         return response()->json($asignaciones);
     }
@@ -155,7 +180,6 @@ class AutoridadPortalController extends Controller
         $horarios = GrupoHorario::with(['grupo.carrera', 'materia'])
             ->get()
             ->map(function($h) {
-                // Find teacher assigned to this slot
                 $asig = DocenteGrupoAsignacion::where('grupo_id', $h->grupo_id)
                     ->where('materia_id', $h->materia_id)
                     ->where('dia', $h->dia)
@@ -181,19 +205,20 @@ class AutoridadPortalController extends Controller
 
     public function estadisticas(Request $request): JsonResponse
     {
-        // 1. Grupos por carrera
-        $gruposPorCarrera = Grupo::join('carreras', 'grupos.carrera_id', '=', 'carreras.id')
-            ->select('carreras.nombre as carrera', DB::raw('count(grupos.id) as cantidad'))
-            ->groupBy('carreras.nombre')
+        // Grupos por gestión (line chart data)
+        $gruposPorGestion = Grupo::select('gestion', DB::raw('count(*) as cantidad'))
+            ->whereNotNull('gestion')
+            ->groupBy('gestion')
+            ->orderBy('gestion')
             ->get();
 
-        // 2. Estudiantes por carrera
+        // Estudiantes por carrera
         $estudiantesPorCarrera = Postulante::select('carrera_postulada as carrera', DB::raw('count(id) as cantidad'))
             ->where('estado_tramite', 'INSCRITO')
             ->groupBy('carrera_postulada')
             ->get();
 
-        // 3. Docentes por materia (especialidad)
+        // Docentes por materia (especialidad)
         $docentesPorMateria = DB::table('docente_especialidades')
             ->join('materias', 'docente_especialidades.materia_id', '=', 'materias.id')
             ->select('materias.nombre as materia', DB::raw('count(docente_especialidades.user_id) as cantidad'))
@@ -201,7 +226,7 @@ class AutoridadPortalController extends Controller
             ->groupBy('materias.nombre')
             ->get();
 
-        // 4. Cupos ocupados por grupo
+        // Cupos ocupados por grupo
         $cuposPorGrupo = Grupo::withCount('postulantes')
             ->get()
             ->map(fn($g) => [
@@ -210,11 +235,139 @@ class AutoridadPortalController extends Controller
                 'cupo_maximo' => $g->cupo_maximo ?? 70,
             ]);
 
+        // Supervisory metrics
+        $totalGrupos = Grupo::where('estado', 'activo')->count();
+
+        $gruposSinDocente = Grupo::where('estado', 'activo')
+            ->whereDoesntHave('asignaciones', fn($q) => $q->where('estado', 'activo'))
+            ->count();
+
+        $gruposSinAula = Grupo::where('estado', 'activo')
+            ->where(fn($q) => $q->whereNull('aula')->orWhere('aula', ''))
+            ->count();
+
+        $gruposSinHorario = Grupo::where('estado', 'activo')
+            ->whereDoesntHave('horarios')
+            ->count();
+
+        $postulantesSinGrupo = Postulante::whereDoesntHave('grupos')->count();
+
+        $gruposConCupoLleno = Grupo::where('estado', 'activo')
+            ->withCount('postulantes')
+            ->get()
+            ->filter(fn($g) => ($g->cupo_maximo ?? 70) > 0 && $g->postulantes_count >= ($g->cupo_maximo ?? 70))
+            ->count();
+
         return response()->json([
-            'grupos_carrera' => $gruposPorCarrera,
+            'grupos_gestion' => $gruposPorGestion,
             'estudiantes_carrera' => $estudiantesPorCarrera,
             'docentes_materia' => $docentesPorMateria,
             'cupos_grupo' => $cuposPorGrupo,
+            'total_grupos' => $totalGrupos,
+            'grupos_sin_docente' => $gruposSinDocente,
+            'grupos_sin_aula' => $gruposSinAula,
+            'grupos_sin_horario' => $gruposSinHorario,
+            'postulantes_sin_grupo' => $postulantesSinGrupo,
+            'grupos_cupo_lleno' => $gruposConCupoLleno,
+        ]);
+    }
+
+    public function alertas(Request $request): JsonResponse
+    {
+        $alertas = [];
+
+        // Grupos sin docente asignado
+        $gruposSinDocente = Grupo::where('estado', 'activo')
+            ->whereDoesntHave('asignaciones', fn($q) => $q->where('estado', 'activo'))
+            ->get(['id', 'codigo', 'nombre_grupo', 'turno']);
+
+        foreach ($gruposSinDocente as $g) {
+            $alertas[] = [
+                'nivel' => 'danger',
+                'tipo' => 'sin_docente',
+                'mensaje' => 'Grupo ' . ($g->codigo ?? $g->nombre_grupo) . ' (' . $g->turno . ') no tiene docente asignado.',
+            ];
+        }
+
+        // Grupos sin aula
+        $gruposSinAula = Grupo::where('estado', 'activo')
+            ->where(fn($q) => $q->whereNull('aula')->orWhere('aula', ''))
+            ->get(['id', 'codigo', 'nombre_grupo', 'turno']);
+
+        foreach ($gruposSinAula as $g) {
+            $alertas[] = [
+                'nivel' => 'warning',
+                'tipo' => 'sin_aula',
+                'mensaje' => 'Grupo ' . ($g->codigo ?? $g->nombre_grupo) . ' (' . $g->turno . ') no tiene aula asignada.',
+            ];
+        }
+
+        // Grupos sin horario
+        $gruposSinHorario = Grupo::where('estado', 'activo')
+            ->whereDoesntHave('horarios')
+            ->get(['id', 'codigo', 'nombre_grupo', 'turno']);
+
+        foreach ($gruposSinHorario as $g) {
+            $alertas[] = [
+                'nivel' => 'warning',
+                'tipo' => 'sin_horario',
+                'mensaje' => 'Grupo ' . ($g->codigo ?? $g->nombre_grupo) . ' (' . $g->turno . ') no tiene horarios registrados.',
+            ];
+        }
+
+        // Grupos con cupo lleno
+        $gruposLlenos = Grupo::where('estado', 'activo')
+            ->withCount('postulantes')
+            ->get()
+            ->filter(fn($g) => ($g->cupo_maximo ?? 70) > 0 && $g->postulantes_count >= ($g->cupo_maximo ?? 70));
+
+        foreach ($gruposLlenos as $g) {
+            $alertas[] = [
+                'nivel' => 'info',
+                'tipo' => 'cupo_lleno',
+                'mensaje' => 'Grupo ' . ($g->codigo ?? $g->nombre_grupo) . ' tiene cupo lleno (' . $g->postulantes_count . '/' . ($g->cupo_maximo ?? 70) . ').',
+            ];
+        }
+
+        // Grupos con baja ocupación (menos del 30%)
+        $gruposBajaOcupacion = Grupo::where('estado', 'activo')
+            ->withCount('postulantes')
+            ->get()
+            ->filter(function($g) {
+                $cupo = $g->cupo_maximo ?? 70;
+                return $cupo > 0 && $g->postulantes_count > 0 && ($g->postulantes_count / $cupo) < 0.30;
+            });
+
+        foreach ($gruposBajaOcupacion as $g) {
+            $cupo = $g->cupo_maximo ?? 70;
+            $pct = $cupo > 0 ? round(($g->postulantes_count / $cupo) * 100) : 0;
+            $alertas[] = [
+                'nivel' => 'warning',
+                'tipo' => 'baja_ocupacion',
+                'mensaje' => 'Grupo ' . ($g->codigo ?? $g->nombre_grupo) . ' tiene baja ocupación (' . $g->postulantes_count . '/' . $cupo . ' — ' . $pct . '%).',
+            ];
+        }
+
+        // Postulantes sin grupo
+        $sinGrupo = Postulante::whereDoesntHave('grupos')->count();
+        if ($sinGrupo > 0) {
+            $alertas[] = [
+                'nivel' => 'info',
+                'tipo' => 'postulantes_sin_grupo',
+                'mensaje' => $sinGrupo . ' postulante(s) inscrito(s) sin grupo asignado.',
+            ];
+        }
+
+        $resumen = [
+            'danger' => count(array_filter($alertas, fn($a) => $a['nivel'] === 'danger')),
+            'warning' => count(array_filter($alertas, fn($a) => $a['nivel'] === 'warning')),
+            'info' => count(array_filter($alertas, fn($a) => $a['nivel'] === 'info')),
+            'total' => count($alertas),
+        ];
+
+        return response()->json([
+            'alertas' => $alertas,
+            'resumen' => $resumen,
         ]);
     }
 }

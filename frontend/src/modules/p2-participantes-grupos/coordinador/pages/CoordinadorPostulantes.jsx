@@ -432,8 +432,8 @@ export default function CoordinadorPostulantes() {
                   <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.carrera_postulada}>
                     {p.carrera_postulada || '—'}
                   </td>
-                  <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={(p.carrera && p.carrera !== p.carrera_postulada) ? p.carrera : '—'}>
-                    {(p.carrera && p.carrera !== p.carrera_postulada) ? p.carrera : '—'}
+                  <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.segunda_carrera || '—'}>
+                    {p.segunda_carrera || '—'}
                   </td>
                   <td>
                     {p.preferencia_turno === 'manana' ? (

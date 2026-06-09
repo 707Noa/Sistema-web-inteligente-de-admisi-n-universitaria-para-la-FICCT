@@ -154,6 +154,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/docentes-asignados',  [AutoridadPortalController::class, 'docentesAsignados']);
         Route::get('/horarios',            [AutoridadPortalController::class, 'horarios']);
         Route::get('/estadisticas',        [AutoridadPortalController::class, 'estadisticas']);
+        Route::get('/alertas',             [AutoridadPortalController::class, 'alertas']);
 
     });
 

@@ -430,7 +430,8 @@ export default function Postulantes() {
                 <th>Nombre Completo</th>
                 <th>CI</th>
                 <th>Correo</th>
-                <th>Carrera</th>
+                <th>1ra Carrera</th>
+                <th>2da Carrera</th>
                 <th>Requisitos</th>
                 <th>Estado</th>
                 <th>Registro</th>
@@ -457,8 +458,11 @@ export default function Postulantes() {
                   <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.email}>
                     {p.email || '-'}
                   </td>
-                  <td style={{ maxWidth: 180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {p.carrera || p.carrera_postulada || '-'}
+                  <td style={{ maxWidth: 180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={p.carrera_postulada}>
+                    {p.carrera_postulada || p.carrera || '-'}
+                  </td>
+                  <td style={{ maxWidth: 180, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={p.segunda_carrera}>
+                    {p.segunda_carrera || '—'}
                   </td>
                   <td>
                     {p.requisitos_cumplidos ? (

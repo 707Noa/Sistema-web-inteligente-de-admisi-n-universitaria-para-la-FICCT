@@ -49,8 +49,9 @@ import RegistroNotas from '@/modules/p2-participantes-grupos/docente/pages/Regis
 import DashboardAutoridad from '@/modules/p2-participantes-grupos/autoridad/pages/DashboardAutoridad'
 import GruposAutoridad from '@/modules/p2-participantes-grupos/autoridad/pages/GruposAutoridad'
 import DocentesAsignados from '@/modules/p2-participantes-grupos/autoridad/pages/DocentesAsignados'
-import HorariosAutoridad from '@/modules/p2-participantes-grupos/autoridad/pages/HorariosAutoridad'
 import EstadisticasAutoridad from '@/modules/p2-participantes-grupos/autoridad/pages/EstadisticasAutoridad'
+import AlertasAutoridad from '@/modules/p2-participantes-grupos/autoridad/pages/AlertasAutoridad'
+import ReportesIAPanel from '@/modules/p4-reportes-monitoreo-auditoria/ia-voz/pages/ReportesIAPanel'
 
 import PrivateRoute from './PrivateRoute'
 import Layout from '@/layouts/Layout'
@@ -130,6 +131,7 @@ export default function AppRouter() {
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/:perfil/login" element={<Login />} />
       <Route path="/:perfil/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<ResetPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/change-password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
       <Route path="/perfil" element={<PrivateRoute><Perfil /></PrivateRoute>} />
@@ -162,13 +164,16 @@ export default function AppRouter() {
       <Route path="/coordinador/reporte-horarios" element={<PrivateRoute><ReporteHorarios /></PrivateRoute>} />
       <Route path="/coordinador/cupos-carrera"    element={<PrivateRoute><CuposCarrera /></PrivateRoute>} />
       <Route path="/coordinador/admision-final"   element={<PrivateRoute><AdmisionFinal /></PrivateRoute>} />
+      <Route path="/coordinador/reportes-ia"      element={<PrivateRoute><ReportesIAPanel /></PrivateRoute>} />
 
       {/* Rutas Autoridad Académica */}
       <Route path="/autoridad/dashboard"    element={<PrivateRoute><DashboardAutoridad /></PrivateRoute>} />
       <Route path="/autoridad/grupos"       element={<PrivateRoute><GruposAutoridad /></PrivateRoute>} />
       <Route path="/autoridad/docentes"     element={<PrivateRoute><DocentesAsignados /></PrivateRoute>} />
-      <Route path="/autoridad/horarios"     element={<PrivateRoute><HorariosAutoridad /></PrivateRoute>} />
+      <Route path="/autoridad/horarios"     element={<Navigate to="/autoridad/dashboard" replace />} />
       <Route path="/autoridad/estadisticas" element={<PrivateRoute><EstadisticasAutoridad /></PrivateRoute>} />
+      <Route path="/autoridad/alertas"      element={<PrivateRoute><AlertasAutoridad /></PrivateRoute>} />
+      <Route path="/autoridad/reportes-ia"  element={<PrivateRoute><ReportesIAPanel /></PrivateRoute>} />
 
       {/* Rutas Docente */}
       <Route path="/docente/inicio"         element={<PrivateRoute><MisGrupos /></PrivateRoute>} />

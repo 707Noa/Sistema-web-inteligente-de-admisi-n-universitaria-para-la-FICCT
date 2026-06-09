@@ -15,7 +15,7 @@ class Postulante extends Model
         'direccion', 'carrera_postulada', 'foto', 'codigo_qr', 'estado',
         'codigo_usuario', 'estado_tramite', 'cuenta_creada_at', 'correo_enviado_at',
         'segundo_telefono', 'sexo', 'colegio_procedencia', 'ciudad', 'carrera',
-        'titulo_bachiller', 'otros',
+        'titulo_bachiller', 'otros', 'segunda_carrera',
         'pago_estado', 'pago_metodo', 'pago_referencia', 'pago_monto', 'pago_moneda', 'pago_fecha',
         'imagen_ci_path', 'imagen_titulo_bachiller_path', 'fotografia_path', 'requisitos_completos',
         'preferencia_turno',

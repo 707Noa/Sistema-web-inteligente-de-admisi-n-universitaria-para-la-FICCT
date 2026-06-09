@@ -5,7 +5,7 @@ import { getDashboard } from '../services/autoridadService'
 import {
   FiUsers, FiGrid, FiBook, FiClock, FiLayers, FiCheckSquare,
   FiAward, FiXCircle, FiUserPlus, FiRefreshCw, FiAlertOctagon,
-  FiBarChart2, FiList
+  FiBarChart2, FiList, FiAlertTriangle
 } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
 
@@ -214,8 +214,10 @@ export default function DashboardAutoridad() {
         <div style={{ padding: '0 20px 20px 20px', display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           <Link to="/autoridad/grupos" className="btn btn-outline btn-sm">Grupos Habilitados</Link>
           <Link to="/autoridad/docentes" className="btn btn-outline btn-sm">Docentes Asignados</Link>
-          <Link to="/autoridad/horarios" className="btn btn-outline btn-sm">Horarios</Link>
           <Link to="/autoridad/estadisticas" className="btn btn-outline btn-sm">Estadísticas Generales</Link>
+          <Link to="/autoridad/alertas" className="btn btn-outline btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <FiAlertTriangle /> Alertas Académicas
+          </Link>
         </div>
       </div>
 

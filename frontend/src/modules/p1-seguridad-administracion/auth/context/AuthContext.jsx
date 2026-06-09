@@ -27,6 +27,7 @@ export function AuthProvider({ children }) {
       setUser(res.data.user || res.data)
     } catch {
       localStorage.removeItem('token')
+      delete api.defaults.headers.common['Authorization']
       setUser(null)
       setToken(null)
     } finally {

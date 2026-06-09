@@ -143,7 +143,6 @@ class PostulanteController extends Controller
                 ];
                 $p->requisitos_cumplidos = (bool) $p->requisitos_completos;
                 $p->primera_carrera = $p->carrera_postulada;
-                $p->segunda_carrera = ($p->carrera && $p->carrera !== $p->carrera_postulada) ? $p->carrera : null;
                 // Define possible actions for the postulante based on user role
                 $p->acciones = [
                     'ver' => true,
@@ -179,6 +178,7 @@ class PostulanteController extends Controller
             'fecha_nacimiento'    => 'nullable|date',
             'carrera'             => 'nullable|string|max:191',
             'carrera_postulada'   => 'nullable|string|max:191',
+            'segunda_carrera'     => 'nullable|string|max:191',
             'colegio_procedencia' => 'nullable|string|max:191',
             'ciudad'              => 'nullable|string|max:100',
             'estado_tramite'      => 'nullable|in:PENDIENTE_PAGO,PREINSCRITO,INSCRITO',
@@ -192,7 +192,7 @@ class PostulanteController extends Controller
 
         $data = $request->only([
             'nombres', 'apellidos', 'ci', 'email', 'celular', 'genero',
-            'fecha_nacimiento', 'carrera', 'carrera_postulada',
+            'fecha_nacimiento', 'carrera', 'carrera_postulada', 'segunda_carrera',
             'colegio_procedencia', 'ciudad', 'estado_tramite', 'direccion',
             'preferencia_turno',
         ]);
@@ -244,6 +244,7 @@ class PostulanteController extends Controller
             'fecha_nacimiento'     => 'nullable|date',
             'carrera'              => 'nullable|string|max:191',
             'carrera_postulada'    => 'nullable|string|max:191',
+            'segunda_carrera'      => 'nullable|string|max:191',
             'colegio_procedencia'  => 'nullable|string|max:191',
             'ciudad'               => 'nullable|string|max:100',
             'estado_tramite'       => 'nullable|in:PENDIENTE_PAGO,PREINSCRITO,INSCRITO',
@@ -258,7 +259,7 @@ class PostulanteController extends Controller
 
         $data = $request->only([
             'nombres', 'apellidos', 'ci', 'email', 'celular', 'genero',
-            'fecha_nacimiento', 'carrera', 'carrera_postulada',
+            'fecha_nacimiento', 'carrera', 'carrera_postulada', 'segunda_carrera',
             'colegio_procedencia', 'ciudad', 'estado_tramite', 'direccion',
             'requisitos_completos', 'preferencia_turno',
         ]);
@@ -677,33 +678,53 @@ class PostulanteController extends Controller
             }
         }
 
-        $eliminados = 0;
+        $eliminadosFisicamente = 0;
+        $desactivados = 0;
+        $errores = [];
+
         foreach ($postulantes as $p) {
-            if ($p->user_id) {
-                $user = $p->user;
-                if ($user) {
-                    if ($user->hasRole('postulante')) {
-                        $user->delete();
+            try {
+                if ($p->user_id) {
+                    $user = $p->user;
+                    if ($user) {
+                        if ($user->hasRole('postulante')) {
+                            $user->delete();
+                            $eliminadosFisicamente++;
+                        } else {
+                            $user->estado = 'inactivo';
+                            $user->save();
+                            $desactivados++;
+                        }
                     } else {
-                        $user->estado = 'inactivo';
-                        $user->save();
+                        $eliminadosFisicamente++;
                     }
+                } else {
+                    $eliminadosFisicamente++;
                 }
+                $p->delete();
+            } catch (\Exception $e) {
+                $errores[] = "Postulante ID {$p->id}: " . $e->getMessage();
             }
-            $p->delete();
-            $eliminados++;
         }
+
+        $exitosos = $eliminadosFisicamente + $desactivados;
 
         AuditoriaService::registrar(
             $request->user()->id,
             'Eliminó múltiples postulantes',
             'Postulantes',
             $request,
-            "Total eliminados: {$eliminados}"
+            "Total procesados: " . count($postulantes) . ", exitosos: {$exitosos}"
         );
 
         return response()->json([
-            'message' => "Proceso de eliminación finalizado. Se eliminaron {$eliminados} registros."
+            'message'               => "Proceso de eliminación finalizado. Se procesaron " . count($postulantes) . " registros.",
+            'total_procesados'      => count($postulantes),
+            'exitosos'              => $exitosos,
+            'omitidos'              => 0,
+            'eliminados_fisicamente'=> $eliminadosFisicamente,
+            'desactivados'          => $desactivados,
+            'errores'               => $errores,
         ]);
     }
 }

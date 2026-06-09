@@ -126,6 +126,11 @@ export default function Calificaciones() {
            (n.nota_3 ?? '') !== (orig.nota_3 ?? '')
   }
 
+  const hasSavedNotes = (estudianteId) => {
+    const orig = originalNotas[estudianteId] || {}
+    return orig.nota_1 !== '' || orig.nota_2 !== '' || orig.nota_3 !== ''
+  }
+
   const validarEstudiante = (e, n) => {
     const fields = ['nota_1', 'nota_2', 'nota_3']
     for (const f of fields) {
@@ -194,15 +199,21 @@ export default function Calificaciones() {
       return
     }
 
+    const idsConCambios = selectedIds.filter(id => hasChanges(id))
+    if (idsConCambios.length === 0) {
+      setMasivoErrorMsg('Ninguno de los estudiantes seleccionados tiene cambios pendientes.')
+      return
+    }
+
     const toSave = []
     let hasValidationError = false
     const newMsgs = { ...msgs }
 
-    selectedIds.forEach(id => {
+    idsConCambios.forEach(id => {
       const e = grupoInfo.estudiantes.find(est => String(est.id) === id)
       if (!e) return
       const n = notas[id] || { nota_1: '', nota_2: '', nota_3: '' }
-      
+
       const error = validarEstudiante(e, n)
       if (error) {
         newMsgs[id] = { type: 'error', text: error }
@@ -259,13 +270,19 @@ export default function Calificaciones() {
       return
     }
 
+    const estudiantesConCambios = grupoInfo.estudiantes.filter(e => hasChanges(e.id))
+    if (estudiantesConCambios.length === 0) {
+      setMasivoErrorMsg('No hay cambios pendientes en ningún estudiante.')
+      return
+    }
+
     const toSave = []
     let hasValidationError = false
     const newMsgs = { ...msgs }
 
-    grupoInfo.estudiantes.forEach(e => {
+    estudiantesConCambios.forEach(e => {
       const n = notas[e.id] || { nota_1: '', nota_2: '', nota_3: '' }
-      
+
       const error = validarEstudiante(e, n)
       if (error) {
         newMsgs[e.id] = { type: 'error', text: error }
@@ -602,21 +619,34 @@ export default function Calificaciones() {
                       </td>
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <button
-                            className={rowHasChanges ? "btn btn-primary btn-sm" : "btn btn-sm"}
-                            style={{
-                              padding: '3px 8px',
-                              fontSize: '0.74rem',
-                              ...(rowHasChanges ? {} : { background: '#e8f5e9', color: '#2e7d32', borderColor: '#a5d6a7', cursor: 'default' })
-                            }}
-                            onClick={() => {
-                              if (rowHasChanges) guardar(e.id);
-                            }}
-                            disabled={isSaving || !rowHasChanges}
-                            title="Guardar calificaciones"
-                          >
-                            {rowHasChanges ? <><FiSave /> Guardar</> : <><FiCheck /> Guardado</>}
-                          </button>
+                          {(() => {
+                            const savedNotes = hasSavedNotes(e.id)
+                            return (
+                              <button
+                                className={rowHasChanges ? "btn btn-primary btn-sm" : "btn btn-sm"}
+                                style={{
+                                  padding: '3px 8px',
+                                  fontSize: '0.74rem',
+                                  ...(rowHasChanges
+                                    ? {}
+                                    : savedNotes
+                                      ? { background: '#e8f5e9', color: '#2e7d32', borderColor: '#a5d6a7', cursor: 'default' }
+                                      : { background: '#f3f4f6', color: '#9ca3af', borderColor: '#d1d5db', cursor: 'not-allowed' }
+                                  )
+                                }}
+                                onClick={() => { if (rowHasChanges) guardar(e.id) }}
+                                disabled={isSaving || !rowHasChanges}
+                                title={rowHasChanges ? 'Guardar calificaciones' : savedNotes ? 'Ya guardado' : 'Sin notas ingresadas'}
+                              >
+                                {rowHasChanges
+                                  ? <><FiSave /> Guardar</>
+                                  : savedNotes
+                                    ? <><FiCheck /> Guardado</>
+                                    : <span style={{ fontStyle: 'italic' }}>Sin notas</span>
+                                }
+                              </button>
+                            )
+                          })()}
                           {rowMsg && (
                             <span style={{
                               fontSize: '0.75rem', fontWeight: 600,

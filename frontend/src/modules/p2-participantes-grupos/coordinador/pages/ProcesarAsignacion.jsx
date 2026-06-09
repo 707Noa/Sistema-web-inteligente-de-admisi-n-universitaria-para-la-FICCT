@@ -122,7 +122,7 @@ export default function ProcesarAsignacion() {
     if (t === 'mañana' || t === 'manana') {
       return ['08:00', '09:00', '10:00', '11:00']
     } else if (t === 'tarde') {
-      return ['13:00', '14:00', '15:00']
+      return ['13:00', '14:00', '15:00', '16:00']
     } else if (t === 'noche') {
       return ['16:00', '17:00', '18:00', '19:00']
     }
@@ -189,13 +189,17 @@ export default function ProcesarAsignacion() {
       const horarios  = gR.data?.horarios || []
       const asigns    = aR.data || []
 
-      // Deduplicar por materia_id
+      // Deduplicar por materia_id (misma hora todos los días)
       const map = {}
       for (const h of horarios) {
         if (!map[h.materia_id]) map[h.materia_id] = h
       }
 
-      setMateriasDoc(Object.values(map).map(h => {
+      setMateriasDoc(Object.values(map).sort((a, b) => {
+        const ta = a.hora_inicio || '00:00'
+        const tb = b.hora_inicio || '00:00'
+        return ta.localeCompare(tb)
+      }).map(h => {
         const asig = asigns.find(a => String(a.materia_nombre) === String(h.materia_nombre))
         return {
           materia_id:     h.materia_id,
@@ -539,7 +543,7 @@ export default function ProcesarAsignacion() {
               <span className="modal-title">
                 Docentes — {modalDocentes.codigo}
                 <span style={{ fontWeight:400, color:'var(--gray-500)', marginLeft:8, fontSize:'0.82rem' }}>
-                  {modalDocentes.turno} · Aula {modalDocentes.aula||'-'}
+                  {modalDocentes.turno} · {modalDocentes.aula ? `Aula ${modalDocentes.aula}` : 'Sin aula asignada'}
                 </span>
               </span>
               <button className="modal-close" onClick={() => setModalDocentes(null)}><FiX/></button>
@@ -678,7 +682,7 @@ export default function ProcesarAsignacion() {
                       <strong>Turno:</strong> {detalleHorario.turno}
                     </p>
                     <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--gray-600)' }}>
-                      <strong>Aula:</strong> {detalleHorario.aula || '-'}
+                      <strong>Aula:</strong> {detalleHorario.aula || 'Sin aula asignada'}
                     </p>
                   </div>
                   

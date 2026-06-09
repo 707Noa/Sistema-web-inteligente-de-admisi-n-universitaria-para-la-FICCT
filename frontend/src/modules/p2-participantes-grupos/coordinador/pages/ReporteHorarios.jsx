@@ -215,14 +215,8 @@ export default function ReporteHorarios() {
                 </span>
 
                 <span style={{ fontSize: '0.84rem', color: 'var(--gray-600, #4b5563)' }}>
-                  Aula:&nbsp;<strong>{grupo.aula || '-'}</strong>
+                  Aula:&nbsp;<strong>{grupo.aula || 'Sin aula asignada'}</strong>
                 </span>
-
-                {grupo.dias && (
-                  <span style={{ fontSize: '0.84rem', color: 'var(--gray-600, #4b5563)' }}>
-                    Días:&nbsp;<strong>{grupo.dias}</strong>
-                  </span>
-                )}
 
                 <span style={{
                   fontSize: '0.84rem',

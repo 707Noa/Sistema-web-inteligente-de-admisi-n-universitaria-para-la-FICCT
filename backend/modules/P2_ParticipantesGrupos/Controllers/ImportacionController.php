@@ -22,7 +22,7 @@ class ImportacionController extends Controller
      * Importar postulantes desde CSV.
      *
      * Formato (separador ;):
-     * Nombres;Apellidos;CI;Correo;Teléfono;"1ª Carrera";"2ª Carrera";"Unidad Educativa";Ciudad;Estado
+     * Nombres;Apellidos;CI;Correo;Teléfono;"1ª Carrera";"2ª Carrera";Turno;"Unidad Educativa";Ciudad;Estado
      *
      * Estado:
      *   PREINSCRITO → solo importa el postulante (sin cuenta de acceso)
@@ -62,6 +62,7 @@ class ImportacionController extends Controller
             'telefono'         => ['teléfono', 'telefono', 'celular', 'tel'],
             'primera_carrera'  => ['1ª carrera', '1a carrera', 'primera carrera', 'carrera', '1° carrera'],
             'segunda_carrera'  => ['2ª carrera', '2a carrera', 'segunda carrera', '2° carrera'],
+            'turno'            => ['turno', 'preferencia_turno', 'turno elegido', 'horario', 'shift'],
             'unidad_educativa' => ['unidad educativa', 'colegio', 'colegio_procedencia', 'unidad_educativa'],
             'ciudad'           => ['ciudad'],
             'estado'           => ['estado'],
@@ -120,6 +121,14 @@ class ImportacionController extends Controller
             $estadoTramite = in_array($estadoCsv, ['INSCRITO', 'PREINSCRITO']) ? $estadoCsv : 'PREINSCRITO';
             $segundaCarrera = $get('segunda_carrera');
 
+            $turnoRaw = mb_strtolower(trim($get('turno')));
+            $turnoMap = [
+                'manana' => 'manana', 'mañana' => 'manana', 'maňana' => 'manana', 'morning' => 'manana',
+                'tarde'  => 'tarde',  'afternoon' => 'tarde',
+                'noche'  => 'noche',  'night' => 'noche',
+            ];
+            $turnoNormalizado = $turnoMap[$turnoRaw] ?? null;
+
             $requisitosRaw = $get('requisitos');
             $requisitosCompletos = false;
             if ($requisitosRaw !== '') {
@@ -140,7 +149,8 @@ class ImportacionController extends Controller
                     'carrera_postulada'   => ($get('primera_carrera') ?: null),
                     'colegio_procedencia' => ($get('unidad_educativa') ?: null),
                     'ciudad'              => ($get('ciudad') ?: null),
-                    'otros'               => $segundaCarrera !== '' ? "2ª Carrera: {$segundaCarrera}" : null,
+                    'segunda_carrera'     => $segundaCarrera !== '' ? $segundaCarrera : null,
+                    'preferencia_turno'   => $turnoNormalizado,
                     'estado_tramite'      => $estadoTramite,
                     'estado'              => 'pendiente',
                     'pago_estado'         => 'PAGADO',

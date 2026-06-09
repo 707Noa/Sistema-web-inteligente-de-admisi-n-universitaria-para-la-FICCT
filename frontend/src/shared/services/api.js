@@ -20,7 +20,18 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
-      if (window.location.pathname !== '/' && !window.location.pathname.includes('/login')) {
+      delete api.defaults.headers.common['Authorization']
+      const pathname = window.location.pathname
+      // Solo redirigir a '/' si el usuario estaba en una página protegida.
+      // Las páginas públicas de auth no deben causar redirección.
+      const isPublicPage =
+        pathname === '/' ||
+        pathname.includes('/login') ||
+        pathname.includes('/forgot-password') ||
+        pathname.includes('/reset-password') ||
+        pathname.includes('/preinscripcion') ||
+        pathname.includes('/change-password')
+      if (!isPublicPage) {
         window.location.href = '/'
       }
     }

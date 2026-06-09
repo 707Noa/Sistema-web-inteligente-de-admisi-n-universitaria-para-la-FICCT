@@ -1,7 +1,7 @@
 import React from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/modules/p1-seguridad-administracion/auth/hooks/useAuth'
-import { FiHome, FiUsers, FiUserCheck, FiX, FiUser, FiBook, FiGrid, FiList, FiBarChart2, FiClock, FiCheckSquare, FiAward, FiFileText, FiSliders, FiUserPlus } from 'react-icons/fi'
+import { FiHome, FiUsers, FiUserCheck, FiX, FiUser, FiBook, FiGrid, FiList, FiBarChart2, FiClock, FiCheckSquare, FiAward, FiFileText, FiSliders, FiUserPlus, FiAlertTriangle, FiMic } from 'react-icons/fi'
 
 const menuItems = {
   // ── Administrador (sin cambios) ──
@@ -20,14 +20,16 @@ const menuItems = {
     { label: 'Reporte de horarios',    path: '/coordinador/reporte-horarios', icon: <FiBarChart2 /> },
     { label: 'Cupos por carrera',      path: '/coordinador/cupos-carrera',     icon: <FiSliders /> },
     { label: 'Admisión final',         path: '/coordinador/admision-final',    icon: <FiUserPlus /> },
+    { label: 'Reportes con IA',        path: '/coordinador/reportes-ia',       icon: <FiMic /> },
   ],
   // ── Autoridad Académica ──
   autoridad: [
     { label: 'Dashboard académico',    path: '/autoridad/dashboard',    icon: <FiHome /> },
     { label: 'Grupos habilitados',     path: '/autoridad/grupos',       icon: <FiGrid /> },
     { label: 'Docentes asignados',     path: '/autoridad/docentes',     icon: <FiBook /> },
-    { label: 'Horarios',               path: '/autoridad/horarios',     icon: <FiList /> },
-    { label: 'Estadísticas generales', path: '/autoridad/estadisticas',  icon: <FiBarChart2 /> },
+    { label: 'Estadísticas generales', path: '/autoridad/estadisticas', icon: <FiBarChart2 /> },
+    { label: 'Alertas académicas',     path: '/autoridad/alertas',      icon: <FiAlertTriangle /> },
+    { label: 'Reportes con IA',        path: '/autoridad/reportes-ia',  icon: <FiMic /> },
   ],
   // ── Docente ──
   docente: [

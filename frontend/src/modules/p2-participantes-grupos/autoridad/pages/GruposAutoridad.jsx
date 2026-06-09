@@ -21,11 +21,10 @@ export default function GruposAutoridad() {
   const filtered = grupos.filter(g => {
     const s = search.toLowerCase()
     return (
-      g.codigo.toLowerCase().includes(s) ||
-      g.carrera.toLowerCase().includes(s) ||
-      g.gestion.toLowerCase().includes(s) ||
-      g.turno.toLowerCase().includes(s) ||
-      g.aula.toLowerCase().includes(s)
+      (g.codigo || '').toLowerCase().includes(s) ||
+      (g.gestion || '').toLowerCase().includes(s) ||
+      (g.turno || '').toLowerCase().includes(s) ||
+      (g.aula || '').toLowerCase().includes(s)
     )
   })
 
@@ -39,7 +38,7 @@ export default function GruposAutoridad() {
           <FiSearch className="search-icon" />
           <input
             className="search-input"
-            placeholder="Buscar por código, carrera, gestión, turno..."
+            placeholder="Buscar por código, gestión, turno, aula..."
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -57,28 +56,44 @@ export default function GruposAutoridad() {
           <thead>
             <tr>
               <th>Código Grupo</th>
-              <th>Carrera</th>
               <th>Gestión</th>
               <th>Turno</th>
               <th>Aula</th>
-              <th>Cupo Máximo</th>
-              <th>Estudiantes Asignados</th>
+              <th>Materias</th>
+              <th>Docentes</th>
+              <th>Ocupación</th>
               <th>Estado</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map(g => (
-              <tr key={g.id}>
-                <td><strong>{g.codigo}</strong></td>
-                <td>{g.carrera}</td>
-                <td>{g.gestion}</td>
-                <td><span className="badge badge-info" style={{ textTransform: 'capitalize' }}>{g.turno}</span></td>
-                <td>{g.aula}</td>
-                <td>{g.cupo_maximo}</td>
-                <td><strong>{g.ocupacion}</strong> / {g.cupo_maximo}</td>
-                <td><StatusBadge status={g.estado} /></td>
-              </tr>
-            ))}
+            {filtered.map(g => {
+              const pct = g.cupo_maximo > 0 ? Math.round((g.ocupacion / g.cupo_maximo) * 100) : 0
+              const pctColor = pct >= 90 ? 'var(--danger)' : pct >= 70 ? 'var(--warning)' : 'var(--success)'
+              return (
+                <tr key={g.id}>
+                  <td><strong>{g.codigo}</strong></td>
+                  <td>{g.gestion}</td>
+                  <td><span className="badge badge-info" style={{ textTransform: 'capitalize' }}>{g.turno}</span></td>
+                  <td>{g.aula || <span style={{ color: 'var(--gray-400)', fontStyle: 'italic' }}>Sin aula</span>}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span className="badge badge-success">{g.materias_count ?? 0}</span>
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span className="badge badge-info">{g.docentes_count ?? 0}</span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontWeight: 600 }}>{g.ocupacion} / {g.cupo_maximo}</span>
+                      <div style={{ width: 48, height: 6, background: 'var(--gray-200)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: pctColor, borderRadius: 3 }} />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)' }}>{pct}%</span>
+                    </div>
+                  </td>
+                  <td><StatusBadge status={g.estado} /></td>
+                </tr>
+              )
+            })}
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={8} style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>

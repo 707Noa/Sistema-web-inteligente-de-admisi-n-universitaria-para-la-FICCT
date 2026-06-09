@@ -49,6 +49,10 @@ class CoordAsignacionController extends Controller
                 'noche'  => ['prefix' => 'N', 'label' => 'noche'],
             ];
 
+            $aulasBase = [11, 12, 13, 14, 15, 16, 21, 22, 23, 24, 25, 26];
+            $aulasUsadas = ['mañana' => [], 'tarde' => [], 'noche' => []];
+            $rotacionPorTurno = ['mañana' => 0, 'tarde' => 0, 'noche' => 0];
+
             foreach ($turnosInfo as $turnoKey => $info) {
                 $postsTurno = $postulantes->where('preferencia_turno', $turnoKey)->values();
                 if ($postsTurno->isEmpty()) {
@@ -61,6 +65,16 @@ class CoordAsignacionController extends Controller
                     $grupoNum = $chunkIndex + 1;
                     $codigo = $info['prefix'] . $grupoNum;
 
+                    // Asignar aula libre para este turno
+                    $aula = null;
+                    foreach ($aulasBase as $a) {
+                        if (!in_array($a, $aulasUsadas[$info['label']])) {
+                            $aula = $a;
+                            break;
+                        }
+                    }
+                    $aulasUsadas[$info['label']][] = $aula;
+
                     // Crear grupo activo
                     $grupo = Grupo::create([
                         'codigo'           => $codigo,
@@ -69,12 +83,16 @@ class CoordAsignacionController extends Controller
                         'dias'             => ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'],
                         'cupo_maximo'      => 70,
                         'capacidad_maxima' => 70,
+                        'aula'             => $aula !== null ? (string) $aula : null,
                         'estado'           => 'activo',
                         'gestion'          => 'I-2026',
                     ]);
 
-                    // Generar horarios automáticos
-                    $this->generarHorarios($grupo, $materias);
+                    // Generar horarios automáticos con rotación para grupos paralelos
+                    $labelTurno = $info['label'];
+                    $rotacion   = $rotacionPorTurno[$labelTurno];
+                    $this->generarHorarios($grupo, $materias, $rotacion);
+                    $rotacionPorTurno[$labelTurno]++;
 
                     // Asignar postulantes en lote
                     $pivotData = [];
@@ -600,6 +618,7 @@ class CoordAsignacionController extends Controller
                     0 => ['inicio' => '13:00:00', 'fin' => '14:00:00'],
                     1 => ['inicio' => '14:00:00', 'fin' => '15:00:00'],
                     2 => ['inicio' => '15:00:00', 'fin' => '16:00:00'],
+                    3 => ['inicio' => '16:00:00', 'fin' => '17:00:00'],
                 ];
             case 'noche':
                 return [
@@ -618,64 +637,46 @@ class CoordAsignacionController extends Controller
         }
     }
 
-    private function generarHorarios(Grupo $grupo, $materias): void
+    private function generarHorarios(Grupo $grupo, $materias, int $rotacion = 0): void
     {
-        $dias = is_array($grupo->dias) ? $grupo->dias : ($grupo->dias ? json_decode($grupo->dias, true) : ['lunes']);
+        $dias = is_array($grupo->dias)
+            ? $grupo->dias
+            : ($grupo->dias ? json_decode($grupo->dias, true) : ['lunes', 'martes', 'miercoles', 'jueves', 'viernes']);
+
+        if (!is_array($dias) || empty($dias)) {
+            $dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes'];
+        }
+
         $horarios = [];
 
-        // Obtener ids de otros grupos activos del mismo turno
-        $grupoIds = Grupo::where('turno', $grupo->turno)
-            ->where('estado', 'activo')
-            ->where('id', '!=', $grupo->id)
-            ->pluck('id');
+        $bloques  = $this->getBloquesConfig($grupo->turno);
+        $numBloques = count($bloques);
 
-        $bloques = $this->getBloquesConfig($grupo->turno);
+        // Ordenar materias canónicamente y aplicar rotación para grupos paralelos
+        $ordCanon = ['Computación', 'Física', 'Inglés', 'Matemáticas'];
+        $materiasSorted = $materias->sortBy(fn($m) => array_search($m->nombre, $ordCanon))->values();
+        $numMaterias = $materiasSorted->count();
+
+        if ($numMaterias === 0) {
+            return;
+        }
+
+        $rot = $rotacion % $numMaterias;
+        $materiasOrdenadas = $materiasSorted->slice($rot)->merge($materiasSorted->slice(0, $rot))->values();
 
         foreach ($dias as $dia) {
             $diaLower = strtolower($dia);
-            $materiasDelDia = ['Computación', 'Física'];
-            if (in_array($diaLower, ['miercoles', 'jueves'])) {
-                $materiasDelDia = ['Inglés', 'Matemáticas'];
-            }
-
-            $mats = $materias->filter(fn($m) => in_array($m->nombre, $materiasDelDia))
-                ->sortBy(fn($m) => array_search($m->nombre, $materiasDelDia))
-                ->values();
-
-            // Buscar horarios existentes para el mismo día de otros grupos en este turno
-            $horariosExistentes = GrupoHorario::whereIn('grupo_id', $grupoIds)
-                ->where('dia', $diaLower)
-                ->get();
-
-            // Calcular conflictos para cada bloque
-            $conflictCounts = [];
-            foreach ($bloques as $bIdx => $bRange) {
-                $conflictCounts[$bIdx] = 0;
-                foreach ($horariosExistentes as $h) {
-                    $horaHStart = substr($h->hora_inicio, 0, 5);
-                    $horaBStart = substr($bRange['inicio'], 0, 5);
-                    if ($horaHStart === $horaBStart) {
-                        $conflictCounts[$bIdx]++;
-                    }
-                }
-            }
-
-            // Ordenar por menor número de conflictos
-            asort($conflictCounts);
-            $selectedBlockIndices = array_slice(array_keys($conflictCounts), 0, count($mats));
-            sort($selectedBlockIndices);
-
-            foreach ($mats as $idx => $materia) {
-                $blockIdx = $selectedBlockIndices[$idx] ?? $idx;
-                $horario = $bloques[$blockIdx];
+            foreach ($materiasOrdenadas as $idx => $materia) {
+                $blockIdx = $idx % $numBloques;
+                $horario  = $bloques[$blockIdx];
                 $horarios[] = [
-                    'grupo_id' => $grupo->id,
-                    'materia_id' => $materia->id,
-                    'dia' => $diaLower,
+                    'grupo_id'    => $grupo->id,
+                    'materia_id'  => $materia->id,
+                    'dia'         => $diaLower,
                     'hora_inicio' => $horario['inicio'],
-                    'hora_fin' => $horario['fin'],
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'hora_fin'    => $horario['fin'],
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
                 ];
             }
         }
