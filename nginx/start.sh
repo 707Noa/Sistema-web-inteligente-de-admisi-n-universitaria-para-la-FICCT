@@ -11,8 +11,33 @@ server {
         root /var/www/certbot;
     }
 
+    location /api/ {
+        proxy_pass         http://backend:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+    }
+
+    location /ws/ {
+        proxy_pass         http://backend:${BACKEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade           \$http_upgrade;
+        proxy_set_header   Connection        "upgrade";
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
+    }
+
     location / {
-        return 301 https://$host$request_uri;
+        proxy_pass         http://frontend:${FRONTEND_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header   Host              \$host;
+        proxy_set_header   X-Real-IP         \$remote_addr;
+        proxy_set_header   X-Forwarded-For   \$proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto \$scheme;
     }
 }
 EOF
@@ -21,7 +46,21 @@ EOF
 write_https() {
   cat >/etc/nginx/conf.d/default.conf <<EOF
 server {
-    listen 443 ssl http2;
+    listen 80;
+    server_name ${FRONTEND_DOMAIN} ${API_DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://\$host\$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    http2;
     server_name ${FRONTEND_DOMAIN} ${API_DOMAIN};
 
     ssl_certificate     /etc/nginx/certs/fullchain.pem;
