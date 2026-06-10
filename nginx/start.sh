@@ -60,7 +60,7 @@ server {
 
 server {
     listen 443 ssl;
-    http2;
+    http2 on;
     server_name ${FRONTEND_DOMAIN} ${API_DOMAIN};
 
     ssl_certificate     /etc/nginx/certs/fullchain.pem;
