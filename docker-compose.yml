@@ -44,20 +44,6 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
       - APP_ENV=${APP_ENV:-local}
-      - APP_URL=${APP_URL:-http://localhost:${BACKEND_PORT:-8000}}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
-      - DATABASE_URL=${DATABASE_URL}
-      - DB_CONNECTION=${DB_CONNECTION:-pgsql}
-      - DB_HOST=${DB_HOST:-postgres}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_DATABASE=${DB_DATABASE:-cupficct}
-      - DB_USERNAME=${DB_USERNAME:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - JWT_SECRET=${JWT_SECRET}
-      - SESSION_SECRET=${SESSION_SECRET}
-      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
-      - SANCTUM_STATEFUL_DOMAINS=${SANCTUM_STATEFUL_DOMAINS:-localhost:5173,localhost:8000,127.0.0.1:5173}
-      - SESSION_DOMAIN=${SESSION_DOMAIN:-localhost}
     command: >
       sh -c "composer install &&
              php artisan key:generate --force &&
@@ -78,10 +64,6 @@ services:
       - backend
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
-    environment:
-      - VITE_API_URL=${API_URL:-http://localhost:8000/api}
-      - VITE_AI_URL=${AI_URL:-http://localhost/ai}
-      - VITE_WS_URL=${WS_URL:-ws://localhost/ws}
     command: >
       sh -c "npm install &&
              npm run dev -- --host 0.0.0.0"
@@ -105,6 +87,12 @@ services:
       - backend
       - frontend
     restart: unless-stopped
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+      - FRONTEND_DOMAIN=${FRONTEND_DOMAIN}
+      - API_DOMAIN=${API_DOMAIN}
+      - BACKEND_PORT=${BACKEND_PORT:-8000}
+      - FRONTEND_PORT=${FRONTEND_PORT:-5173}
     command: >
       sh -c 'if [ "${APP_ENV:-local}" = "prod" ]; then
                 # Start nginx in HTTP-only mode (serves ACME webroot). When certs exist, replace config and reload.
