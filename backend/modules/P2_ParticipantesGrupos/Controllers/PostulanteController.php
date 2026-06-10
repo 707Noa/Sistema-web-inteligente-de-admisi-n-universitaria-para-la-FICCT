@@ -605,7 +605,7 @@ class PostulanteController extends Controller
             $file = fopen('php://output', 'w');
             fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
 
-            fputcsv($file, ['ID', 'Nombre Completo', 'CI', 'Correo', 'Teléfono', '1ra Carrera', '2da Carrera', 'Estado', 'Grupo Asignado', 'Requisitos Completos', 'Fecha de Inscripción'], ';');
+            fputcsv($file, ['ID', 'Nombre Completo', 'CI', 'Correo', 'Teléfono', '1ra Carrera', 'Estado', 'Grupo Asignado', 'Requisitos Completos', 'Fecha de Inscripción'], ';');
 
             foreach ($postulantes as $p) {
                 fputcsv($file, [
@@ -615,7 +615,6 @@ class PostulanteController extends Controller
                     $p->email ?? '-',
                     $p->celular ?? '-',
                     $p->carrera_postulada ?? '—',
-                    ($p->carrera && $p->carrera !== $p->carrera_postulada) ? $p->carrera : '—',
                     $p->estado_tramite ?? '-',
                     $p->grupos->pluck('codigo')->implode(', ') ?: 'Sin asignar',
                     $p->requisitos_completos ? 'Sí' : 'No',

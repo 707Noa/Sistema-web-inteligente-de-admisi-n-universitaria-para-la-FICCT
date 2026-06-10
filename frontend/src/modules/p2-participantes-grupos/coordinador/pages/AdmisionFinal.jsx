@@ -274,14 +274,13 @@ export default function AdmisionFinal() {
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', minWidth: 1100 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', minWidth: 980 }}>
             <thead>
               <tr style={{ background: '#1565c0', color: '#fff' }}>
                 <th style={{ ...thBase, textAlign: 'left', paddingLeft: 14, minWidth: 160 }}>Nombre</th>
                 <th style={thBase}>CI</th>
                 <th style={thBase}>Registro</th>
                 <th style={{ ...thBase, minWidth: 120 }}>1ra Carrera</th>
-                <th style={{ ...thBase, minWidth: 120 }}>2da Carrera</th>
                 <th style={thBase}>Comp.</th>
                 <th style={thBase}>Mat.</th>
                 <th style={thBase}>Ing.</th>
@@ -302,7 +301,6 @@ export default function AdmisionFinal() {
                     <td style={tdBase}>{r.ci}</td>
                     <td style={{ ...tdBase, fontFamily: 'monospace', fontSize: '0.78rem' }}>{r.registro}</td>
                     <td style={{ ...tdBase, fontSize: '0.78rem' }}>{r.primera_carrera || '—'}</td>
-                    <td style={{ ...tdBase, fontSize: '0.78rem', color: 'var(--gray-500)' }}>{r.segunda_carrera || '—'}</td>
                     <td style={tdBase}><Nota valor={r.promedio_computacion} /></td>
                     <td style={tdBase}><Nota valor={r.promedio_matematicas} /></td>
                     <td style={tdBase}><Nota valor={r.promedio_ingles} /></td>

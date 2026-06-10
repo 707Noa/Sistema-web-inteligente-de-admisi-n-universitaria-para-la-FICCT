@@ -53,8 +53,7 @@ class AdmisionFinalController extends Controller
             ->when($request->filled('carrera_admitida'), fn($q) => $q->where('carrera_admitida', 'ilike', "%{$request->carrera_admitida}%"))
             ->when($request->filled('primera_carrera'),  fn($q) => $q->where('primera_carrera', 'ilike', "%{$request->primera_carrera}%"))
             ->when($request->filled('segunda_carrera'),  fn($q) => $q->where('segunda_carrera', 'ilike', "%{$request->segunda_carrera}%"))
-            ->orderByRaw("CASE WHEN estado_academico = 'aprobado' THEN 0 ELSE 1 END")
-            ->orderBy('promedio_final', 'desc')
+            ->orderByRaw("promedio_final DESC NULLS LAST")
             ->get();
 
         return response()->json($resultados->map(fn($r) => $this->formatResultado($r)));
@@ -77,9 +76,6 @@ class AdmisionFinalController extends Controller
             ], 409);
         }
 
-        // Limpiar resultados anteriores
-        AdmisionResultado::where('gestion', $gestion)->delete();
-
         // Resolver IDs de materias obligatorias
         $todasMaterias = Materia::all();
         $materiaIds    = $this->resolverMaterias($todasMaterias);
@@ -95,6 +91,15 @@ class AdmisionFinalController extends Controller
                 'total'   => 0,
             ]);
         }
+
+        // Validar que todos los postulantes tengan notas completas antes de modificar nada
+        $faltantes = $this->validarNotasCompletas($postulantes, $materiaIds);
+        if (!empty($faltantes)) {
+            return response()->json(['message' => $this->mensajeFaltantes($faltantes)], 422);
+        }
+
+        // Limpiar resultados anteriores (solo después de validar)
+        AdmisionResultado::where('gestion', $gestion)->delete();
 
         // Calcular resultado académico de cada postulante
         $todosResultados = [];
@@ -137,6 +142,59 @@ class AdmisionFinalController extends Controller
     }
 
     // ── Helpers privados ──────────────────────────────────────────────────────
+
+    private function validarNotasCompletas(Collection $postulantes, array $materiaIds): array
+    {
+        $labels = [
+            'computacion' => 'Computación',
+            'matematicas' => 'Matemáticas',
+            'ingles'      => 'Inglés',
+            'fisica'      => 'Física',
+        ];
+
+        $faltantes = [];
+
+        foreach ($postulantes as $postulante) {
+            $examenes = $postulante->examenes->keyBy('materia_id');
+            $materiasConFalta = [];
+
+            foreach ($materiaIds as $key => $mid) {
+                if ($mid === null) continue;
+                $e = $examenes->get($mid);
+                if (!$e || $e->nota_1 === null || $e->nota_2 === null || $e->nota_3 === null) {
+                    $materiasConFalta[] = $labels[$key] ?? $key;
+                }
+            }
+
+            if (!empty($materiasConFalta)) {
+                $faltantes[] = [
+                    'nombre'   => trim("{$postulante->nombres} {$postulante->apellidos}"),
+                    'materias' => $materiasConFalta,
+                ];
+            }
+        }
+
+        return $faltantes;
+    }
+
+    private function mensajeFaltantes(array $faltantes): string
+    {
+        if (count($faltantes) === 1) {
+            $f = $faltantes[0];
+            if (count($f['materias']) === 1) {
+                return "No se puede procesar la admisión final. Falta nota de {$f['nombre']} en {$f['materias'][0]}.";
+            }
+            $materiasStr = implode(', ', $f['materias']);
+            return "No se puede procesar la admisión final. A {$f['nombre']} le faltan notas en: {$materiasStr}.";
+        }
+
+        $total    = count($faltantes);
+        $primeros = array_slice($faltantes, 0, 3);
+        $nombres  = implode(', ', array_map(fn($f) => $f['nombre'], $primeros));
+        $extra    = $total > 3 ? " y " . ($total - 3) . " más" : '';
+
+        return "No se puede procesar la admisión final. Existen {$total} estudiantes con notas pendientes: {$nombres}{$extra}.";
+    }
 
     private function resolverMaterias(Collection $materias): array
     {

@@ -45,7 +45,7 @@ class AdmisionReporteController extends Controller
             fwrite($file, "\xEF\xBB\xBF"); // BOM UTF-8
 
             fputcsv($file, [
-                'Nombre', 'CI', 'Registro', 'Primera Carrera', 'Segunda Carrera',
+                'Nombre', 'CI', 'Registro', 'Primera Carrera',
                 'Prom. Computación', 'Prom. Matemáticas', 'Prom. Inglés', 'Prom. Física',
                 'Promedio Final', 'Estado Académico', 'Carrera Admitida', 'Estado Admisión', 'Motivo',
             ], ';');
@@ -57,7 +57,6 @@ class AdmisionReporteController extends Controller
                     $p?->ci ?? '—',
                     $p?->codigo_usuario ?? '—',
                     $r->primera_carrera ?? '—',
-                    $r->segunda_carrera ?? '—',
                     $r->promedio_computacion ?? '—',
                     $r->promedio_matematicas ?? '—',
                     $r->promedio_ingles ?? '—',

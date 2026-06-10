@@ -401,7 +401,6 @@ export default function CoordinadorPostulantes() {
                 <th>CI</th>
                 <th>Correo</th>
                 <th>1ra Carrera</th>
-                <th>2da Carrera</th>
                 <th>Turno Elegido</th>
                 <th>Requisitos</th>
                 <th>Estado</th>
@@ -431,9 +430,6 @@ export default function CoordinadorPostulantes() {
                   </td>
                   <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.carrera_postulada}>
                     {p.carrera_postulada || '—'}
-                  </td>
-                  <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.segunda_carrera || '—'}>
-                    {p.segunda_carrera || '—'}
                   </td>
                   <td>
                     {p.preferencia_turno === 'manana' ? (
@@ -502,7 +498,7 @@ export default function CoordinadorPostulantes() {
               ))}
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={11} style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>
+                  <td colSpan={10} style={{ textAlign: 'center', padding: 40, color: 'var(--gray-400)' }}>
                     Sin postulantes registrados
                   </td>
                 </tr>
@@ -621,12 +617,6 @@ export default function CoordinadorPostulantes() {
                     <label className="form-label">1ra Carrera</label>
                     <input className="form-input" value={formData.carrera_postulada || ''}
                       onChange={e => setFormData({ ...formData, carrera_postulada: e.target.value })} />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">2da Carrera</label>
-                    <input className="form-input" value={formData.carrera || ''}
-                      onChange={e => setFormData({ ...formData, carrera: e.target.value })} />
                   </div>
 
                   <div className="form-group">
