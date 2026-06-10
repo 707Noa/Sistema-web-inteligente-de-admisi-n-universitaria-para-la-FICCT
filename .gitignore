@@ -20,3 +20,9 @@ frontend/.vite/
 frontend/node_modules/
 backend/vendor/
 backend/public/storage
+
+# Certificados SSL (nunca subir al repositorio)
+nginx/certs/*.pem
+nginx/certs/*.key
+nginx/certs/*.crt
+nginx/certs/*.csr
