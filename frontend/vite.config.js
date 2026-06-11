@@ -9,9 +9,13 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  server: { 
-    host: true, 
+  server: {
+    host: true,
     port: 5173,
+    allowedHosts: [
+      'app-primerpacialswsi.duckdns.org'
+    ],
+    hmr: false,
     watch: {
       usePolling: true
     }

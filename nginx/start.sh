@@ -149,15 +149,17 @@ EOF
 
 if [ "${APP_ENV:-local}" = "prod" ]; then
   write_http_only
-  nginx -g "daemon off;" &
+
   while [ ! -f /etc/nginx/certs/fullchain.pem ] || [ ! -f /etc/nginx/certs/privkey.pem ]; do
     echo "Waiting for TLS certificates..."
     sleep 2
   done
+
   write_https
-  nginx -s reload
-  wait
+  nginx -t
+  exec nginx -g "daemon off;"
 else
   write_local
-  nginx -g "daemon off;"
+  nginx -t
+  exec nginx -g "daemon off;"
 fi
