@@ -39,7 +39,7 @@ class ForgotPasswordController extends Controller
         );
 
         // Enviar correo
-        $resetUrl = env('FRONTEND_URL', 'http://localhost:5173') . '/reset-password/' . $token . '?email=' . urlencode($request->email);
+        $resetUrl = env('FRONTEND_URL', env('APP_URL', 'http://localhost:5173')) . '/reset-password/' . $token . '?email=' . urlencode($request->email);
 
         try {
             Mail::raw(

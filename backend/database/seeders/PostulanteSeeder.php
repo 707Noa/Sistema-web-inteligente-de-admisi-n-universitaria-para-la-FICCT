@@ -28,11 +28,12 @@ class PostulanteSeeder extends Seeder
         $ci1 = '9000001';
         $email1 = 'postulante1@sistema.com';
         $codigo1 = '2026' . strrev($ci1);
-        $post1 = Postulante::create([
+        $post1 = Postulante::updateOrCreate([
+            'email' => $email1,
+        ], [
             'nombres'             => 'Pedro',
             'apellidos'           => 'Postulante Uno',
             'ci'                  => $ci1,
-            'email'               => $email1,
             'celular'             => '71111111',
             'carrera_postulada'   => $carreras->first()->nombre,
             'colegio_procedencia' => 'Colegio Nacional Uno',
@@ -46,9 +47,10 @@ class PostulanteSeeder extends Seeder
             'preferencia_turno'   => 'manana',
         ]);
  
-        $user1 = User::create([
+        $user1 = User::updateOrCreate([
+            'email' => $email1,
+        ], [
             'name'                 => 'Pedro Postulante Uno',
-            'email'                => $email1,
             'ci'                   => $ci1,
             'password'             => Hash::make($ci1), // Contraseña inicial es el CI
             'role_id'              => $rolePostulante->id,
@@ -63,11 +65,12 @@ class PostulanteSeeder extends Seeder
         $ci2 = '9000002';
         $email2 = 'postulante2@sistema.com';
         $codigo2 = '2026' . strrev($ci2);
-        $post2 = Postulante::create([
+        $post2 = Postulante::updateOrCreate([
+            'email' => $email2,
+        ], [
             'nombres'             => 'Ana',
             'apellidos'           => 'Postulante Dos',
             'ci'                  => $ci2,
-            'email'               => $email2,
             'celular'             => '72222222',
             'carrera_postulada'   => $carreras->skip(1)->first()?->nombre ?? $carreras->first()->nombre,
             'colegio_procedencia' => 'Colegio Nacional Dos',
@@ -81,9 +84,10 @@ class PostulanteSeeder extends Seeder
             'preferencia_turno'   => 'tarde',
         ]);
  
-        $user2 = User::create([
+        $user2 = User::updateOrCreate([
+            'email' => $email2,
+        ], [
             'name'                 => 'Ana Postulante Dos',
-            'email'                => $email2,
             'ci'                   => $ci2,
             'password'             => Hash::make($ci2), // Contraseña inicial es el CI
             'role_id'              => $rolePostulante->id,
@@ -109,11 +113,12 @@ class PostulanteSeeder extends Seeder
             $preferencia_turno = $turnos[array_rand($turnos)];
             $codigo_usuario = '2026' . strrev($ci);
  
-            $post = Postulante::create([
+            $post = Postulante::updateOrCreate([
+                'email' => $email,
+            ], [
                 'nombres'             => $nombres,
                 'apellidos'           => $apellidos,
                 'ci'                  => $ci,
-                'email'               => $email,
                 'celular'             => $celular,
                 'carrera_postulada'   => $carrera,
                 'colegio_procedencia' => 'Colegio Nacional ' . $i,
@@ -127,9 +132,10 @@ class PostulanteSeeder extends Seeder
                 'preferencia_turno'   => $preferencia_turno,
             ]);
  
-            $user = User::create([
+            $user = User::updateOrCreate([
+                'email' => $email,
+            ], [
                 'name'                 => trim($nombres . ' ' . $apellidos),
-                'email'                => $email,
                 'ci'                   => $ci,
                 'password'             => Hash::make($ci),
                 'role_id'              => $rolePostulante->id,

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    @php $postulanteLoginUrl = env('FRONTEND_URL', env('APP_URL', 'http://localhost:5173')) . '/postulante/login'; @endphp
     <meta charset="utf-8">
     <title>Cuenta de acceso - Portal de Cursos Preuniversitarios</title>
     <style>
@@ -105,7 +106,7 @@
                 </div>
                 <div class="credential-item" style="margin-top: 15px;">
                     <span class="credential-label">URL de ingreso:</span> 
-                    <a href="http://localhost:5173/postulante/login" target="_blank" style="color: #1a3a6b; font-weight: bold; text-decoration: underline;">http://localhost:5173/postulante/login</a>
+                    <a href="{{ $postulanteLoginUrl }}" target="_blank" style="color: #1a3a6b; font-weight: bold; text-decoration: underline;">{{ $postulanteLoginUrl }}</a>
                 </div>
             </div>
 

@@ -173,7 +173,7 @@ class CuentaUsuarioService
         }
 
         // 7. Enviar Correo con instrucciones de acceso
-        $urlLogin = env('FRONTEND_URL', 'http://localhost:5173') . '/login';
+        $urlLogin = env('FRONTEND_URL', env('APP_URL', 'http://localhost:5173')) . '/login';
         
         try {
             Mail::to($email)->send(new CuentaUsuarioMail(

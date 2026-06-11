@@ -282,8 +282,8 @@ class PreinscripcionController extends Controller
                     ],
                     'quantity' => 1,
                 ]],
-                'success_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/pago/exitoso?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/preinscripcion?cancelado=true&id=' . $id,
+                'success_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost:5173')) . '/pago/exitoso?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost:5173')) . '/preinscripcion?cancelado=true&id=' . $id,
                 'metadata' => [
                     'preinscripcion_temporal_id' => $id,
                 ],
@@ -1047,8 +1047,8 @@ class PreinscripcionController extends Controller
                     ],
                     'quantity' => 1,
                 ]],
-                'success_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/pago/exitoso?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => env('FRONTEND_URL', 'http://localhost:5173') . '/preinscripcion?cancelado=true&id=' . $temp->id,
+                'success_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost:5173')) . '/pago/exitoso?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => env('FRONTEND_URL', env('APP_URL', 'http://localhost:5173')) . '/preinscripcion?cancelado=true&id=' . $temp->id,
                 'metadata' => [
                     'preinscripcion_pendiente_id' => $temp->id,
                     'ci' => $temp->ci,
